@@ -5,7 +5,7 @@ Created on Jul 27, 2011
 '''
 import ctypes
 import _ast
-from opencl.util import range_args, CIter, OpenCLType
+from clyther.util import range_args, CIter, OpenCLType
 
 
 class CLIterable(type):

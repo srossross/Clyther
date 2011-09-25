@@ -7,13 +7,17 @@ from __future__ import print_function
 
 from asttools import Visitor
 from asttools import print_ast
-from opencl.util import Ctype, clfunc, CIter, requires_slice_expansion
+from clyther.util import Ctype, clfunc, CIter, requires_slice_expansion
 from ccode.buffer import Buffer, SimpleType, ComplexType
 import _ast
 import ctypes
 import inspect
 
 def cl_iter_size(value, subscript):
+    '''
+    Size of the iterable ast `value` with the
+    :returns: ast node 
+    '''
     ctype = value.ctype
     if issubclass(ctype, Buffer):
         return Buffer.__cl_iter_size__(value, subscript)
@@ -28,7 +32,9 @@ def cl_iter_assign(value, subscript, idx):
         return ctype.__cl_iter_assign__(value, subscript, idx)
 
 class MBody(object):
-
+    '''
+    Test class
+    '''
     def __init__(self, *args):
         self._list = list(*args)
 
@@ -51,7 +57,15 @@ class OpenCL_AST(Visitor):
         self.filename = filename
 
     def visit_func(self, node, cohash, scope, kernel=True):
-
+        '''
+        visit a function node and add it to the module 
+        
+        :param node: ast function node  
+        :param cohash: hash of the code object  
+        :param scope: scope object
+        :param kernel: flag - is this a kernel or a device function
+          
+        '''
         self.scope = scope
         node.forward_declarations = []
         self.visit(node)
@@ -71,38 +85,6 @@ class OpenCL_AST(Visitor):
         node.name = name
 
         self.scope.base.define_function(node.name, node, cohash)
-
-#    def defined_local(self, node):
-#        if isinstance(node, _ast.Name):
-#            if node.id in self.scope.locals:
-#                return True
-#            else:
-#                return False
-#
-#        elif isinstance(node, _ast.Subscript):
-#            return self.defined_local(node.value)
-#        else:
-#            raise Exception("unhandled expression to define %r", type(node))
-#
-#    def defined(self, node):
-#        if isinstance(node, _ast.Name):
-#            if node.id in self.scope:
-#                return True
-#            else:
-#                return False
-#        elif isinstance(node, _ast.Subscript):
-#            return self.defined(node.value)
-#        else:
-#            raise Exception("unhandled expression to define %r", type(node))
-#
-#
-#    def define(self, node):
-#        assert self.scope.define
-#        if isinstance(node, _ast.Name):
-#            self.scope.define
-#            self.forward_declarations.append(CDec(id=node.id, type=node.ctype, initial_value=None))
-#        else:
-#            raise Exception()
 
     def visitFunctionDef(self, node):
 

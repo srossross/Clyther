@@ -33,7 +33,6 @@ def do_somthing(a, b):
         vec[0] = 1;
         break;
         """
-    
     return
 
 def main():

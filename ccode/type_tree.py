@@ -33,7 +33,7 @@ def format_args(argnames, varargs, kwargs):
 
 class FType(object):
     def __init__(self, cohash, args=None, ctype=None):
-        from opencl import Undefined
+        from clyther import Undefined
 
         self.cohash = cohash
 
@@ -359,3 +359,6 @@ class TypeTree(Visitor):
 
     visitAdd = dont_visit
 
+def typeify(filename, node):
+    TypeTree(filename).visit(node)
+    

@@ -2,33 +2,32 @@
 Created on Jul 25, 2011
 
 @author: sean
+
+
 '''
 from __future__ import print_function
-from decompile import decompile_func
-import marshal
-from os.path import splitext
-from ccode.type_tree import TypeTree, format_args
-from asttools import Visitor
+
 from StringIO import StringIO
+from asttools import Visitor, print_ast
+from ccode.type_tree import TypeTree, format_args
+from clyther.scope import Scope
+from clyther.sourcegen import OpenCLSourceGen, type_to_str
+from decompile import decompile_func
+from mutator import OpenCL_AST
+from os.path import exists, getmtime, splitext
 from string import Formatter
-import numpy as np
-import weakref
+from util import *
 import _ast
-import pyopencl as cl #@UnresolvedImport
-import atexit
 import _ctypes
-import ctypes
+import atexit
+import inspect
+import marshal
+import numpy as np
+import pyopencl as cl #@UnresolvedImport
 import struct
 import time
-from mutator import OpenCL_AST
-from opencl.scope import Scope
-from opencl.sourcegen import OpenCLSourceGen, type_to_str
-from os.path import getmtime
-from os.path import exists
+import weakref
 
-from util import *
-import inspect
-from asttools import print_ast
 
 def format_argctypes(func, cdefs, kwcdefs):
 
@@ -197,7 +196,19 @@ class PyKernel(object):
         return constants
 
     def compile_no_cache(self, ctx, **kwcdefs):
+        '''
+        kernel compilation steps:
+         
+         * convert positional and keyword arguments to dict.
+         * decompile function and create type tree.
+         * create c_ast module node.  
+         * get global and argument types 
+             * define complex types and functions. if not in module level scope
+             * Remove constant arguments.
+         * convert python ast to opencl ast.
+         *  
 
+        '''
 #        constants = self.split_constants(kwcdefs)
 
         module = _ast.Module(body=[], lineno=0, col_offset=0)

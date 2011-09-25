@@ -4,11 +4,11 @@ Created on Jul 29, 2011
 @author: sean
 '''
 from __future__ import print_function
-from opencl.mutator import OpenCL_AST
-from opencl.pybuiltins import builtin_map
-from opencl.util import CDec, SimpleType, ComplexType, get_names, \
+from clyther.mutator import OpenCL_AST
+from clyther.pybuiltins import builtin_map
+from clyther.util import CDec, SimpleType, ComplexType, get_names, \
     Reductor
-from ccode.type_tree import TypeTree, FType
+from ccode.type_tree import TypeTree, FType, typeify
 from decompile import decompile_func
 import _ast
 import inspect
@@ -156,7 +156,7 @@ class Scope(object):
 
     def typeof(self, key):
 
-        from opencl import Undefined
+        from clyther import Undefined
         ctype = Undefined
 
         if self.in_globals(key):
@@ -231,9 +231,8 @@ class Scope(object):
     def make_function(self, function, argtypes, kernel=False):
 
         ast = decompile_func(function)
-
-        mutator = TypeTree(function.func_code.co_filename)
-        mutator.visit(ast)
+        
+        typeify(function.func_code.co_filename, ast)
 
         for key in self.constants.keys():
             if key in argtypes:
