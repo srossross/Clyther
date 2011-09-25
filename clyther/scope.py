@@ -69,7 +69,6 @@ class Scope(object):
         else:
             return False
 
-
     @property
     def base(self):
         if self.parent is None:

@@ -3,7 +3,7 @@ Created on Jul 25, 2011
 
 @author: sean
 '''
-from opencl import kernel, get_global_id, PyKernel
+from clyther import kernel, get_global_id, PyKernel
 import pyopencl as cl
 from ccode.buffer import int_p
 
