@@ -14,12 +14,10 @@ from clyther.scope import Scope
 from clyther.sourcegen import OpenCLSourceGen, type_to_str
 from decompile import decompile_func
 from mutator import OpenCL_AST
-from os.path import exists, getmtime, splitext
-from string import Formatter
+from os.path import splitext
 from util import *
 import _ast
 import _ctypes
-import atexit
 import inspect
 import marshal
 import numpy as np
@@ -27,9 +25,20 @@ import pyopencl as cl #@UnresolvedImport
 import struct
 import time
 import weakref
+from clyther.clydb import FileDB
 
 
 def format_argctypes(func, cdefs, kwcdefs):
+    '''
+    returns a dictionary of keyword arguemens from positional and 
+    keyword arguments
+    
+    :param func: a function 
+    :param cdefs: positional arguments
+    :param kwcdefs: keyword arguments
+     
+    '''
+    
 
     code = func.func_code
 
@@ -39,7 +48,10 @@ def format_argctypes(func, cdefs, kwcdefs):
 
 
 def bind(global_size, local_size=None):
-
+    '''
+    decorator to bind global_size, local_size to be dependant 
+    on the arguments.
+    '''
     def decorator(py_kernel):
         py_kernel.set_binding(global_size, local_size)
         return py_kernel
@@ -47,7 +59,10 @@ def bind(global_size, local_size=None):
     return decorator
 
 def kernel(**cdefs):
-
+    '''
+    decorator to create a opencl kernel from a 
+    python function.
+    '''
     def decorator(func):
         return PyKernel(func, cdefs)
 
@@ -57,100 +72,12 @@ class ComileTimeClosure(object):
     def __init__(self, value):
         self.value = value
 
-class FileDB(object):
-    magic = 0x123abc
-    __singletons__ = {}
-    def __init__(self, file_key, filebase):
-        self.__dict__ = type(self).__singletons__.setdefault(file_key, {})
-        if not self.__dict__:
-            self.init(file_key, filebase)
-
-    def init(self, file_key, filebase):
-
-        self.file_key = file_key
-
-        atexit.register(self.store)
-
-        if exists(file_key):
-            with open(self.file_key, 'rb') as db:
-                m = db.read(4)
-                magic = struct.unpack('L', m)[0]
-                if magic != self.magic:
-                    self.init_no_file()
-                    return
-
-                fmodtime = struct.unpack('L', db.read(4))[0]
-
-                if getmtime(filebase + '.py') > fmodtime:
-                    self.init_no_file()
-                    return
-
-                self._file_modification_time = fmodtime
-                self.modification_time = fmodtime
-
-                self.raw_data = marshal.load(db)
-        else:
-            self.init_no_file()
-
-
-
-    def init_no_file(self):
-
-        self.modification_time = int(time.time())
-        self._file_modification_time = self.modification_time - 1
-        self.raw_data = {}
-
-    def store(self):
-        if self._file_modification_time == self.modification_time:
-            return
-
-        with open(self.file_key, 'wb') as db:
-            m = struct.pack('L', self.magic)
-            db.write(m)
-            t = struct.pack('L', int(time.time()))
-            db.write(t)
-            marshal.dump(self.raw_data, db)
-
-    def __contains__(self, key):
-        ctx, arghash, codehash = key
-
-        if codehash not in self.raw_data:
-            return False
-        if arghash not in self.raw_data[codehash]:
-            return False
-
-        return True
-
-    def __setitem__(self, key, value):
-        ctx, arghash, codehash = key
-
-        codespec = self.raw_data.setdefault(codehash, {})
-
-        codespec[arghash] = value.raw()
-
-        self.modification_time = int(time.time())
-
-    def __getitem__(self, key):
-        ctx, func, cdefs = key
-
-        codehash = hash(func.func_code)
-
-        arghash = tuple(((name, type_to_str(cdefs[name])) for name in sorted(cdefs.keys())))
-
-        raw = self.raw_data[codehash][arghash]
-
-        src = raw['src']
-        bin = raw['bin']
-
-        devices = ctx.get_info(cl.context_info.DEVICES)
-
-        prog = cl._cl._Program(ctx, devices=devices, binaries=bin)
-        prog.build()
-
-        return CompiledKernel(func, prog, cdefs, src)
-
 
 class PyKernel(object):
+    '''
+    Intermediat object to store the python function 
+    before the cdefs have been determined 
+    '''
     use_cache = True
     def __init__(self, func, cdefs):
         self._cdefs = cdefs
@@ -183,6 +110,11 @@ class PyKernel(object):
         return FileDB(name + '.cly', name)
 
     def split_constants(self, kwcdefs):
+        '''
+        remove the constant types from a dict.
+        
+        constant types are functions and types. 
+        '''
         constants = {}
 
         for key, value in kwcdefs.items():
@@ -234,7 +166,9 @@ class PyKernel(object):
         return CompiledKernel(self._func, prog, argctypes=kwcdefs, src=src)
 
     def compile(self, ctx, *cdefs, **kwcdefs):
-
+        '''
+        Like compile 
+        '''
         _cdefs = format_argctypes(self._func, cdefs, kwcdefs)
 
         if type(self).use_cache:
@@ -259,7 +193,9 @@ class PyKernel(object):
 class Undefined(object): pass
 
 class CompiledKernel(object):
-
+    '''
+    holds a pyopencl kernel object. 
+    '''
     def __init__(self, func, prog, argctypes, src):
         self.func = func
         self.prog = prog

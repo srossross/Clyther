@@ -18,7 +18,6 @@ def f1(ff, x):
 
 gid = get_global_id
 
-
 i = 1
 
 @kernel()

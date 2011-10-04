@@ -2,6 +2,8 @@
 Created on Jul 27, 2011
 
 @author: sean
+
+Used to convert python builtins 
 '''
 import ctypes
 import _ast

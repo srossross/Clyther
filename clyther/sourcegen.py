@@ -11,6 +11,7 @@ import weakref
 import _ast
 import ctypes
 from ccode.buffer import ComplexType, Buffer
+import inspect
 
 
 ctype_map = {
@@ -26,6 +27,8 @@ def type_to_str(ctype):
         return 'void'
     elif ctype in ctype_map:
         return ctype_map[ctype]
+    elif inspect.isfunction(ctype):
+        return '<function>' 
     elif issubclass(ctype, Buffer):
         glob = '__global ' if getattr(ctype, '_global', False) else ''
         const = 'const ' if getattr(ctype, '_const', False) else ''

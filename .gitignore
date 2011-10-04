@@ -1,3 +1,6 @@
 *.pyc
 .project
 .pydevprojectbuild
+.settings
+build
+*.cly
