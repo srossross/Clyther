@@ -1,0 +1,171 @@
+Index: lib/clyther/memory.py
+===================================================================
+--- lib/clyther/memory.py	(revision 17)
++++ lib/clyther/memory.py	(working copy)
+@@ -91,7 +91,7 @@
+             cl.MemBuffer.__init__( self, context, flags, self.nbytes, host_buffer=host_buffer)
+         
+         if desc==None:
+-            desc = CLMemHelper( (0,0,0),self.shape,(1,1,1),self.shape,self.size )
++            desc = CLMemHelper( (0,0,0),(1,1,1),self.shape,self.shape,self.size )
+             
+         self.mem_desc = desc
+         
+Index: src/pyopencl.h
+===================================================================
+--- src/pyopencl.h	(revision 17)
++++ src/pyopencl.h	(working copy)
+@@ -102,7 +102,6 @@
+ } Py_CL_Plat;
+ 
+ 
+-#define PyOpenCL_API_pointers 8
+ 
+ #define PyOpenCL_DeviceType_NUM 0
+ #define PyOpenCL_ContextType_NUM 1
+@@ -112,7 +111,9 @@
+ #define PyOpenCL_KernelType_NUM 5
+ #define PyOpenCL_CommandQueueType_NUM 6
+ #define PyOpenCL_PlatType_NUM 7
++#define PyCL_Error_NUM 8
+ 
++#define PyOpenCL_API_pointers 9
+ 
+ #ifdef PyOpenCL_MODULE
+ 
+Index: src/opencl_wrap.c
+===================================================================
+--- src/opencl_wrap.c	(revision 17)
++++ src/opencl_wrap.c	(working copy)
+@@ -32,7 +32,7 @@
+ 
+ 	if ( err == CL_SUCCESS )
+ 	{
+-//		PyErr_SetString( PyExc_Exception, "Unknown OpenCL error" );
++		PyErr_SetString( PyExc_Exception, "Unknown OpenCL error" );
+ 		return 0;
+ 	}
+ 	else if ( err == CL_INVALID_DEVICE )
+@@ -199,7 +199,9 @@
+ 	}
+ 	else
+ 	{
+-		PyErr_SetString( PyExc_Exception, "Unknown OpenCL error" );
++		char msg[80];
++		snprintf( msg, sizeof(msg), "OpenCL: Unknown OpenCL error %d", err );
++		PyErr_SetString( PyExc_Exception, msg );
+ 		return 1;
+ 	}
+ 
+@@ -1228,6 +1230,7 @@
+ 		if (! PyObject_TypeCheck( pdev, (PyTypeObject*)(&Py_CL_DeviceType) ) )
+ 		{
+ 			PyErr_SetString( PyExc_ValueError, "first argument must be a list of opencl.device objects");
++			free(devices);
+ 			return 0;
+ 		}
+ 
+@@ -1244,25 +1247,37 @@
+ //	tmp = self->data;
+ 
+ 	self->data = PyTuple_New(2);
+-	if (!self->data)
++	if (!self->data) 
++	{
++		free(devices);
+ 		return 0;
++	}
+ 
+ 	PyTuple_SetItem( self->data, 0, pfn_notify );
+ 	PyTuple_SetItem( self->data, 1, user_data );
+ 
++	// PAK: if you've selected a platform, need to use it here somehow
++	// cl_platform_id platform;
++	// errcode_ret = clGetPlatformIDs( 1, &platform, NULL);
++	// if ( PyCL_Error(errcode_ret) ) { free(devices); return -1; }
++	// cl_context_properties props[3];
++	// props[0] = CL_CONTEXT_PLATFORM;
++	// props[1] = platform;
++	// props[2] = 0; 
++	cl_context_properties *props = NULL;
+ 	if (pfn_notify == Py_None)
+ 	{
+-		self->context = clCreateContext( 0, num_devices, devices, 0, 0, &errcode_ret);
++		self->context = clCreateContext( props, num_devices, devices, 0, 0, &errcode_ret);
+ 	}
+ 	else
+ 	{
+-		self->context = clCreateContext( 0, num_devices, devices, Python_pfn_notify, (void*) self->data, &errcode_ret);
++		self->context = clCreateContext( props, num_devices, devices, Python_pfn_notify, (void*) self->data, &errcode_ret);
+ 	}
+ 
++	free(devices);
+ 
+ 	if ( PyCL_Error(errcode_ret) ) return -1;
+ 
+-	free(devices);
+ 
+ 	return 0;
+ }
+@@ -3792,14 +3807,18 @@
+ 
+ 	cl_int err;
+ 
+-	err = clGetDeviceIDs( 0, device_type, 0, 0, &num_devices );
++	// PAK: must select platform first
++	cl_platform_id platform;
++	err = clGetPlatformIDs( 1, &platform, NULL);
+ 
++	err = clGetDeviceIDs( platform, device_type, 0, 0, &num_devices );
++
+ 	if (PyCL_Error(err)) return 0;
+ 
+ 	num_entries = num_devices;
+ 	devices = malloc( sizeof(cl_device_id)*num_devices );
+ 
+-	err = clGetDeviceIDs( 0, device_type, num_entries, devices, &num_devices );
++	err = clGetDeviceIDs( platform, device_type, num_entries, devices, &num_devices );
+ 
+ 	if ( err != CL_SUCCESS )
+ 	{
+Index: examples/example.py
+===================================================================
+--- examples/example.py	(revision 17)
++++ examples/example.py	(working copy)
+@@ -41,6 +41,14 @@
+     b = x-y
+     a[gid] = loc + b
+ 
++@clyther.kernel
++@clyther.bind('global_work_size' ,'a.size')
++@clyther.bind('local_work_size' , 1)
++def zeros(a):
++    i = clrt.get_global_id(0)
++    a[i] = 0
++
++
+ #===============================================================================
+ # Setup OpenCL
+ #===============================================================================
+@@ -57,6 +65,7 @@
+ size = 16
+ host_result = np.zeros( [size], dtype=np.float32 )
+ device_buffer = clyther.DeviceBuffer( [size], c_float, clyther.mem.read_write, context=context )
++zeros(device_buffer,context=context,queue=queue)
+ 
+ 
+ #===============================================================================
+Index: examples/sum.py
+===================================================================
+--- examples/sum.py	(revision 17)
++++ examples/sum.py	(working copy)
+@@ -34,7 +34,8 @@
+ #===============================================================================
+ clyther.init('GPU')
+ devices = cl.get_devices(  'GPU' )
+-context = cl.Context( devices)
++#context = clyther.get_context()
++context = cl.Context( [devices[0]] )
+ queue = cl.CommandQueue( context, context.devices[0] )	
+ size=10
+ 

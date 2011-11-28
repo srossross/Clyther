@@ -1,0 +1,11 @@
+include *.txt
+include src/*.h
+recursive-include examples *.py
+
+
+include doc/*
+recursive-include doc *
+prune doc/tools/docutils
+prune doc/tools/jinja2
+prune doc/tools/pygments
+prune doc/tools/sphinx
