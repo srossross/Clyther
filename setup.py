@@ -7,7 +7,11 @@ Created on Sep 24, 2011
 from setuptools import setup, find_packages, Extension
 from Cython.Distutils.build_ext import build_ext
 
-copencl = Extension('opencl.copencl', ['opencl/copencl.pyx'], extra_link_args=['-framework', 'OpenCL'],)
+import numpy
+include_dirs = numpy.get_include()
+
+copencl = Extension('opencl.copencl', ['opencl/copencl.pyx'], extra_link_args=['-framework', 'OpenCL'], include_dirs=[include_dirs])
+
 setup(
     name='Clyther',
     cmdclass={'build_ext': build_ext},

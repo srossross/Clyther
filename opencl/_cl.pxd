@@ -29,13 +29,15 @@ cdef extern from "OpenCL/cl.h":
     
     enum: 
         CL_SUCCESS
-        CL_INVALID_PLATFORM
-        CL_INVALID_PROGRAM
         CL_INVALID_VALUE
-        CL_INVALID_VALUE
-        CL_INVALID_DEVICE
         CL_INVALID_BINARY
+        CL_INVALID_BUFFER_SIZE
         CL_INVALID_BUILD_OPTIONS
+        CL_INVALID_CONTEXT
+        CL_INVALID_DEVICE
+        CL_INVALID_EVENT
+        CL_INVALID_HOST_PTR  
+        CL_INVALID_KERNEL_NAME
         CL_INVALID_OPERATION
         CL_INVALID_KERNEL_NAME
         CL_INVALID_COMMAND_QUEUE
@@ -44,7 +46,9 @@ cdef extern from "OpenCL/cl.h":
         CL_INVALID_EVENT_WAIT_LIST
         CL_INVALID_PROPERTY
         CL_INVALID_DEVICE_TYPE
+        CL_INVALID_PROGRAM
         CL_INVALID_PROGRAM_EXECUTABLE
+        CL_INVALID_PLATFORM
         CL_INVALID_KERNEL
         CL_INVALID_KERNEL_ARGS
         CL_INVALID_WORK_DIMENSION
@@ -62,15 +66,21 @@ cdef extern from "OpenCL/cl.h":
         CL_MEM_OBJECT_ALLOCATION_FAILURE        
         CL_DEVICE_NOT_AVAILABLE
         CL_COMPILER_NOT_AVAILABLE
+        
         CL_BUILD_PROGRAM_FAILURE  
         CL_INVALID_OPERATION
         CL_OUT_OF_HOST_MEMORY
         
         CL_OUT_OF_RESOURCES
         CL_DEVICE_NOT_FOUND
+        CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST
 
     ctypedef int *intptr_t
     
+    enum cl_map_flags:
+        CL_MAP_READ
+        CL_MAP_WRITE
+        
     enum cl_platform_info: 
         CL_PLATFORM_PROFILE
         CL_PLATFORM_VERSION
@@ -85,6 +95,13 @@ cdef extern from "OpenCL/cl.h":
         CL_DEVICE_TYPE_DEFAULT
         CL_DEVICE_TYPE_ALL
         
+    enum cl_mem_flags:
+        CL_MEM_READ_WRITE
+        CL_MEM_READ_ONLY
+        
+        CL_MEM_USE_HOST_PTR
+        CL_MEM_ALLOC_HOST_PTR
+        CL_MEM_COPY_HOST_PTR
         
     enum cl_device_info:
         CL_DEVICE_TYPE
@@ -405,9 +422,12 @@ cdef extern from "OpenCL/cl.h":
 
     cl_int clSetUserEventStatus(cl_event, cl_int)
     
-    
     cl_int clEnqueueCopyBufferRect(cl_command_queue, cl_mem, cl_mem, size_t[3], size_t[3], size_t[3], size_t, size_t, size_t, size_t, cl_uint, cl_event *, cl_event *)
     
+    cl_mem clCreateSubBuffer (cl_mem,  cl_mem_flags, cl_buffer_create_type, void *, cl_int *)
     
 cdef extern from "OpenCL/cl_gl.h":
+    
     cl_mem clCreateFromGLBuffer(cl_context, cl_mem_flags, unsigned, cl_int*)
+
+    

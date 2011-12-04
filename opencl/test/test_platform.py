@@ -45,14 +45,22 @@ class Test(unittest.TestCase):
         
         ctx = Context(device_type=Device.CPU)
         queue = Queue(ctx, ctx.devices[0])
-    
-        def printfoo():
-            print "foo"
+
+        global foo
+        
+        foo = 0
+        
+        def incfoo(arg, op=lambda a, b: 0):
+            global foo
+            foo = op(foo, arg)
             
-        queue.enqueue_native_kernel(printfoo)
+        queue.enqueue_native_kernel(incfoo, 4, op=lambda a, b: a + b)
+        queue.enqueue_native_kernel(incfoo, 3, op=lambda a, b: a * b)
         
         queue.finish()
         
+        self.assertEqual(foo, 12)
+
 class TestContext(unittest.TestCase):
     def test_properties(self):
         platform = get_platforms()[0]
