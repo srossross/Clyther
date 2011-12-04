@@ -2,6 +2,29 @@
 
 from _cl_platform cimport *
 
+cdef extern from "OpenCL/cl_gl_ext.h":
+    enum gl_context_properties:
+        CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
+
+cdef extern from "OpenGL/gl.h":
+    void* CGLGetCurrentContext()
+    void* CGLGetShareGroup(void*)
+    
+    ctypedef unsigned GLuint
+    ctypedef void GLvoid
+    ctypedef size_t GLsizeiptr
+    
+    enum GLenum:
+        GL_ARRAY_BUFFER
+        GL_STATIC_DRAW
+        GL_NO_ERROR
+    
+    void glGenBuffers(size_t, GLuint*)
+    void glBindBuffer(GLenum, GLuint)
+    void glBufferData(GLenum, GLsizeiptr, GLvoid*, GLenum)
+    
+    GLenum glGetError() 
+    
 cdef extern from "OpenCL/cl.h":
     
     enum: 
@@ -14,11 +37,37 @@ cdef extern from "OpenCL/cl.h":
         CL_INVALID_BINARY
         CL_INVALID_BUILD_OPTIONS
         CL_INVALID_OPERATION
+        CL_INVALID_KERNEL_NAME
+        CL_INVALID_COMMAND_QUEUE
+        CL_INVALID_CONTEXT
+        CL_INVALID_MEM_OBJECT
+        CL_INVALID_EVENT_WAIT_LIST
+        CL_INVALID_PROPERTY
+        CL_INVALID_DEVICE_TYPE
+        CL_INVALID_PROGRAM_EXECUTABLE
+        CL_INVALID_KERNEL
+        CL_INVALID_KERNEL_ARGS
+        CL_INVALID_WORK_DIMENSION
+        CL_INVALID_GLOBAL_WORK_SIZE
+        CL_INVALID_GLOBAL_OFFSET
+        CL_INVALID_WORK_GROUP_SIZE
+        CL_INVALID_WORK_ITEM_SIZE
+        CL_INVALID_IMAGE_SIZE
+        CL_INVALID_ARG_INDEX
+        CL_INVALID_ARG_VALUE
+        CL_INVALID_SAMPLER
+        CL_INVALID_ARG_SIZE
+        
+        CL_MISALIGNED_SUB_BUFFER_OFFSET
+        CL_MEM_OBJECT_ALLOCATION_FAILURE        
+        CL_DEVICE_NOT_AVAILABLE
         CL_COMPILER_NOT_AVAILABLE
         CL_BUILD_PROGRAM_FAILURE  
         CL_INVALID_OPERATION
         CL_OUT_OF_HOST_MEMORY
-        CL_INVALID_KERNEL_NAME
+        
+        CL_OUT_OF_RESOURCES
+        CL_DEVICE_NOT_FOUND
 
     ctypedef int *intptr_t
     
@@ -66,9 +115,41 @@ cdef extern from "OpenCL/cl.h":
         CL_QUEUE_CONTEXT
         CL_QUEUE_REFERENCE_COUNT
         CL_QUEUE_PROPERTIES
+
+    enum cl_mem_flags:
+        CL_MEM_READ_WRITE
+        CL_MEM_READ_ONLY
+        CL_MEM_WRITE_ONLY
+        CL_MEM_COPY_HOST_PTR
+        CL_MEM_USE_HOST_PTR
+        CL_MEM_ALLOC_HOST_PTR
+        
+    enum cl_map_flags:
+        CL_MAP_READ
+        CL_MAP_WRITE
+
+    enum cl_context_properties:
+        CL_CONTEXT_PLATFORM
+        
+    enum cl_mem_info:
+        CL_MEM_TYPE
+        CL_MEM_FLAGS
+        CL_MEM_SIZE
+        CL_MEM_REFERENCE_COUNT
+        CL_MEM_MAP_COUNT
+        CL_MEM_ASSOCIATED_MEMOBJECT
+        CL_MEM_CONTEXT
+
+    enum cl_kernel_info:
+        CL_KERNEL_FUNCTION_NAME
+        CL_KERNEL_NUM_ARGS
+        CL_KERNEL_REFERENCE_COUNT
+        CL_KERNEL_CONTEXT
+        CL_KERNEL_PROGRAM
+
+    cdef cl_int CL_COMPLETE
+        
     
-
-
     cdef struct _cl_platform_id:
         pass
 
@@ -173,8 +254,6 @@ cdef extern from "OpenCL/cl.h":
     ctypedef cl_uint cl_program_build_info
 
     ctypedef cl_int cl_build_status
-
-    ctypedef cl_uint cl_kernel_info
 
     ctypedef cl_uint cl_kernel_work_group_info
 
@@ -322,4 +401,13 @@ cdef extern from "OpenCL/cl.h":
 
     void *clGetExtensionFunctionAddress(char *)
 
+    cl_event clCreateUserEvent(cl_context, cl_int *)
 
+    cl_int clSetUserEventStatus(cl_event, cl_int)
+    
+    
+    cl_int clEnqueueCopyBufferRect(cl_command_queue, cl_mem, cl_mem, size_t[3], size_t[3], size_t[3], size_t, size_t, size_t, size_t, cl_uint, cl_event *, cl_event *)
+    
+    
+cdef extern from "OpenCL/cl_gl.h":
+    cl_mem clCreateFromGLBuffer(cl_context, cl_mem_flags, unsigned, cl_int*)

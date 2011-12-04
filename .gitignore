@@ -4,3 +4,6 @@
 .settings
 build
 *.cly
+copencl.c
+copencl.so
+copencl_api.h
