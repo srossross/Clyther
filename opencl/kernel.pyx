@@ -1,7 +1,8 @@
 
 import ctypes
-from opencl._errors import OpenCLException
-from opencl._cl_mem import MemoryObject
+from opencl.errors import OpenCLException
+from opencl.cl_mem import MemoryObject
+
 from inspect import isfunction
 from opencl.type_formats import refrence, ctype_from_format, type_format, cdefn
 

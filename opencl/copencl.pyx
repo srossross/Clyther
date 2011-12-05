@@ -501,5 +501,15 @@ cdef api object cl_eventAs_PyEvent(cl_event event_id):
     event.event_id = event_id
     return event
 
+cdef api cl_event cl_eventFrom_PyEvent(object event):
+    return (< Event >event).event_id
+
+cdef api object PyEvent_New(cl_event event_id):
+    cdef Event event = < Event > Event.__new__(Event)
+    event.event_id = event_id
+    return event
+
+cdef api int PyEvent_Check(object event):
+    return isinstance(event, Event)
 ## ############# #### #### #### #### #### #### #### #### #### #### ####
 

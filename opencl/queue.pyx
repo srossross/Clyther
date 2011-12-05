@@ -1,16 +1,16 @@
 
-from opencl._errors import OpenCLException
+from opencl.errors import OpenCLException
 
 from _cl cimport *
-from opencl.cl_mem cimport clMemFrom_pyMemoryObject
 
 from cpython cimport PyObject, Py_DECREF, Py_INCREF, PyBuffer_IsContiguous, PyBuffer_FillContiguousStrides
 from libc.stdlib cimport malloc, free 
 from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FORMAT, PyBUF_INDIRECT, PyBUF_WRITABLE
 
-from opencl.copencl cimport DeviceIDFromPyDevice, DeviceIDAsPyDevice, PyEvent_New, cl_eventFrom_PyEvent 
+from opencl.copencl cimport DeviceIDFromPyDevice, DeviceIDAsPyDevice, PyEvent_New, cl_eventFrom_PyEvent, PyEvent_Check 
 from opencl.context cimport ContextFromPyContext, ContextAsPyContext
 from opencl.kernel cimport KernelFromPyKernel
+from opencl.cl_mem cimport clMemFrom_pyMemoryObject, PyMemoryObject_Check
 
 
 cdef extern from "Python.h":
@@ -217,6 +217,10 @@ cdef class Queue:
         
         cdef cl_event * event_wait_list
         cdef cl_uint num_events_in_wait_list = _make_wait_list(events, & event_wait_list)
+        
+        if event_wait_list == <cl_event*>1:
+            raise Exception("One of the items in argument 'wait_on' is not a valid event")
+        
         cdef cl_uint err_code
         
         err_code = clEnqueueWaitForEvents(self.queue_id, num_events_in_wait_list, event_wait_list)
@@ -481,6 +485,11 @@ cdef class Queue:
         cdef cl_event * event_wait_list
         cdef cl_uint num_events_in_wait_list = _make_wait_list(wait_on, & event_wait_list)
         
+        if not PyMemoryObject_Check(source):
+            raise TypeError("Argument 'source' must be a valid memory object")
+        if not PyMemoryObject_Check(dest):
+            raise TypeError("Argument 'dest' must be a valid memory object")
+        
         cdef cl_mem src_buffer = clMemFrom_pyMemoryObject(source)
         cdef cl_mem dst_buffer = clMemFrom_pyMemoryObject(dest)
         
@@ -571,9 +580,11 @@ cdef class Queue:
         cdef cl_int err_code
         cdef cl_event event_id = NULL
         cdef cl_event * event_wait_list
+        
         cdef cl_uint num_events_in_wait_list = _make_wait_list(wait_on, & event_wait_list)
         
         cdef cl_mem src_buffer = clMemFrom_pyMemoryObject(source)
+        
         cdef cl_mem dst_buffer = clMemFrom_pyMemoryObject(dest)
         
         cdef size_t _src_origin[3]
@@ -591,29 +602,33 @@ cdef class Queue:
 
         for i, size in enumerate(region):
             _region[i] = size
-        
+
         err_code = clEnqueueCopyBufferRect(self.queue_id, src_buffer, dst_buffer,
                                            _src_origin, _dst_origin, _region,
                                            src_row_pitch, src_slice_pitch,
                                            dst_row_pitch, dst_slice_pitch,
-                                           num_events_in_wait_list, event_wait_list, & event_id)
+                                           num_events_in_wait_list, event_wait_list, &event_id)
                 
+        
         if err_code != CL_SUCCESS:
             raise OpenCLException(err_code, _enqueue_copy_buffer_errors)
-    
-        return PyEvent_New(event_id)
+        
+        event = PyEvent_New(event_id)
+        return event
 
 cdef cl_uint _make_wait_list(wait_on, cl_event ** event_wait_list_ptr):
     if not wait_on:
         event_wait_list_ptr[0] = NULL
         return 0
-    
     cdef cl_uint num_events = len(wait_on)
     cdef cl_event event_id = NULL
     
     cdef cl_event * event_wait_list = < cl_event *> malloc(sizeof(cl_event) * num_events)
     
     for i, pyevent in enumerate(wait_on):
+        if not PyEvent_Check(pyevent):
+            event_wait_list_ptr[0] = <cl_event *> 1
+            return 0
         event_id = cl_eventFrom_PyEvent(pyevent)
         event_wait_list[i] = event_id
         

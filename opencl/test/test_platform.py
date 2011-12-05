@@ -388,7 +388,7 @@ class TestBuffer(unittest.TestCase):
         with copy_of.map(queue) as cpy:
             b = np.asarray(cpy)
             self.assertTrue(np.all(a[::2] == b))
-
+            
         copy_of = clbuf[1::2].copy(queue)
             
         with copy_of.map(queue) as cpy:

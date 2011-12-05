@@ -1,6 +1,6 @@
 
-from copencl import Platform, get_platforms, Context, Device, Queue, Program
-from copencl import ContextProperties, global_memory, UserEvent, Event
-
-
-from _cl_mem import DeviceMemoryView, empty
+from copencl import Platform, get_platforms, Device, Program, UserEvent, Event
+from context import Context, ContextProperties
+from kernel import global_memory
+from queue import Queue
+from cl_mem import DeviceMemoryView, empty

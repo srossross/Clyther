@@ -2,7 +2,7 @@ import weakref
 import struct
 import ctypes
 
-from opencl._errors import OpenCLException
+from opencl.errors import OpenCLException
 
 from libc.stdlib cimport malloc, free 
 from cpython cimport PyObject, Py_DECREF, Py_INCREF, PyBuffer_IsContiguous, PyBuffer_FillContiguousStrides
@@ -26,6 +26,9 @@ cdef extern from "Python.h":
 cdef class MemoryObject:
     cdef cl_mem buffer_id
     
+    def get_buffer_id(self):
+        return <size_t>self.buffer_id
+        
     def __cinit__(self):
         self.buffer_id = NULL
         
@@ -337,6 +340,7 @@ cdef class DeviceMemoryView(MemoryObject):
         cdef size_t dst_slice_pitch
         dest = empty(self.context, self.shape, ctype=self.format)
         
+        
         if self.is_contiguous:
             queue.enqueue_copy_buffer(self, dest, self.offset, dst_offset=0, size=self.nbytes, wait_on=())
             
@@ -344,7 +348,6 @@ cdef class DeviceMemoryView(MemoryObject):
             raise NotImplementedError("stride < 0")
         
         elif self.ndim == 1:
-            
             src_row_pitch = self._strides[0]
             src_slice_pitch = 0 
             dst_row_pitch = 0
@@ -587,5 +590,10 @@ cdef api object MemObjectAs_pyMemoryObject(cl_mem buffer_id):
     cview.buffer_id = buffer_id
     return cview
 
+cdef api int PyMemoryObject_Check(object memobj):
+    return isinstance(memobj, MemoryObject)
+
 cdef api cl_mem clMemFrom_pyMemoryObject(object memobj):
-    return (< MemoryObject > MemoryObject).buffer_id
+    cdef cl_mem buffer_id = (< MemoryObject > memobj).buffer_id
+    return buffer_id
+

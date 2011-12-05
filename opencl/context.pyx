@@ -1,5 +1,9 @@
+from opencl.errors import OpenCLException
 
 from _cl cimport *
+from opencl.copencl cimport clPlatformFromPyPlatform, clPlatformAs_PyPlatform
+from opencl.copencl cimport DeviceIDFromPyDevice, DeviceIDAsPyDevice
+from libc.stdlib cimport malloc, free 
 
 cdef class ContextProperties:
 
@@ -19,7 +23,7 @@ cdef class ContextProperties:
             else:
                 return None
 
-        def __set__(self, Platform value):
+        def __set__(self, value):
             self.platform_id = clPlatformFromPyPlatform(value)
 
     property gl_context:
@@ -147,7 +151,7 @@ cdef class Context:
             num_devices = len(devices)
             _devices = < cl_device_id *> malloc(num_devices * sizeof(cl_device_id))
             for i in range(num_devices): 
-                _devices[i] = (< Device > devices[i]).device_id
+                _devices[i] = DeviceIDFromPyDevice(devices[i])
                  
             self.context_id = clCreateContext(props, num_devices, _devices, NULL, NULL, & err_code)
             
@@ -203,8 +207,8 @@ cdef class Context:
             
             devices = []
             for i in range(num_devices): 
-                device = Device()
-                device.device_id = _devices[i]
+                device_id = _devices[i]
+                device = DeviceIDAsPyDevice(device_id)
                 devices.append(device) 
                 
             free(_devices)
