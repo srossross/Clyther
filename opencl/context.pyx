@@ -1,4 +1,5 @@
-from _cl import *
+
+from _cl cimport *
 
 cdef class ContextProperties:
 

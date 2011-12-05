@@ -1,4 +1,27 @@
+import weakref
+import struct
+import ctypes
+
+from opencl._errors import OpenCLException
+
+from libc.stdlib cimport malloc, free 
+from cpython cimport PyObject, Py_DECREF, Py_INCREF, PyBuffer_IsContiguous, PyBuffer_FillContiguousStrides
+from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FORMAT, PyBUF_INDIRECT, PyBUF_WRITABLE
+
 from _cl cimport *
+from opencl.context cimport ContextFromPyContext, ContextAsPyContext
+from opencl.queue cimport clQueueFrom_PyQueue, clQueueAs_PyQueue
+
+
+
+cdef extern from "Python.h":
+
+    object PyByteArray_FromStringAndSize(char * , Py_ssize_t)
+    object PyMemoryView_FromBuffer(Py_buffer * info)
+    int PyObject_GetBuffer(object obj, Py_buffer * view, int flags)
+    int PyObject_CheckBuffer(object obj)
+    void PyBuffer_Release(Py_buffer * view)
+
 
 cdef class MemoryObject:
     cdef cl_mem buffer_id
@@ -68,8 +91,8 @@ cdef class MemoryObject:
         def __get__(self):
             cdef cl_mem param_value
             cdef cl_int err_code
-            clGetMemObjectInfo (self.buffer_id, CL_MEM_ASSOCIATED_MEMOBJECT, sizeof(cl_mem),
-                                < void *>& param_value, NULL)
+            
+            clGetMemObjectInfo(self.buffer_id, CL_MEM_ASSOCIATED_MEMOBJECT, sizeof(cl_mem), < void *>& param_value, NULL)
     
             if err_code != CL_SUCCESS:
                 raise OpenCLException(err_code)
@@ -100,12 +123,14 @@ cdef class DeviceMemoryView(MemoryObject):
         self._suboffsets = NULL
         self.itemsize = 0
         
-    def __init__(self, Context context, size_t size, cl_mem_flags flags=CL_MEM_READ_WRITE):
+    def __init__(self, context, size_t size, cl_mem_flags flags=CL_MEM_READ_WRITE):
+        
+        cdef cl_context ctx = ContextFromPyContext(context)
         
         self.buffer_id = NULL 
         cdef void * host_ptr = NULL
         cdef cl_int err_code
-        self.buffer_id = clCreateBuffer(context.context_id, flags, size, host_ptr, & err_code)
+        self.buffer_id = clCreateBuffer(ctx, flags, size, host_ptr, & err_code)
 
         if err_code != CL_SUCCESS:
             raise OpenCLException(err_code)
@@ -153,11 +178,13 @@ cdef class DeviceMemoryView(MemoryObject):
         if size == 0:
             size = len(self)
             
-        return MemoryViewMap(< Queue > queue, self, blocking_map, flags, offset, size)
+        return MemoryViewMap(queue, self, blocking_map, flags, offset, size)
 
     @classmethod
-    def from_host(cls, Context ctx, host):
+    def from_host(cls, context, host):
         
+        cdef cl_context ctx = ContextFromPyContext(context)
+         
         cdef Py_buffer view
         cdef DeviceMemoryView buffer = DeviceMemoryView.__new__(DeviceMemoryView)
         
@@ -173,7 +200,7 @@ cdef class DeviceMemoryView(MemoryObject):
             raise Exception("argument host must support the buffer protocal (got %r)" % host)
             
         if PyBuffer_IsContiguous(& view, 'C'):
-            buffer.buffer_id = clCreateBuffer(ctx.context_id, mem_flags, view.len, view.buf, & err_code)
+            buffer.buffer_id = clCreateBuffer(ctx, mem_flags, view.len, view.buf, & err_code)
             PyBuffer_Release(& view)
             if err_code != CL_SUCCESS:
                 raise OpenCLException(err_code)
@@ -197,24 +224,23 @@ cdef class DeviceMemoryView(MemoryObject):
         
         return buffer
         
-    @classmethod
-    def from_gl(cls, Context ctx, vbo):
-        
-        cdef cl_context context = ctx.context_id
-        cdef cl_mem_flags flags = CL_MEM_READ_WRITE
-        cdef unsigned int bufobj = vbo
-        cdef cl_int err_code
-        cdef cl_mem memobj = NULL
-        
-        memobj = clCreateFromGLBuffer(context, flags, bufobj, & err_code)
-    
-        if err_code != CL_SUCCESS:
-            raise OpenCLException(err_code)
-        
-        cdef MemoryObject cview = < MemoryObject > MemoryObject.__new__(MemoryObject)
-        
-        return None
-
+#    @classmethod
+#    def from_gl(cls, Context ctx, vbo):
+#        
+#        cdef cl_context ctx = ctx.context_id
+#        cdef cl_mem_flags flags = CL_MEM_READ_WRITE
+#        cdef unsigned int bufobj = vbo
+#        cdef cl_int err_code
+#        cdef cl_mem memobj = NULL
+#        
+#        memobj = clCreateFromGLBuffer(context, flags, bufobj, & err_code)
+#    
+#        if err_code != CL_SUCCESS:
+#            raise OpenCLException(err_code)
+#        
+#        cdef MemoryObject cview = < MemoryObject > MemoryObject.__new__(MemoryObject)
+#        
+#        return None
     
     def __getitem__(self, args):
         
@@ -362,8 +388,10 @@ cdef class DeviceMemoryView(MemoryObject):
         pass
 
 
-def empty_gl(Context ctx, shape, ctype='B'):
+def empty_gl(context, shape, ctype='B'):
     
+    cdef cl_context ctx = ContextFromPyContext(context)
+
     cdef cl_mem_flags flags = CL_MEM_READ_WRITE
     
     cdef char * format
@@ -392,7 +420,7 @@ def empty_gl(Context ctx, shape, ctype='B'):
     if glGetError() != GL_NO_ERROR:
         raise Exception("OpenGL error")
     
-    cdef cl_mem buffer_id = clCreateFromGLBuffer(ctx.context_id, flags, vbo, & err_code)
+    cdef cl_mem buffer_id = clCreateFromGLBuffer(ctx, flags, vbo, & err_code)
     
     
     glBindBuffer(GL_ARRAY_BUFFER, 0)
@@ -421,8 +449,10 @@ def empty_gl(Context ctx, shape, ctype='B'):
     
     return buffer
 
-def empty(Context ctx, shape, ctype='B'):
+def empty(context, shape, ctype='B'):
     
+    cdef cl_context ctx = ContextFromPyContext(context)
+
     cdef cl_mem_flags flags = CL_MEM_READ_WRITE
     
     cdef char * format
@@ -438,7 +468,7 @@ def empty(Context ctx, shape, ctype='B'):
     for i in shape:
         size *= i
         
-    cdef cl_mem buffer_id = clCreateBuffer(ctx.context_id, flags, size, NULL, & err_code)
+    cdef cl_mem buffer_id = clCreateBuffer(ctx, flags, size, NULL, & err_code)
 
     if err_code != CL_SUCCESS:
         raise OpenCLException(err_code)
@@ -476,11 +506,13 @@ cdef class MemoryViewMap:
     cdef size_t cb
     cdef void * bytes 
         
-    def __init__(self, Queue  queue, dview, cl_bool blocking_map, cl_map_flags map_flags, size_t offset, size_t cb):
+    def __init__(self, queue, dview, cl_bool blocking_map, cl_map_flags map_flags, size_t offset, size_t cb):
+        
         
         self.dview = weakref.ref(dview)
         
-        self.command_queue = queue.queue_id
+        self.command_queue = clQueueFrom_PyQueue(queue)
+        
         self.blocking_map = blocking_map
         self.map_flags = map_flags
         self.offset = offset
@@ -493,7 +525,8 @@ cdef class MemoryViewMap:
         
         cdef cl_int err_code
         
-        cdef cl_mem memobj = (< DeviceMemoryView > self.dview()).buffer_id
+        cdef cl_mem memobj = clMemFrom_pyMemoryObject(self.dview())
+        
         bytes = clEnqueueMapBuffer(self.command_queue, memobj,
                                    self.blocking_map, self.map_flags, 0, len(self.dview()),
                                    num_events_in_wait_list, event_wait_list, NULL,
