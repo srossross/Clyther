@@ -11,6 +11,9 @@ from libc.stdlib cimport malloc, free
 from cpython cimport PyObject, Py_DECREF, Py_INCREF, PyBuffer_IsContiguous, PyBuffer_FillContiguousStrides
 from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FORMAT, PyBUF_INDIRECT, PyBUF_WRITABLE
 
+from opencl.types_formats import refrence, ctype_from_format, type_format, cdefn
+from inspect import isfunction
+
 cdef extern from "Python.h":
 
     object PyByteArray_FromStringAndSize(char * , Py_ssize_t)
@@ -25,10 +28,56 @@ MAGIC_NUMBER = 0xabc123
     
 PyEval_InitThreads()
 
+all_opencl_errors = {
+CL_SUCCESS: 'CL_SUCCESS',
+CL_INVALID_VALUE: 'CL_INVALID_VALUE',
+CL_INVALID_BINARY: 'CL_INVALID_BINARY',
+CL_INVALID_BUFFER_SIZE: 'CL_INVALID_BUFFER_SIZE',
+CL_INVALID_BUILD_OPTIONS: 'CL_INVALID_BUILD_OPTIONS',
+CL_INVALID_CONTEXT: 'CL_INVALID_CONTEXT',
+CL_INVALID_DEVICE: 'CL_INVALID_DEVICE',
+CL_INVALID_EVENT: 'CL_INVALID_EVENT',
+CL_INVALID_HOST_PTR: 'CL_INVALID_HOST_PTR',
+CL_INVALID_KERNEL_NAME: 'CL_INVALID_KERNEL_NAME',
+CL_INVALID_OPERATION: 'CL_INVALID_OPERATION',
+CL_INVALID_KERNEL_NAME: 'CL_INVALID_KERNEL_NAME',
+CL_INVALID_COMMAND_QUEUE: 'CL_INVALID_COMMAND_QUEUE',
+CL_INVALID_CONTEXT: 'CL_INVALID_CONTEXT',
+CL_INVALID_MEM_OBJECT: 'CL_INVALID_MEM_OBJECT',
+CL_INVALID_EVENT_WAIT_LIST: 'CL_INVALID_EVENT_WAIT_LIST',
+CL_INVALID_PROPERTY: 'CL_INVALID_PROPERTY',
+CL_INVALID_DEVICE_TYPE: 'CL_INVALID_DEVICE_TYPE',
+CL_INVALID_PROGRAM: 'CL_INVALID_PROGRAM',
+CL_INVALID_PROGRAM_EXECUTABLE: 'CL_INVALID_PROGRAM_EXECUTABLE',
+CL_INVALID_PLATFORM: 'CL_INVALID_PLATFORM',
+CL_INVALID_KERNEL: 'CL_INVALID_KERNEL',
+CL_INVALID_KERNEL_ARGS: 'CL_INVALID_KERNEL_ARGS',
+CL_INVALID_WORK_DIMENSION: 'CL_INVALID_WORK_DIMENSION',
+CL_INVALID_GLOBAL_WORK_SIZE: 'CL_INVALID_GLOBAL_WORK_SIZE',
+CL_INVALID_GLOBAL_OFFSET: 'CL_INVALID_GLOBAL_OFFSET',
+CL_INVALID_WORK_GROUP_SIZE: 'CL_INVALID_WORK_GROUP_SIZE',
+CL_INVALID_WORK_ITEM_SIZE: 'CL_INVALID_WORK_ITEM_SIZE',
+CL_INVALID_IMAGE_SIZE: 'CL_INVALID_IMAGE_SIZE',
+CL_INVALID_ARG_INDEX: 'CL_INVALID_ARG_INDEX',
+CL_INVALID_ARG_VALUE: 'CL_INVALID_ARG_VALUE',
+CL_INVALID_SAMPLER: 'CL_INVALID_SAMPLER',
+CL_INVALID_ARG_SIZE: 'CL_INVALID_ARG_SIZE',
+CL_INVALID_KERNEL_DEFINITION: 'CL_INVALID_KERNEL_DEFINITION',
+CL_MISALIGNED_SUB_BUFFER_OFFSET: 'CL_MISALIGNED_SUB_BUFFER_OFFSET',
+CL_MEM_OBJECT_ALLOCATION_FAILURE: 'CL_MEM_OBJECT_ALLOCATION_FAILURE',
+CL_DEVICE_NOT_AVAILABLE: 'CL_DEVICE_NOT_AVAILABLE',
+CL_COMPILER_NOT_AVAILABLE: 'CL_COMPILER_NOT_AVAILABLE',
+CL_BUILD_PROGRAM_FAILURE: 'CL_BUILD_PROGRAM_FAILURE',
+CL_INVALID_OPERATION: 'CL_INVALID_OPERATION',
+CL_OUT_OF_HOST_MEMORY: 'CL_OUT_OF_HOST_MEMORY',
+CL_OUT_OF_RESOURCES: 'CL_OUT_OF_RESOURCES',
+CL_DEVICE_NOT_FOUND: 'CL_DEVICE_NOT_FOUND',
+CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST: 'CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST',
+}
+
 OpenCLErrorStrings = {
                 
     CL_INVALID_CONTEXT: 'Context is not a valid context.',
-    CL_INVALID_VALUE: 'Values specified in flags are not valid as defined in table 5.3.',
     CL_INVALID_BUFFER_SIZE: 'size is 0',
     
     CL_INVALID_EVENT:'Event objects specified in event_list are not valid event objects',
@@ -54,6 +103,14 @@ completed.
     CL_OUT_OF_HOST_MEMORY : 'if there is a failure to allocate resources required by the OpenCL implementation on the host.',
     
     CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST: 'The execution status of any of the events in event_list is a negative integer value',
+    
+    CL_INVALID_PROGRAM_EXECUTABLE : 'there is no successfully built executable for program',
+    
+    CL_INVALID_KERNEL_NAME : ' kernel_name is not found in program.',
+    
+    CL_INVALID_KERNEL_DEFINITION : ('The function definition for __kernel  function ' 
+                                    'given by kernel_name such as the number of arguments, the argument types are not the' 
+                                    'same for all devices for which the program executable has been built'),
                 }
 
 
@@ -61,7 +118,7 @@ class OpenCLException(Exception):
     def __init__(self, err_code, mapping=None):
         if mapping is None:
             mapping = OpenCLErrorStrings
-        Exception.__init__(self, err_code, mapping.get(err_code, 'Uknown OpenCL error'))
+        Exception.__init__(self, err_code, all_opencl_errors.get(err_code,'CL_ERROR'), mapping.get(err_code, 'Uknown OpenCL error'))
 
 cpdef get_platforms():
     '''
@@ -1637,6 +1694,10 @@ cdef class MemoryViewMap:
 cdef class Image(MemoryObject):
     pass
 
+clCreateKernel_errors = {
+                         
+                         
+                         }
 cdef class Program:
     cdef cl_program program_id
     
@@ -1664,13 +1725,60 @@ cdef class Program:
         cdef cl_uint num_devices = 0
         cdef cl_device_id * device_list = NULL
         
-        err_code = clBuildProgram (self.program_id, num_devices, device_list, _options, NULL, NULL)
+        err_code = clBuildProgram(self.program_id, num_devices, device_list, _options, NULL, NULL)
         
         if err_code != CL_SUCCESS:
             raise OpenCLException(err_code)
 
         return self
     
+    property num_devices:
+        def __get__(self):
+            
+            cdef cl_int err_code
+            cdef cl_uint value
+            err_code = clGetProgramInfo(self.program_id, CL_PROGRAM_NUM_DEVICES, sizeof(value), & value, NULL)
+
+            if err_code != CL_SUCCESS:
+                raise OpenCLException(err_code)
+            
+            return value
+        
+
+    property logs:
+        def __get__(self):
+            
+            logs = []
+            cdef size_t log_len
+            cdef char * logstr
+            cdef cl_int err_code
+            cdef cl_device_id device_id
+            
+            for device in self.devices:
+                
+                device_id = (< Device > device).device_id
+
+                err_code = clGetProgramBuildInfo (self.program_id, device_id, CL_PROGRAM_BUILD_LOG, 0, NULL, & log_len)
+                
+                if err_code != CL_SUCCESS: raise OpenCLException(err_code)
+                
+                if log_len == 0:
+                    logs.append('')
+                    continue
+                
+                logstr = < char *> malloc(log_len + 1)
+                err_code = clGetProgramBuildInfo (self.program_id, device_id, CL_PROGRAM_BUILD_LOG, log_len, logstr, NULL)
+                 
+                if err_code != CL_SUCCESS: 
+                    free(logstr)
+                    raise OpenCLException(err_code)
+                
+                logstr[log_len] = 0
+                logs.append(logstr)
+                
+            return logs
+                
+        
     property context:
         def __get__(self):
             
@@ -1695,7 +1803,7 @@ cdef class Program:
         if err_code != CL_SUCCESS:
             if err_code == CL_INVALID_KERNEL_NAME:
                 raise KeyError('kernel %s not found in program' % name)
-            raise OpenCLException(err_code)
+            raise OpenCLException(err_code, clCreateKernel_errors)
         
         return KernelAsPyKernel(kernel_id)
 
@@ -1703,13 +1811,9 @@ cdef class Program:
         def __get__(self):
             
             cdef cl_int err_code
-            cdef cl_uint num_devices
             cdef cl_device_id * device_list
-            
-            err_code = clGetProgramInfo (self.program_id, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), & num_devices, NULL)
-              
-            if err_code != CL_SUCCESS:
-                raise OpenCLException(err_code)
+                        
+            cdef cl_uint num_devices = self.num_devices
             
             device_list = < cl_device_id *> malloc(sizeof(cl_device_id) * num_devices)
             err_code = clGetProgramInfo (self.program_id, CL_PROGRAM_DEVICES, sizeof(cl_device_id) * num_devices, device_list, NULL)
@@ -1718,25 +1822,43 @@ cdef class Program:
                 free(device_list)
                 raise OpenCLException(err_code)
             
-            free(device_list)
             
             devices = []
             
             for i in range(num_devices):
                 devices.append(DeviceIDAsPyDevice(device_list[i]))
                 
+            free(device_list)
+            
             return devices
         
 class global_memory(object):
-    def __init__(self, shape=None, format='B'):
+    def __init__(self, ctype=None, shape=None):
         self.shape = shape
-        self.format = format
+        
+        if ctype is None:
+            self.format = ctype
+            self.ctype = ctype
+            
+        elif isinstance(ctype, str):
+            self.format = ctype
+            self.ctype = ctype_from_format(ctype)
+            
+        else:
+            self.ctype = ctype
+            self.format = type_format(ctype)
     
     def __call__(self, memobj):
         if not isinstance(memobj, MemoryObject):
             raise TypeError("arguemnt must be an instance of MemoryObject")
         cdef cl_mem buffer = (< MemoryObject > memobj).buffer_id
         return ctypes.c_voidp(< size_t > buffer)
+    
+    def ctype_string(self):
+        return '__global %s' % (cdefn(refrence(self.format)))
+    
+    def derefrence(self):
+        return self.ctype
     
 set_kerne_arg_errors = {
     CL_INVALID_KERNEL : 'kernel is not a valid kernel object.',
@@ -1752,6 +1874,9 @@ cdef class Kernel:
     cdef cl_kernel kernel_id
     cdef object _argtypes 
     cdef object _argnames 
+    cdef public object global_work_size
+    cdef public object global_work_offset
+    cdef public object local_work_size
     
     def __cinit__(self):
         self.kernel_id = NULL
@@ -1766,6 +1891,9 @@ cdef class Kernel:
     def __init__(self):
         self._argtypes = None
         self._argnames = None
+        self.global_work_size = None
+        self.global_work_offset = None
+        self.local_work_size = None
         
     property argtypes:
         def __get__(self):
@@ -1815,7 +1943,7 @@ cdef class Kernel:
             raise TypeError("argtypes must be set before calling ")
         
         if len(args) != len(self._argtypes):
-            pass
+            raise TypeError("kernel requires %i arguments (got %i)" % (self.nargs, len(args)))
         
         cdef cl_int err_code
         cdef size_t arg_size
@@ -1837,8 +1965,29 @@ cdef class Kernel:
                 print arg_index, arg_size, arg 
                 raise OpenCLException(err_code, set_kerne_arg_errors)
          
-    def __call__(self, queue, global_work_size, *args, global_work_offset=None, local_work_size=None, wait_on=()):
+    def __call__(self, queue, *args, global_work_size=None, global_work_offset=None, local_work_size=None, wait_on=()):
         self.set_args(*args)
+        
+        if global_work_size is None:
+            if isfunction(self.global_work_size):
+                global_work_size = self.global_work_size(*args)
+            elif self.global_work_size is None:
+                raise TypeError("missing required keyword arguement 'global_work_size'")
+            else:
+                global_work_size = self.global_work_size
+
+        if global_work_offset is None:
+            if isfunction(self.global_work_offset):
+                global_work_offset = self.global_work_offset(*args)
+            else:
+                global_work_offset = self.global_work_offset
+
+        if local_work_size is None:
+            if isfunction(self.local_work_size):
+                local_work_size = self.local_work_size(*args)
+            else:
+                local_work_size = self.local_work_size
+        
         queue.enqueue_nd_range_kernel(self, len(global_work_size), global_work_size, global_work_offset, local_work_size, wait_on)
     
 

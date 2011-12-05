@@ -11,6 +11,7 @@ from StringIO import StringIO
 from string import Formatter
 import ast
 from meta.asttools.visitors.print_visitor import print_ast
+from clyther.clast import cast
 
 class ASTFormatter(Formatter):
 
@@ -142,6 +143,7 @@ class GenOpenCLExpr(Visitor):
     
     visitMult = simple_string('*')
     visitAdd = simple_string('+')
+    visitDiv = simple_string('/')
 
     def visitCNum(self, node):
         with self.no_indent:
@@ -163,8 +165,25 @@ class GenOpenCLExpr(Visitor):
     
     def visitCTypeCast(self, node):
         with self.no_indent:
-            self.print('(({0:node}) {1:node})', node.ctype, node.value)
+            self.print('(({0:node}) ({1:node}))', node.ctype, node.value)
     
+    def visitclkernel(self, node):
+        with self.no_indent:
+            self.print('__kernel')
+            
+    def visitIndex(self, node):
+        with self.no_indent:
+            self.print('{0:node}', node.value)
+            
+    def visitCSubscript(self, node):
+        with self.no_indent:
+            self.print('{0:node}[{1:node}]', node.value, node.slice)
+            
+    def visitCAttribute(self, node):
+        with self.no_indent:
+            self.print('{0:node}.{1}', node.value, node.attr)
+        
+
 class GenOpenCLSource(GenOpenCLExpr):
 
     def print_lines(self, lines,):
@@ -180,8 +199,11 @@ class GenOpenCLSource(GenOpenCLExpr):
     def visitCFunctionForwardDec(self, node):
         self.print('{0:node} {1:s}({2:node});', node.return_type, node.name, node.args)
         self.print('\n\n')
-
+    
     def visitCFunctionDef(self, node):
+        for decorator in node.decorator_list:
+            self.print('{0:node}\n', decorator)
+             
         self.print('{0:node} {1:s}({2:node})', node.return_type, node.name, node.args)
         with self.brace:
             for stmnt in node.body:
@@ -189,7 +211,10 @@ class GenOpenCLSource(GenOpenCLExpr):
         self.print('\n\n')
         
     def visitReturn(self, node):
-        self.print('return {0:node};\n', node.value)
+        if node.value is None:
+            self.print('return;\n')
+        else:
+            self.print('return {0:node};\n', node.value)
         
     def visitAssign(self, node):
         targets = list(node.targets)
@@ -205,7 +230,7 @@ class GenOpenCLSource(GenOpenCLExpr):
         
         self.print('{0:node} {1};\n', node.ctype, node.id) 
         
-def opencl_source(node, file=sys.stdout):
+def opencl_source(node):
     source_gen = GenOpenCLSource()
     source_gen.visit(node)
-    source_gen.dump(file)
+    return source_gen.dumps()

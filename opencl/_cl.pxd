@@ -61,6 +61,7 @@ cdef extern from "OpenCL/cl.h":
         CL_INVALID_ARG_VALUE
         CL_INVALID_SAMPLER
         CL_INVALID_ARG_SIZE
+        CL_INVALID_KERNEL_DEFINITION 
         
         CL_MISALIGNED_SUB_BUFFER_OFFSET
         CL_MEM_OBJECT_ALLOCATION_FAILURE        
@@ -163,7 +164,12 @@ cdef extern from "OpenCL/cl.h":
         CL_KERNEL_REFERENCE_COUNT
         CL_KERNEL_CONTEXT
         CL_KERNEL_PROGRAM
-
+        
+    enum cl_program_buid_info:
+        CL_PROGRAM_BUILD_STATUS
+        CL_PROGRAM_BUILD_OPTIONS
+        CL_PROGRAM_BUILD_LOG
+    
     cdef cl_int CL_COMPLETE
         
     

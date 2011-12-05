@@ -6,12 +6,15 @@ Created on Dec 2, 2011
 from meta.asttools.visitors import Mutator
 from inspect import isroutine
 from clyther.clast import cast
+from clyther.clast.visitors.typify import RuntimeFunction
 
 
 class TypeCaster(Mutator):
     
     def mutateCCall(self, node):
-        if hasattr(node.func, 'ctype') and not isroutine(node.func.ctype):
+        if hasattr(node.func, 'ctype') \
+            and not isroutine(node.func.ctype) \
+            and not isinstance(node.func.ctype, RuntimeFunction):
             
             if len(node.args) == 0:
                 arg = cast.CNum(0, node.func.ctype)

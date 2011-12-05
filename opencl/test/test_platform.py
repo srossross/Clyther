@@ -142,6 +142,10 @@ class TestKernel(unittest.TestCase):
 
     def test_call(self):
 
+        expected = np.zeros([10], dtype=[('x', np.float32), ('y', np.float32)])
+        expected['x'] = np.arange(10)
+        expected['y'] = np.sin(expected['x'] / 10)
+        
         ctx = Context(device_type=Device.CPU)
         program = Program(ctx, source=source)
         
@@ -156,11 +160,19 @@ class TestKernel(unittest.TestCase):
         queue = Queue(ctx, ctx.devices[0])
         
         size = [buf.size]
-        generate_sin(queue, size, buf, 1.0)
+        with self.assertRaises(TypeError):
+            generate_sin(queue, buf, 1.0)
         
-        expected = np.zeros([10], dtype=[('x', np.float32), ('y', np.float32)])
-        expected['x'] = np.arange(10)
-        expected['y'] = np.sin(expected['x'] / 10)
+        generate_sin(queue, buf, 1.0, global_work_size=size)
+        
+        with buf.map(queue) as host:
+            self.assertTrue(np.all(expected['x'] == np.asarray(host)['f0']))
+            self.assertTrue(np.all(expected['y'] == np.asarray(host)['f1']))
+
+        generate_sin.global_work_size = lambda a, scale: [a.size]
+        
+        generate_sin(queue, buf, 1.0)
+        
         with buf.map(queue) as host:
             self.assertTrue(np.all(expected['x'] == np.asarray(host)['f0']))
             self.assertTrue(np.all(expected['y'] == np.asarray(host)['f1']))

@@ -3,22 +3,57 @@ Created on Dec 2, 2011
 
 @author: sean
 '''
-from inspect import isroutine
+from inspect import isroutine, isclass, ismodule
 from clyther.clast import cast
 import ast
 from meta.asttools.visitors import Visitor
-from clyther.rttt import greatest_common_type
+from clyther.rttt import greatest_common_type, cltype
 import __builtin__ as builtins
 from clyther.clast.cast import build_forward_dec, FuncPlaceHolder
 from clyther.clast.cast import n
 import ctypes
 from meta.decompiler import decompile_func
 from clyther.clast.visitors.returns import returns
+import _ctypes
+from meta.asttools.visitors.print_visitor import print_ast
 
 class CException(Exception): pass
 
+class RuntimeFunction(cltype):
+    def __init__(self, name, return_type, *argtypes):
+        self.name = name
+        self.return_type = return_type
+        self.argtypes = argtypes
+        
+    def ctype_string(self):
+        return None
+
+
 def dict2hashable(dct):
     return tuple(sorted(dct.items(), key=lambda item:item[0]))
+
+def is_slice(slice):
+    if isinstance(slice, ast.Index):
+        return False
+    else:
+        raise NotImplementedError(slice)
+
+def getattrtype(ctype, attr):
+    if isclass(ctype) and issubclass(ctype, _ctypes.Structure):
+        return dict(ctype._fields_)[attr]
+    elif ismodule(ctype):
+        return getattr(ctype, attr)
+    else:
+        raise NotImplementedError(slice)
+    
+def derefrence(ctype):
+    
+    if isinstance(ctype, cltype):
+        return ctype.derefrence()
+    elif isclass(ctype) and issubclass(ctype, _ctypes._Pointer):
+        return ctype._type_
+    else:
+        raise NotImplementedError(slice)
 
 class Typify(Visitor):
     def __init__(self, argtypes, globls):
@@ -72,7 +107,7 @@ class Typify(Visitor):
         else:
             return_type = greatest_common_type(return_types)
         
-        return cast.CFunctionDef(node.name, args, body, return_type)
+        return cast.CFunctionDef(node.name, args, body, [], return_type)
     
     def visitarguments(self, node):
         #'args', 'vararg', 'kwarg', 'defaults'
@@ -177,11 +212,19 @@ class Typify(Visitor):
         
         args = list(self.visit_list(node.args))
         keywords = list(self.visit_list(node.keywords))
-
+        
+        
+        
         if isroutine(func):
             return self.call_python_function(node, func, args, keywords)
         else:
             func_name = self.visit(node.func)
+            
+            if isinstance(func_name.ctype, RuntimeFunction):
+                rt = func_name.ctype
+                func = rt.return_type
+                func_name = cast.CName(rt.name, ast.Load(), rt)
+                
             return cast.CCall(func_name, args, keywords, func) 
             
         
@@ -193,6 +236,39 @@ class Typify(Visitor):
         assign = ast.Assign(tragets, value)
         
         return assign
+    
+    def visitIndex(self, node):
+        value = self.visit(node.value)
+        index = ast.Index(value)
+        
+        return index
+        
+    def visitSubscript(self, node, ctype=None):
+        
+        value = self.visit(node.value)
+        slice = self.visit(node.slice)
+        
+        if is_slice(slice):
+            ctype = value.ctype
+        else:
+            ctype = derefrence(value.ctype)
+        ctx = node.ctx
+        subscr = cast.CSubscript(value, slice, ctx, ctype)
+        
+        return subscr
+    
+    def visitAttribute(self, node, ctype=None):
+        
+        value = self.visit(node.value)
+        
+        attr_type = getattrtype(value.ctype, node.attr)
+        
+        if isinstance(node.ctx, ast.Store):
+            pass
+        
+        attr = cast.CAttribute(value, node.attr, node.ctx, attr_type)
+        
+        return attr
         
 def typify_function(argtypes, globls, node):
     typify = Typify(argtypes, globls)

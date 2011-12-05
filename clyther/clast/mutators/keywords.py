@@ -12,7 +12,6 @@ class KeywordMover(Visitor):
     def visitCCall(self, node):
         
         if isinstance(node.func, cast.CName):
-            print node.func.ctype
             return
         
         arg_names = [arg.id for arg in node.func.node.args.args]

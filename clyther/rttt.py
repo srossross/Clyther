@@ -9,9 +9,12 @@ Created on Nov 29, 2011
 import ctypes
 from meta.asttools.visitors import Visitor, visit_children
 import ast
-from inspect import isroutine
+from inspect import isroutine, isclass
 from meta.asttools.visitors.print_visitor import print_ast
 from clast import cast
+import _ctypes
+import abc
+from opencl.types_formats import type_format, cdefn
 
 int_ctypes = {ctypes.c_int, ctypes.c_int32, ctypes.c_int8, ctypes.c_int16, ctypes.c_int64, ctypes.c_long , ctypes.c_longlong,
               ctypes.c_size_t, ctypes.c_ssize_t,
@@ -63,7 +66,13 @@ def _greatest_common_type(left, right):
     elif same_group(left, right):
         return max(left, right, key=lambda ctype:ctypes.sizeof(ctype))
     else:
-        raise Exception(left, right)
+        size = max(ctypes.sizeof(left), ctypes.sizeof(right))
+        group = max(groupof(left), groupof(right), key=lambda group:type_group_weight.index(group))
+        
+        test = lambda ctype: issubclass(ctype, _ctypes._SimpleCData) and ctypes.sizeof(ctype) >= size 
+        ctype = min([ctype for ctype in type_groups[group] if test(ctype)], key=lambda ctype:ctypes.sizeof(ctype))
+
+        return ctype
 
 
 class rtt(object):
@@ -111,6 +120,13 @@ type_map = {ctypes.c_float:'float',
             ctypes.c_ubyte:'unsigned char',
             }
 
+class cltype(object):
+    __metaclass__ = abc.ABCMeta
+    pass
+from opencl.copencl import global_memory
+cltype.register(global_memory)
+
+
 def str_type(ctype):
     if ctype is None:
         return 'void'
@@ -118,11 +134,17 @@ def str_type(ctype):
         return type_map[ctype]
     elif isroutine(ctype):
         return None
+    elif isinstance(ctype, cltype):
+        return ctype.ctype_string()
     else:
-        raise Exception(ctype, repr(ctype))
+        format = type_format(ctype)
+        return cdefn(format)
+        raise Exception(ctype)
 
 class TypeReplacer(Visitor):
-    
+    '''
+    Replace ctype with opencl type string. 
+    '''
     def visitCVarDec(self, node):
         if not isinstance(node.ctype, cast.CTypeName):
             node.ctype = cast.CTypeName(str_type(node.ctype))

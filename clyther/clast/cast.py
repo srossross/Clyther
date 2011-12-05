@@ -27,8 +27,8 @@ class CFunctionForwardDec(ast.AST):
     _fields = 'name', 'args', 'return_type'
     
 class CFunctionDef(ast.AST):
-    _fields = 'name', 'args', 'body', 'return_type'
-    
+    _fields = 'name', 'args', 'body', 'decorator_list', 'return_type'
+        
 class CName(ast.Name):
     _fields = 'id', 'ctx', 'ctype'
 
@@ -37,6 +37,15 @@ class CBinOp(ast.AST):
 
 class ckeyword(ast.AST):
     _fields = 'arg', 'value', 'ctype'
+    
+class clkernel(ast.AST):
+    _fields = ()
+
+class CSubscript(ast.Subscript):
+    _fields = 'value', 'slice', 'ctx', 'ctype'
+    
+class CAttribute(ast.Attribute):
+    _fields = 'value', 'attr', 'ctx', 'ctype'
 
 class FuncPlaceHolder(object):
     def __init__(self, name, key, node):
