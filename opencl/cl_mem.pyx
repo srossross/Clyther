@@ -1,4 +1,4 @@
-
+from _cl cimport *
 
 cdef class MemoryObject:
     cdef cl_mem buffer_id

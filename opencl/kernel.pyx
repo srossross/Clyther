@@ -7,7 +7,7 @@ from opencl.type_formats import refrence, ctype_from_format, type_format, cdefn
 
 from libc.stdlib cimport malloc, free
 from _cl cimport *
-from cl_mem cimport clMemFrom_pyMemoryObject
+from opencl.cl_mem cimport clMemFrom_pyMemoryObject
 
 class global_memory(object):
     def __init__(self, ctype=None, shape=None):
