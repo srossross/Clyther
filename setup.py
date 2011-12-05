@@ -11,11 +11,16 @@ import numpy
 include_dirs = numpy.get_include()
 
 copencl = Extension('opencl.copencl', ['opencl/copencl.pyx'], extra_link_args=['-framework', 'OpenCL'], include_dirs=[include_dirs])
+kernel = Extension('opencl.kernel', ['opencl/kernel.pyx'], extra_link_args=['-framework', 'OpenCL'], include_dirs=[include_dirs])
+errors = Extension('opencl.errors', ['opencl/errors.pyx'], extra_link_args=['-framework', 'OpenCL'], include_dirs=[include_dirs])
+errors = Extension('opencl.cl_mem', ['opencl/cl_mem.pyx'], extra_link_args=['-framework', 'OpenCL'], include_dirs=[include_dirs])
+
+type_formats = Extension('opencl.type_formats', ['opencl/type_formats.pyx'], include_dirs=[include_dirs])
 
 setup(
     name='Clyther',
     cmdclass={'build_ext': build_ext},
-    ext_modules=[copencl],
+    ext_modules=[copencl, kernel, type_formats],
     version='0.1',
     author='Enthought, Inc.',
     author_email='srossross@enthought.com',

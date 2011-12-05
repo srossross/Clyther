@@ -1,9 +1,13 @@
 *.pyc
+*.cly
+*.so
+*_api.h
+
 .project
 .pydevprojectbuild
 .settings
 build
-*.cly
+
 copencl.c
-copencl.so
-copencl_api.h
+kernel.c
+type_formats.c

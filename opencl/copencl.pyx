@@ -4,15 +4,17 @@
 import weakref
 import struct
 import ctypes
-from _cl cimport * 
-from libc.stdio cimport printf
+from opencl.type_formats import refrence, ctype_from_format, type_format, cdefn
+from opencl.errors import OpenCLException
 
 from libc.stdlib cimport malloc, free 
+from libc.stdio cimport printf
+from _cl cimport * 
 from cpython cimport PyObject, Py_DECREF, Py_INCREF, PyBuffer_IsContiguous, PyBuffer_FillContiguousStrides
 from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FORMAT, PyBUF_INDIRECT, PyBUF_WRITABLE
+from kernel cimport KernelFromPyKernel, KernelAsPyKernel
+from cl_mem cimport clMemFrom_pyMemoryObject
 
-from opencl.types_formats import refrence, ctype_from_format, type_format, cdefn
-from inspect import isfunction
 
 cdef extern from "Python.h":
 
@@ -28,97 +30,6 @@ MAGIC_NUMBER = 0xabc123
     
 PyEval_InitThreads()
 
-all_opencl_errors = {
-CL_SUCCESS: 'CL_SUCCESS',
-CL_INVALID_VALUE: 'CL_INVALID_VALUE',
-CL_INVALID_BINARY: 'CL_INVALID_BINARY',
-CL_INVALID_BUFFER_SIZE: 'CL_INVALID_BUFFER_SIZE',
-CL_INVALID_BUILD_OPTIONS: 'CL_INVALID_BUILD_OPTIONS',
-CL_INVALID_CONTEXT: 'CL_INVALID_CONTEXT',
-CL_INVALID_DEVICE: 'CL_INVALID_DEVICE',
-CL_INVALID_EVENT: 'CL_INVALID_EVENT',
-CL_INVALID_HOST_PTR: 'CL_INVALID_HOST_PTR',
-CL_INVALID_KERNEL_NAME: 'CL_INVALID_KERNEL_NAME',
-CL_INVALID_OPERATION: 'CL_INVALID_OPERATION',
-CL_INVALID_KERNEL_NAME: 'CL_INVALID_KERNEL_NAME',
-CL_INVALID_COMMAND_QUEUE: 'CL_INVALID_COMMAND_QUEUE',
-CL_INVALID_CONTEXT: 'CL_INVALID_CONTEXT',
-CL_INVALID_MEM_OBJECT: 'CL_INVALID_MEM_OBJECT',
-CL_INVALID_EVENT_WAIT_LIST: 'CL_INVALID_EVENT_WAIT_LIST',
-CL_INVALID_PROPERTY: 'CL_INVALID_PROPERTY',
-CL_INVALID_DEVICE_TYPE: 'CL_INVALID_DEVICE_TYPE',
-CL_INVALID_PROGRAM: 'CL_INVALID_PROGRAM',
-CL_INVALID_PROGRAM_EXECUTABLE: 'CL_INVALID_PROGRAM_EXECUTABLE',
-CL_INVALID_PLATFORM: 'CL_INVALID_PLATFORM',
-CL_INVALID_KERNEL: 'CL_INVALID_KERNEL',
-CL_INVALID_KERNEL_ARGS: 'CL_INVALID_KERNEL_ARGS',
-CL_INVALID_WORK_DIMENSION: 'CL_INVALID_WORK_DIMENSION',
-CL_INVALID_GLOBAL_WORK_SIZE: 'CL_INVALID_GLOBAL_WORK_SIZE',
-CL_INVALID_GLOBAL_OFFSET: 'CL_INVALID_GLOBAL_OFFSET',
-CL_INVALID_WORK_GROUP_SIZE: 'CL_INVALID_WORK_GROUP_SIZE',
-CL_INVALID_WORK_ITEM_SIZE: 'CL_INVALID_WORK_ITEM_SIZE',
-CL_INVALID_IMAGE_SIZE: 'CL_INVALID_IMAGE_SIZE',
-CL_INVALID_ARG_INDEX: 'CL_INVALID_ARG_INDEX',
-CL_INVALID_ARG_VALUE: 'CL_INVALID_ARG_VALUE',
-CL_INVALID_SAMPLER: 'CL_INVALID_SAMPLER',
-CL_INVALID_ARG_SIZE: 'CL_INVALID_ARG_SIZE',
-CL_INVALID_KERNEL_DEFINITION: 'CL_INVALID_KERNEL_DEFINITION',
-CL_MISALIGNED_SUB_BUFFER_OFFSET: 'CL_MISALIGNED_SUB_BUFFER_OFFSET',
-CL_MEM_OBJECT_ALLOCATION_FAILURE: 'CL_MEM_OBJECT_ALLOCATION_FAILURE',
-CL_DEVICE_NOT_AVAILABLE: 'CL_DEVICE_NOT_AVAILABLE',
-CL_COMPILER_NOT_AVAILABLE: 'CL_COMPILER_NOT_AVAILABLE',
-CL_BUILD_PROGRAM_FAILURE: 'CL_BUILD_PROGRAM_FAILURE',
-CL_INVALID_OPERATION: 'CL_INVALID_OPERATION',
-CL_OUT_OF_HOST_MEMORY: 'CL_OUT_OF_HOST_MEMORY',
-CL_OUT_OF_RESOURCES: 'CL_OUT_OF_RESOURCES',
-CL_DEVICE_NOT_FOUND: 'CL_DEVICE_NOT_FOUND',
-CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST: 'CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST',
-}
-
-OpenCLErrorStrings = {
-                
-    CL_INVALID_CONTEXT: 'Context is not a valid context.',
-    CL_INVALID_BUFFER_SIZE: 'size is 0',
-    
-    CL_INVALID_EVENT:'Event objects specified in event_list are not valid event objects',
-    
-    CL_INVALID_HOST_PTR : '''if host_ptr is NULL and CL_MEM_USE_HOST_PTR or  
-CL_MEM_COPY_HOST_PTR are set in flags or if host_ptr is not NULL but 
-CL_MEM_COPY_HOST_PTR or CL_MEM_USE_HOST_PTR are not set in flags.''',
-    CL_MEM_OBJECT_ALLOCATION_FAILURE :"There is a failure to allocate memory for buffer object.",
-    CL_OUT_OF_RESOURCES : "There is a failure to allocate resources required by the OpenCL implementation on the device.",
-    CL_OUT_OF_HOST_MEMORY : "There is a failure to allocate resources required by the OpenCL implementation on the host",
-    CL_INVALID_PROGRAM :'Program is not a valid program object.',
-    CL_INVALID_VALUE: 'CL_INVALID_VALUE: this one should have been caught by python!',
-    CL_INVALID_DEVICE : 'OpenCL devices listed in device_list are not in the list of devices associated with program.',
-    CL_INVALID_BINARY:  'program is created with clCreateWithProgramBinary and devices listed in device_list do not have a valid program binary loaded.',
-    CL_INVALID_BUILD_OPTIONS :'The build options specified by options are invalid.',
-    CL_INVALID_OPERATION: 'The build of a program executable for any of the devices listed in device_list by a previous call to clBuildProgram for program has not  completed.',
-    CL_COMPILER_NOT_AVAILABLE: 'Program is created with clCreateProgramWithSource and a compiler is not available' ,
-    CL_BUILD_PROGRAM_FAILURE: '''if there is a failure to build the program executable.  
-This error will be returned if clBuildProgram does not return until the build has 
-completed. 
-''',
-    CL_INVALID_OPERATION: 'There are kernel objects attached to program.',
-    CL_OUT_OF_HOST_MEMORY : 'if there is a failure to allocate resources required by the OpenCL implementation on the host.',
-    
-    CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST: 'The execution status of any of the events in event_list is a negative integer value',
-    
-    CL_INVALID_PROGRAM_EXECUTABLE : 'there is no successfully built executable for program',
-    
-    CL_INVALID_KERNEL_NAME : ' kernel_name is not found in program.',
-    
-    CL_INVALID_KERNEL_DEFINITION : ('The function definition for __kernel  function ' 
-                                    'given by kernel_name such as the number of arguments, the argument types are not the' 
-                                    'same for all devices for which the program executable has been built'),
-                }
-
-
-class OpenCLException(Exception):
-    def __init__(self, err_code, mapping=None):
-        if mapping is None:
-            mapping = OpenCLErrorStrings
-        Exception.__init__(self, err_code, all_opencl_errors.get(err_code,'CL_ERROR'), mapping.get(err_code, 'Uknown OpenCL error'))
 
 cpdef get_platforms():
     '''
@@ -452,7 +363,7 @@ cdef class Context:
     def __cinit__(self):
         self.context_id = NULL
         
-    def __init__(self, devices=(), device_type=None, ContextProperties properties=None):
+    def __init__(self, devices=(), device_type=CL_DEVICE_TYPE_DEFAULT, ContextProperties properties=None):
         
         cdef cl_context_properties * props = NULL
         
@@ -464,21 +375,11 @@ cdef class Context:
         cdef cl_uint num_devices
         cdef cl_device_id * _devices = NULL
 
-        if device_type is not None:
-            dtype = < cl_device_type > device_type
-            self.context_id = clCreateContextFromType(props, dtype, NULL, NULL, & err_code)
-    
-            if err_code != CL_SUCCESS:
-                raise OpenCLException(err_code, _context_errors)
-        else:
-            if devices:
-                num_devices = len(devices)
-                _devices = < cl_device_id *> malloc(num_devices * sizeof(cl_device_id))
-                for i in range(num_devices): 
-                    _devices[i] = (< Device > devices[i]).device_id
-            else:
-                num_devices = 0
-                _devices = NULL
+        if devices:
+            num_devices = len(devices)
+            _devices = < cl_device_id *> malloc(num_devices * sizeof(cl_device_id))
+            for i in range(num_devices): 
+                _devices[i] = (< Device > devices[i]).device_id
                  
             self.context_id = clCreateContext(props, num_devices, _devices, NULL, NULL, & err_code)
             
@@ -487,6 +388,13 @@ cdef class Context:
 
             if err_code != CL_SUCCESS:
                 raise OpenCLException(err_code, _context_errors)
+        else:
+            dtype = < cl_device_type > device_type
+            self.context_id = clCreateContextFromType(props, dtype, NULL, NULL, & err_code)
+    
+            if err_code != CL_SUCCESS:
+                raise OpenCLException(err_code, _context_errors)
+
     
     def __dealloc__(self):
         if self.context_id != NULL:
@@ -669,7 +577,8 @@ cdef class Queue:
         cdef cl_int err_code
         cdef cl_command_queue queue_id = self.queue_id
          
-        err_code = clEnqueueBarrier(queue_id)
+        with nogil:
+            err_code = clEnqueueBarrier(queue_id)
 
         if err_code != CL_SUCCESS:
             raise OpenCLException(err_code)
@@ -708,6 +617,25 @@ cdef class Queue:
         
     def copy(self, source, dest):
         pass
+    
+    def wait(self, *events):
+        
+        if len(events) == 1:
+            if isinstance(events[0], (list, tuple)):
+                events = events[0]
+            else:
+                events = (events[0],)
+        
+        cdef cl_event * event_wait_list
+        cdef cl_uint num_events_in_wait_list = _make_wait_list(events, & event_wait_list)
+        cdef cl_uint err_code
+        
+        err_code = clEnqueueWaitForEvents(self.queue_id, num_events_in_wait_list, event_wait_list)
+
+        free(event_wait_list)
+        
+        if err_code != CL_SUCCESS:
+            raise OpenCLException(err_code)
     
 #    def enqueue_read_buffer(self, buffer, host_destination, size_t offset=0, size=None, blocking=False, events=None):
 #        
@@ -923,7 +851,8 @@ cdef class Queue:
     def enqueue_nd_range_kernel(self, kernel, cl_uint  work_dim,
                                 global_work_size, global_work_offset=None, local_work_size=None, wait_on=()):
         
-        cdef cl_kernel kernel_id = (< Kernel > kernel).kernel_id
+        cdef cl_kernel kernel_id = KernelFromPyKernel(kernel)
+        
         cdef Event event = Event()
         
         cdef size_t * gsize = < size_t *> malloc(sizeof(size_t) * work_dim)
@@ -963,8 +892,8 @@ cdef class Queue:
         cdef cl_event * event_wait_list
         cdef cl_uint num_events_in_wait_list = _make_wait_list(wait_on, & event_wait_list)
         
-        cdef cl_mem src_buffer = (< MemoryObject > source).buffer_id
-        cdef cl_mem dst_buffer = (< MemoryObject > dest).buffer_id
+        cdef cl_mem src_buffer = clMemFrom_pyMemoryObject(source)
+        cdef cl_mem dst_buffer = clMemFrom_pyMemoryObject(dest)
         
         err_code = clEnqueueCopyBuffer(self.queue_id, src_buffer, dst_buffer, src_offset, dst_offset, size,
                                        num_events_in_wait_list, event_wait_list, & event.event_id)
@@ -981,7 +910,7 @@ cdef class Queue:
         cdef cl_event * event_wait_list
         cdef cl_uint num_events_in_wait_list = _make_wait_list(wait_on, & event_wait_list)
         
-        cdef cl_mem src_buffer = (< MemoryObject > source).buffer_id
+        cdef cl_mem src_buffer = clMemFrom_pyMemoryObject(source)
         
         cdef int flags = PyBUF_SIMPLE
         
@@ -1014,7 +943,7 @@ cdef class Queue:
         cdef cl_event * event_wait_list
         cdef cl_uint num_events_in_wait_list = _make_wait_list(wait_on, & event_wait_list)
         
-        cdef cl_mem src_buffer = (< MemoryObject > source).buffer_id
+        cdef cl_mem src_buffer = clMemFrom_pyMemoryObject(source)
         
         cdef int flags = PyBUF_SIMPLE | PyBUF_WRITABLE
         
@@ -1053,8 +982,8 @@ cdef class Queue:
         cdef cl_event * event_wait_list
         cdef cl_uint num_events_in_wait_list = _make_wait_list(wait_on, & event_wait_list)
         
-        cdef cl_mem src_buffer = (< MemoryObject > source).buffer_id
-        cdef cl_mem dst_buffer = (< MemoryObject > dest).buffer_id
+        cdef cl_mem src_buffer = clMemFrom_pyMemoryObject(source)
+        cdef cl_mem dst_buffer = clMemFrom_pyMemoryObject(dest)
         
         cdef size_t _src_origin[3]
         _src_origin[:] = [0, 0, 0]
@@ -1099,19 +1028,77 @@ cdef cl_uint _make_wait_list(wait_on, cl_event ** event_wait_list_ptr):
     event_wait_list_ptr[0] = event_wait_list
     return num_events
     
+cdef void pfn_event_notify(cl_event event, cl_int event_command_exec_status, void * data) with gil:
+    
+    cdef object user_data = (< object > data)
+    
+    pyevent = cl_eventAs_PyEvent(event)
+    
+    try:
+        user_data(pyevent, event_command_exec_status)
+    except:
+        Py_DECREF(< object > user_data)
+        raise
+    else:
+        Py_DECREF(< object > user_data)
+    
 
 cdef class Event:
-    cdef cl_event event_id
 
+    QUEUED = CL_QUEUED
+    SUBMITTED = CL_SUBMITTED
+    RUNNING = CL_RUNNING
+    COMPLETE = CL_COMPLETE
+    
+    STATUS_DICT = { CL_QUEUED: 'queued', CL_SUBMITTED:'submitted', CL_RUNNING: 'running', CL_COMPLETE:'complete'}
+    
+    cdef cl_event event_id
+    
+    def __cinit__(self):
+        self.event_id = NULL
+
+    def __dealloc__(self):
+        if self.event_id != NULL:
+            clReleaseEvent(self.event_id)
+        self.event_id = NULL
+        
+    def __repr__(self):
+        status = self.status
+        return '<%s status=%r:%r>' % (self.__class__.__name__, status, self.STATUS_DICT[status])
+    
     def wait(self):
         
         cdef cl_int err_code
         
-        err_code = clWaitForEvents(1, & self.event_id)
+        with nogil:
+            err_code = clWaitForEvents(1, & self.event_id)
     
         if err_code != CL_SUCCESS:
             raise OpenCLException(err_code)
+        
+    property status:
+        def __get__(self):
+            cdef cl_int err_code
+            cdef cl_int status
 
+            err_code = clGetEventInfo(self.event_id, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), & status, NULL)
+
+            if err_code != CL_SUCCESS:
+                raise OpenCLException(err_code)
+            
+            return status
+        
+    def add_callback(self, callback):
+        
+        cdef cl_int err_code
+
+        Py_INCREF(callback)
+        err_code = clSetEventCallback(self.event_id, CL_COMPLETE, < void *> & pfn_event_notify, < void *> callback) 
+        
+        if err_code != CL_SUCCESS:
+            raise OpenCLException(err_code)
+        
+        
 cdef class UserEvent(Event):
 
     def __cinit__(self, Context context):
@@ -1132,567 +1119,6 @@ cdef class UserEvent(Event):
         if err_code != CL_SUCCESS:
             raise OpenCLException(err_code)
         
-        
-cdef class MemoryObject:
-    cdef cl_mem buffer_id
-    
-    def __cinit__(self):
-        self.buffer_id = NULL
-        
-    def __dealloc__(self):
-        if self.buffer_id != NULL:
-            clReleaseMemObject(self.buffer_id)
-        self.buffer_id = NULL
-    
-    property context:
-        def __get__(self):
-            cdef cl_context param_value
-            cdef cl_int err_code
-            
-            err_code = clGetMemObjectInfo(self.buffer_id, CL_MEM_CONTEXT, sizeof(size_t),
-                                          < void *> & param_value, NULL)
-            
-            if err_code != CL_SUCCESS:
-                raise OpenCLException(err_code)
-    
-            return ContextAsPyContext(param_value)
-
-            
-    property mem_size:
-        def __get__(self):
-    
-            cdef size_t param_value
-            cdef cl_int err_code
-            
-            err_code = clGetMemObjectInfo(self.buffer_id, CL_MEM_SIZE, sizeof(size_t),
-                                          < void *> & param_value, NULL)
-            
-            if err_code != CL_SUCCESS:
-                raise OpenCLException(err_code)
-    
-            return param_value
-
-    property _refcount:
-        def __get__(self):
-            cdef cl_uint param_value
-            cdef cl_int err_code
-            clGetMemObjectInfo (self.buffer_id, CL_MEM_REFERENCE_COUNT, sizeof(cl_uint),
-                                < void *>& param_value, NULL)
-    
-            if err_code != CL_SUCCESS:
-                raise OpenCLException(err_code)
-
-            return param_value
-
-    property _mapcount:
-        def __get__(self):
-            
-            cdef cl_uint param_value
-            cdef cl_int err_code
-            clGetMemObjectInfo (self.buffer_id, CL_MEM_MAP_COUNT, sizeof(cl_uint),
-                                < void *>& param_value, NULL)
-    
-            if err_code != CL_SUCCESS:
-                raise OpenCLException(err_code)
-
-            return param_value
-    
-    property base:
-        def __get__(self):
-            cdef cl_mem param_value
-            cdef cl_int err_code
-            clGetMemObjectInfo (self.buffer_id, CL_MEM_ASSOCIATED_MEMOBJECT, sizeof(cl_mem),
-                                < void *>& param_value, NULL)
-    
-            if err_code != CL_SUCCESS:
-                raise OpenCLException(err_code)
-            
-            if param_value == NULL:
-                return None
-            else:
-                return MemObjectAs_pyMemoryObject(param_value)
-    
-    
-cdef class DeviceMemoryView(MemoryObject):
-    
-    cdef char * _format
-    cdef public int readonly
-    cdef public int ndim
-    cdef Py_ssize_t * _shape
-    cdef Py_ssize_t * _strides
-    cdef Py_ssize_t * _suboffsets
-    cdef public Py_ssize_t itemsize
-    cdef object __weakref__
-    
-    def __cinit__(self):
-        self._format = NULL
-        self.readonly = 1
-        self.ndim = 0
-        self._shape = NULL
-        self._strides = NULL
-        self._suboffsets = NULL
-        self.itemsize = 0
-        
-    def __init__(self, Context context, size_t size, cl_mem_flags flags=CL_MEM_READ_WRITE):
-        
-        self.buffer_id = NULL 
-        cdef void * host_ptr = NULL
-        cdef cl_int err_code
-        self.buffer_id = clCreateBuffer(context.context_id, flags, size, host_ptr, & err_code)
-
-        if err_code != CL_SUCCESS:
-            raise OpenCLException(err_code)
-    
-    property format:
-        def __get__(self):
-            if self._format != NULL:
-                return str(self._format)
-            else:
-                return "B"
-        
-    property shape:
-        def __get__(self):
-            shape = []
-            for i in range(self.ndim):
-                shape.append(self._shape[i])
-            return tuple(shape)
-
-    property suboffsets:
-        def __get__(self):
-            
-            if self._suboffsets == NULL:
-                return None
-            
-            suboffsets = []
-            for i in range(self.ndim):
-                suboffsets.append(self._suboffsets[i])
-            return tuple(suboffsets)
-
-    property strides:
-        def __get__(self):
-            strides = []
-            for i in range(self.ndim):
-                strides.append(self._strides[i])
-            return tuple(strides)
-        
-    def map(self, queue, blocking=True, readonly=False, size_t offset=0, size_t size=0):
-        
-        cdef cl_map_flags flags = CL_MAP_READ
-        
-        if not readonly: 
-            flags |= CL_MAP_WRITE
-        
-        cdef cl_bool blocking_map = 1 if blocking else 0
-        if size == 0:
-            size = len(self)
-            
-        return MemoryViewMap(< Queue > queue, self, blocking_map, flags, offset, size)
-
-    @classmethod
-    def from_host(cls, Context ctx, host):
-        
-        cdef Py_buffer view
-        cdef DeviceMemoryView buffer = DeviceMemoryView.__new__(DeviceMemoryView)
-        
-        cdef int py_flags = PyBUF_SIMPLE | PyBUF_STRIDES | PyBUF_ND | PyBUF_FORMAT
-        
-        cdef cl_mem_flags mem_flags = CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE
-        cdef cl_int err_code
-         
-        if not PyObject_CheckBuffer(host):
-            raise Exception("argument host must support the buffer protocal (got %r)" % host)
-        
-        if PyObject_GetBuffer(host, & view, py_flags) < 0:
-            raise Exception("argument host must support the buffer protocal (got %r)" % host)
-            
-        if PyBuffer_IsContiguous(& view, 'C'):
-            buffer.buffer_id = clCreateBuffer(ctx.context_id, mem_flags, view.len, view.buf, & err_code)
-            PyBuffer_Release(& view)
-            if err_code != CL_SUCCESS:
-                raise OpenCLException(err_code)
-            
-            buffer._format = view.format
-            buffer.readonly = 1
-            buffer.itemsize = view.itemsize
-            buffer.ndim = view.ndim
-            
-            buffer._shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * view.ndim)
-            buffer._strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * view.ndim)
-            buffer._suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * view.ndim)
-            
-            for i in range(view.ndim):
-                buffer._shape[i] = view.shape[i]
-                buffer._strides[i] = view.strides[i]
-                buffer._suboffsets[i] = 0
-
-        else:
-            raise NotImplementedError("data must be contiguous")
-        
-        return buffer
-        
-    @classmethod
-    def from_gl(cls, Context ctx, vbo):
-        
-        cdef cl_context context = ctx.context_id
-        cdef cl_mem_flags flags = CL_MEM_READ_WRITE
-        cdef unsigned int bufobj = vbo
-        cdef cl_int err_code
-        cdef cl_mem memobj = NULL
-        
-        memobj = clCreateFromGLBuffer(context, flags, bufobj, & err_code)
-    
-        if err_code != CL_SUCCESS:
-            raise OpenCLException(err_code)
-        
-        cdef MemoryObject cview = < MemoryObject > MemoryObject.__new__(MemoryObject)
-        
-        return None
-
-    
-    def __getitem__(self, args):
-        
-        if not isinstance(args, tuple):
-            args = (args,)
-            
-        if len(args) != self.ndim:
-            raise IndexError("too many indices expected %i (got %i)" % (self.ndim, len(args)))
-        
-        ndim = self.ndim
-        shape = list(self.shape)
-        strides = list(self.strides)
-        suboffsets = list(self.suboffsets)
-        i = 0 
-        for arg in args:
-            if isinstance(arg, slice):
-                start, stop, step = arg.indices(shape[i])
-                shape[i] = (stop - start) // step
-                modd = (stop - start) % step
-                if modd != 0: shape[i] += 1
-                
-                if suboffsets[i] > 0:
-                    suboffsets[i] += start * strides[i]
-                else:
-                    suboffsets[i] = start * strides[i]
-                    
-                strides[i] = strides[i] * step
-                i += 1
-            else:
-                raise IndexError()
-        
-        cdef DeviceMemoryView buffer = DeviceMemoryView.__new__(DeviceMemoryView)
-        
-        clRetainMemObject(self.buffer_id) 
-        buffer.buffer_id = self.buffer_id
-        
-        buffer._format = self._format
-        buffer.readonly = self.readonly
-        buffer.itemsize = self.itemsize
-        buffer.ndim = ndim
-        
-        buffer._shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * ndim)
-        buffer._strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * ndim)
-        buffer._suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * ndim)
-        
-        for i in range(ndim):
-            buffer._shape[i] = shape[i]
-            buffer._strides[i] = strides[i]
-            buffer._suboffsets[i] = suboffsets[i]
-        
-        return buffer
-    
-    property size:
-        def __get__(self):
-            shape = self.shape
-            size = 1
-            for i in range(self.ndim):
-                size *= shape[i]
-            return size
-
-    property nbytes:
-        def __get__(self):
-            return self.size * self.itemsize
-
-    property offset:
-        def __get__(self):
-            cdef size_t offset = 0
-            
-            for i in range(self.ndim):
-                offset += self._suboffsets[i]
-                
-            return offset
-
-        
-    def __len__(self):
-        return self.size 
-            
-    property is_contiguous:
-        def __get__(self):
-            
-            strides = [self.itemsize]
-            for i in range(self.ndim - 1):
-                stride = strides[i]
-                size = self.shape[-i - 1]
-                strides.append(stride * size)
-                
-            return self.strides == tuple(strides[::-1])
-        
-    def copy(self, queue):
-        
-        cdef size_t src_row_pitch  
-        cdef size_t src_slice_pitch 
-        cdef size_t dst_row_pitch
-        cdef size_t dst_slice_pitch
-        dest = empty(self.context, self.shape, ctype=self.format)
-        
-        if self.is_contiguous:
-            queue.enqueue_copy_buffer(self, dest, self.offset, dst_offset=0, size=self.nbytes, wait_on=())
-            
-        elif any(stride < 0 for stride in self.strides):
-            raise NotImplementedError("stride < 0")
-        
-        elif self.ndim == 1:
-            
-            src_row_pitch = self._strides[0]
-            src_slice_pitch = 0 
-            dst_row_pitch = 0
-            dst_slice_pitch = 0
-            
-            region = (dest.itemsize, dest.size, 1)
-            src_origin = (self.offset, 0, 0)
-            dst_origin = (0, 0, 0)
-            
-            queue.enqueue_copy_buffer_rect(self, dest, region, src_origin, dst_origin,
-                                           src_row_pitch, src_slice_pitch,
-                                           dst_row_pitch, dst_slice_pitch, wait_on=())
-        elif self.ndim == 2:
-            
-            shape2 = self.itemsize
-            shape1 = self._shape[1]
-            shape0 = self._shape[0]
-            
-            src_row_pitch = self._strides[1]
-            src_slice_pitch = self._strides[0] 
-
-            region = shape2, shape1, shape0
-            src_origin = (self.offset, 0, 0)
-            dst_origin = (0, 0, 0)
-            
-            queue.enqueue_copy_buffer_rect(self, dest, region, src_origin, dst_origin,
-                                           src_row_pitch, src_slice_pitch,
-                                           dst_row_pitch, dst_slice_pitch, wait_on=())
-        else:
-            raise Exception()
-        
-        return dest
-    
-    def read(self, queue, out, wait_on=(), blocking=False):
-        queue.enqueue_read_buffer(self, out, self.offset, self.nbytes, wait_on, blocking_read=blocking)
-
-    def write(self, queue, buf, wait_on=(), blocking=False):
-        queue.enqueue_write_buffer(self, buf, self.offset, self.nbytes, wait_on, blocking_read=blocking)
-        
-#        view.len = self.cb
-#        
-#        cdef DeviceMemoryView dview = < DeviceMemoryView > self.dview()
-#        cdef cl_mem memobj = dview.buffer_id
-#        
-#        view.readonly = 0 if (self.map_flags & CL_MAP_WRITE) else 1
-#        view.format = dview._format
-#        view.ndim = dview.ndim
-#        view.shape = dview._shape
-#        view.itemsize = dview.itemsize
-#        view.internal = NULL
-#        view.strides = dview._strides
-#        view.suboffsets = NULL
-#        
-#        cdef size_t offset = dview.offset 
-#        
-#        view.buf = self.bytes + offset
-        
-    def __releasebuffer__(self, Py_buffer * view):
-        pass
-
-
-def empty_gl(Context ctx, shape, ctype='B'):
-    
-    cdef cl_mem_flags flags = CL_MEM_READ_WRITE
-    
-    cdef char * format
-    cdef cl_int err_code
-    
-    if isinstance(ctype, str):
-        format = ctype
-    else:
-        format = ctype._type_
-
-    cdef size_t itemsize = struct.calcsize(format)
-    cdef size_t size = itemsize
-    for i in shape:
-        size *= i
-       
-    cdef GLuint vbo 
-    glGenBuffers(1, & vbo)
-    glBindBuffer(GL_ARRAY_BUFFER, vbo)
-    
-    cdef GLsizeiptr nbytes = itemsize
-    for i in shape:
-        nbytes *= i
-                
-    glBufferData(GL_ARRAY_BUFFER, nbytes, NULL, GL_STATIC_DRAW)
-    
-    if glGetError() != GL_NO_ERROR:
-        raise Exception("OpenGL error")
-    
-    cdef cl_mem buffer_id = clCreateFromGLBuffer(ctx.context_id, flags, vbo, & err_code)
-    
-    
-    glBindBuffer(GL_ARRAY_BUFFER, 0)
-    
-    if err_code != CL_SUCCESS:
-        raise OpenCLException(err_code)
-
-    cdef DeviceMemoryView buffer = DeviceMemoryView.__new__(DeviceMemoryView)
-    buffer.buffer_id = buffer_id
-    
-    buffer._format = format
-    buffer.readonly = 0
-    buffer.itemsize = itemsize
-    buffer.ndim = len(shape)
-    
-    buffer._shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
-    buffer._strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
-    buffer._suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
-    
-    strides = [buffer.itemsize]
-    for i in range(buffer.ndim):
-        buffer._shape[i] = shape[i]
-        buffer._suboffsets[i] = 0
-    
-    PyBuffer_FillContiguousStrides(buffer.ndim, buffer._shape, buffer._strides, buffer.itemsize, 'C')
-    
-    return buffer
-
-def empty(Context ctx, shape, ctype='B'):
-    
-    cdef cl_mem_flags flags = CL_MEM_READ_WRITE
-    
-    cdef char * format
-    cdef cl_int err_code
-    
-    if isinstance(ctype, str):
-        format = ctype
-    else:
-        format = ctype._type_
-
-    cdef size_t itemsize = struct.calcsize(format)
-    cdef size_t size = itemsize
-    for i in shape:
-        size *= i
-        
-    cdef cl_mem buffer_id = clCreateBuffer(ctx.context_id, flags, size, NULL, & err_code)
-
-    if err_code != CL_SUCCESS:
-        raise OpenCLException(err_code)
-
-    cdef DeviceMemoryView buffer = DeviceMemoryView.__new__(DeviceMemoryView)
-    buffer.buffer_id = buffer_id
-    
-    buffer._format = format
-    buffer.readonly = 0
-    buffer.itemsize = itemsize
-    buffer.ndim = len(shape)
-    
-    buffer._shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
-    buffer._strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
-    buffer._suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
-    
-    strides = [buffer.itemsize]
-    for i in range(buffer.ndim):
-        buffer._shape[i] = shape[i]
-        buffer._suboffsets[i] = 0
-    
-    PyBuffer_FillContiguousStrides(buffer.ndim, buffer._shape, buffer._strides, buffer.itemsize, 'C')
-    
-    return buffer
-    
-cdef class MemoryViewMap:
-    
-    cdef cl_command_queue command_queue
-#    cdef DeviceMemoryView dview
-    cdef public object dview
-    
-    cdef cl_bool blocking_map
-    cdef cl_map_flags map_flags
-    cdef size_t offset
-    cdef size_t cb
-    cdef void * bytes 
-        
-    def __init__(self, Queue  queue, dview, cl_bool blocking_map, cl_map_flags map_flags, size_t offset, size_t cb):
-        
-        self.dview = weakref.ref(dview)
-        
-        self.command_queue = queue.queue_id
-        self.blocking_map = blocking_map
-        self.map_flags = map_flags
-        self.offset = offset
-        self.cb = cb
-    
-    def __enter__(self):
-        cdef void * bytes 
-        cdef cl_uint num_events_in_wait_list = 0
-        cdef cl_event * event_wait_list = NULL
-        
-        cdef cl_int err_code
-        
-        cdef cl_mem memobj = (< DeviceMemoryView > self.dview()).buffer_id
-        bytes = clEnqueueMapBuffer(self.command_queue, memobj,
-                                   self.blocking_map, self.map_flags, 0, len(self.dview()),
-                                   num_events_in_wait_list, event_wait_list, NULL,
-                                   & err_code)
-         
-        if err_code != CL_SUCCESS:
-            raise OpenCLException(err_code)
-        
-        self.bytes = bytes
-        
-        return memoryview(self)
-
-    def __exit__(self, *args):
-
-        cdef cl_int err_code 
-        
-        cdef cl_mem memobj = (< DeviceMemoryView > self.dview()).buffer_id
-        
-        err_code = clEnqueueUnmapMemObject(self.command_queue, memobj, self.bytes, 0, NULL, NULL)
-        clEnqueueBarrier(self.command_queue)
-        
-        if err_code != CL_SUCCESS:
-            raise OpenCLException(err_code)
-        
-    def __getbuffer__(self, Py_buffer * view, int flags):
-        view.len = self.cb
-        
-        cdef DeviceMemoryView dview = < DeviceMemoryView > self.dview()
-        cdef cl_mem memobj = dview.buffer_id
-        
-        view.readonly = 0 if (self.map_flags & CL_MAP_WRITE) else 1
-        view.format = dview._format
-        view.ndim = dview.ndim
-        view.shape = dview._shape
-        view.itemsize = dview.itemsize
-        view.internal = NULL
-        view.strides = dview._strides
-        view.suboffsets = NULL
-        
-        cdef size_t offset = dview.offset 
-        
-        view.buf = self.bytes + offset
-        
-    def __releasebuffer__(self, Py_buffer * view):
-        pass
-    
-cdef class Image(MemoryObject):
-    pass
 
 clCreateKernel_errors = {
                          
@@ -1832,164 +1258,6 @@ cdef class Program:
             
             return devices
         
-class global_memory(object):
-    def __init__(self, ctype=None, shape=None):
-        self.shape = shape
-        
-        if ctype is None:
-            self.format = ctype
-            self.ctype = ctype
-            
-        elif isinstance(ctype, str):
-            self.format = ctype
-            self.ctype = ctype_from_format(ctype)
-            
-        else:
-            self.ctype = ctype
-            self.format = type_format(ctype)
-    
-    def __call__(self, memobj):
-        if not isinstance(memobj, MemoryObject):
-            raise TypeError("arguemnt must be an instance of MemoryObject")
-        cdef cl_mem buffer = (< MemoryObject > memobj).buffer_id
-        return ctypes.c_voidp(< size_t > buffer)
-    
-    def ctype_string(self):
-        return '__global %s' % (cdefn(refrence(self.format)))
-    
-    def derefrence(self):
-        return self.ctype
-    
-set_kerne_arg_errors = {
-    CL_INVALID_KERNEL : 'kernel is not a valid kernel object.',
-    CL_INVALID_ARG_INDEX :'arg_index is not a valid argument index.',
-    CL_INVALID_ARG_VALUE : 'arg_value specified is not a valid value.',
-    CL_INVALID_MEM_OBJECT : 'The specified arg_value is not a valid memory object.',
-    CL_INVALID_SAMPLER : 'The specified arg_value is not a valid sampler object.',
-    CL_INVALID_ARG_SIZE :('arg_size does not match the size of the data type for an ' 
-                          'argument that is not a memory object or if the argument is a memory object and arg_size')
-}
-
-cdef class Kernel:
-    cdef cl_kernel kernel_id
-    cdef object _argtypes 
-    cdef object _argnames 
-    cdef public object global_work_size
-    cdef public object global_work_offset
-    cdef public object local_work_size
-    
-    def __cinit__(self):
-        self.kernel_id = NULL
-
-    def __dealloc__(self):
-        
-        if self.kernel_id != NULL:
-            clReleaseKernel(self.kernel_id)
-            
-        self.kernel_id = NULL
-        
-    def __init__(self):
-        self._argtypes = None
-        self._argnames = None
-        self.global_work_size = None
-        self.global_work_offset = None
-        self.local_work_size = None
-        
-    property argtypes:
-        def __get__(self):
-            return self._argtypes
-        
-        def __set__(self, value):
-            self._argtypes = tuple(value)
-            if len(self._argtypes) != self.nargs:
-                raise TypeError("argtypes must have %i values (got %i)" % (self.nargs, len(self.argtypes)))
-            
-    property nargs:
-        def __get__(self):
-            cdef cl_int err_code
-            cdef cl_uint nargs
-
-            err_code = clGetKernelInfo(self.kernel_id, CL_KERNEL_NUM_ARGS, sizeof(cl_uint), & nargs, NULL)
-            if err_code != CL_SUCCESS: raise OpenCLException(err_code)
-            
-            return nargs
-
-    property name:
-        def __get__(self):
-            cdef cl_int err_code
-            cdef size_t nbytes
-            cdef char * name = NULL
-            
-            err_code = clGetKernelInfo(self.kernel_id, CL_KERNEL_FUNCTION_NAME, 0, NULL, & nbytes)
-            if err_code != CL_SUCCESS: raise OpenCLException(err_code)
-            
-            name = < char *> malloc(nbytes + 1)
-            
-            err_code = clGetKernelInfo(self.kernel_id, CL_KERNEL_FUNCTION_NAME, nbytes, name, NULL)
-            if err_code != CL_SUCCESS: raise OpenCLException(err_code)
-            
-            name[nbytes] = 0
-            cdef str pyname = name
-            free(name)
-            
-            return pyname
-        
-        
-    def __repr__(self):
-        return '<Kernel %s nargs=%r>' % (self.name, self.nargs)
-    
-    def set_args(self, *args):
-        if self._argtypes is None:
-            raise TypeError("argtypes must be set before calling ")
-        
-        if len(args) != len(self._argtypes):
-            raise TypeError("kernel requires %i arguments (got %i)" % (self.nargs, len(args)))
-        
-        cdef cl_int err_code
-        cdef size_t arg_size
-        cdef size_t tmp
-        cdef void * arg_value
-        
-        for arg_index, (argtype, arg) in enumerate(zip(self._argtypes, args)):
-            carg = argtype(arg)
-            if isinstance(argtype, global_memory):
-                arg_size = sizeof(cl_mem)
-                arg_value = < void *> & (< MemoryObject > arg).buffer_id
-            else:
-                arg_size = ctypes.sizeof(carg)
-                tmp = < size_t > ctypes.addressof(carg)
-                arg_value = < void *> tmp
-            
-            err_code = clSetKernelArg(self.kernel_id, arg_index, arg_size, arg_value)
-            if err_code != CL_SUCCESS:
-                print arg_index, arg_size, arg 
-                raise OpenCLException(err_code, set_kerne_arg_errors)
-         
-    def __call__(self, queue, *args, global_work_size=None, global_work_offset=None, local_work_size=None, wait_on=()):
-        self.set_args(*args)
-        
-        if global_work_size is None:
-            if isfunction(self.global_work_size):
-                global_work_size = self.global_work_size(*args)
-            elif self.global_work_size is None:
-                raise TypeError("missing required keyword arguement 'global_work_size'")
-            else:
-                global_work_size = self.global_work_size
-
-        if global_work_offset is None:
-            if isfunction(self.global_work_offset):
-                global_work_offset = self.global_work_offset(*args)
-            else:
-                global_work_offset = self.global_work_offset
-
-        if local_work_size is None:
-            if isfunction(self.local_work_size):
-                local_work_size = self.local_work_size(*args)
-            else:
-                local_work_size = self.local_work_size
-        
-        queue.enqueue_nd_range_kernel(self, len(global_work_size), global_work_size, global_work_offset, local_work_size, wait_on)
-    
 
 ## API FUNCTIONS #### #### #### #### #### #### #### #### #### #### ####
 ## ############# #### #### #### #### #### #### #### #### #### #### ####
@@ -2028,32 +1296,16 @@ cdef api object DeviceIDAsPyDevice(cl_device_id device_id):
     device.device_id = device_id
     return device
 
-#===============================================================================
-# 
-#===============================================================================
-cdef api cl_kernel KernelFromPyKernel(object py_kernel):
-    cdef Kernel kernel = < Kernel > py_kernel
-    return kernel.kernel_id
-
-cdef api object KernelAsPyKernel(cl_kernel kernel_id):
-    cdef Kernel kernel = < Kernel > Kernel.__new__(Kernel)
-    kernel.kernel_id = kernel_id
-    clRetainKernel(kernel_id)
-    return kernel
 
 
 #===============================================================================
 # 
 #===============================================================================
-cdef api cl_kernel ViewFromMemObject(object py_kernel):
-    cdef Kernel kernel = < Kernel > py_kernel
-    return kernel.kernel_id
-
-cdef api object MemObjectAs_pyMemoryObject(cl_mem buffer_id):
-    cdef MemoryObject cview = < MemoryObject > MemoryObject.__new__(MemoryObject)
-    clRetainMemObject(buffer_id)
-    cview.buffer_id = buffer_id
-    return cview
+cdef api object cl_eventAs_PyEvent(cl_event event_id):
+    cdef Event event = < Event > Event.__new__(Event)
+    clRetainEvent(event_id)
+    event.event_id = event_id
+    return event
 
 ## ############# #### #### #### #### #### #### #### #### #### #### ####
 

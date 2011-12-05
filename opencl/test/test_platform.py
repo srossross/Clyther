@@ -4,13 +4,15 @@ Created on Sep 27, 2011
 @author: sean
 '''
 
-from opencl.copencl import Platform, get_platforms, Context, Device, Queue, Program, DeviceMemoryView, empty
-from opencl.copencl import ContextProperties, global_memory
+from opencl import Platform, get_platforms, Context, Device, Queue, Program, DeviceMemoryView, empty
+from opencl import ContextProperties, global_memory, UserEvent, Event
 
 import unittest
 import ctypes
 import numpy as np
 import gc
+import time
+from threading import Event as PyEvent
 
 source = """
 
@@ -461,6 +463,71 @@ class TestBuffer(unittest.TestCase):
                 self.assertTrue(np.all(expected == b))
 
         
+class TestEvent(unittest.TestCase):
+    
+    def test_status(self):
+        
+        
+        ctx = Context(device_type=Device.DEFAULT)
+        event = UserEvent(ctx)
+        
+        self.assertEqual(event.status, Event.SUBMITTED)
+        event.complete()
+        self.assertEqual(event.status, Event.COMPLETE)
+        
+    def test_wait(self):
+        
+        ctx = Context(device_type=Device.DEFAULT)
+        event = UserEvent(ctx)
 
+        queue = Queue(ctx, ctx.devices[0])
+        
+        queue.wait(event)
+        
+        event2 = queue.marker()
+        
+        self.assertEqual(event.status, Event.SUBMITTED)
+        self.assertEqual(event2.status, Event.QUEUED)
+        
+        event.complete()
+        self.assertEqual(event.status, Event.COMPLETE)
+        
+        event2.wait()
+        self.assertEqual(event2.status, Event.COMPLETE)
+
+    def test_callback(self):
+        self.callback_called = False
+        self.py_event = PyEvent()
+        
+        def callback(event, status):
+            self.callback_called = True
+            self.py_event.set()
+        
+        ctx = Context(device_type=Device.DEFAULT)
+        event = UserEvent(ctx)
+
+        queue = Queue(ctx, ctx.devices[0])
+        
+        queue.wait(event)
+        
+        event2 = queue.marker()
+        event2.add_callback(callback)
+        
+        self.assertEqual(event.status, Event.SUBMITTED)
+        self.assertEqual(event2.status, Event.QUEUED)
+        
+        self.assertFalse(self.callback_called)
+        event.complete()
+        self.assertEqual(event.status, Event.COMPLETE)
+        
+        event2.wait()
+        self.assertEqual(event2.status, Event.COMPLETE)
+        
+        event_is_set = self.py_event.wait(2)
+        
+        self.assertTrue(event_is_set, 'timed out waiting for callback')
+
+        self.assertTrue(self.callback_called)
+        
 if __name__ == '__main__':
     unittest.main()

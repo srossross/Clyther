@@ -106,7 +106,6 @@ def find_closing_brace(format, braces='{}'):
     
 struct_types = 'cbB?hHiIlLqQfdspP'
 
-    
 def _ctype_from_format(format):
     i = 0
     fields = []
@@ -186,7 +185,7 @@ def descriptor_from_format(format):
         elif char == '(':
             n = format.find(')', i)
             rest = descriptor_from_format(format[n + 1:])
-            shape = tuple(int(s) for s in format[i + 1:n].split(','))
+            shape = tuple([int(s) for s in format[i + 1:n].split(',')])
             rest[0] = rest[0][0], rest[0][1], shape
             fields.extend(rest)
             break

@@ -170,6 +170,19 @@ cdef extern from "OpenCL/cl.h":
         CL_PROGRAM_BUILD_OPTIONS
         CL_PROGRAM_BUILD_LOG
     
+    enum cl_event_info:
+        CL_EVENT_COMMAND_EXECUTION_STATUS
+        CL_EVENT_COMMAND_QUEUE
+        CL_EVENT_CONTEXT
+        CL_EVENT_COMMAND_TYPE
+        CL_EVENT_REFERENCE_COUNT
+        
+    enum cl_event_status:
+        CL_QUEUED
+        CL_SUBMITTED
+        CL_RUNNING
+        CL_COMPLETE
+
     cdef cl_int CL_COMPLETE
         
     
@@ -285,6 +298,8 @@ cdef extern from "OpenCL/cl.h":
     ctypedef cl_uint cl_command_type
 
     ctypedef cl_uint cl_profiling_info
+    
+    ctypedef void* CL_CALLBACK
 
     cdef struct _cl_image_format:
         cl_channel_order image_channel_order
@@ -374,7 +389,7 @@ cdef extern from "OpenCL/cl.h":
 
     cl_int clGetKernelWorkGroupInfo(cl_kernel, cl_device_id, cl_kernel_work_group_info, size_t, void *, size_t *)
 
-    cl_int clWaitForEvents(cl_uint, cl_event *)
+    cl_int clWaitForEvents(cl_uint, cl_event *) nogil
 
     cl_int clGetEventInfo(cl_event, cl_event_info, size_t, void *, size_t *)
 
@@ -431,6 +446,8 @@ cdef extern from "OpenCL/cl.h":
     cl_int clEnqueueCopyBufferRect(cl_command_queue, cl_mem, cl_mem, size_t[3], size_t[3], size_t[3], size_t, size_t, size_t, size_t, cl_uint, cl_event *, cl_event *)
     
     cl_mem clCreateSubBuffer (cl_mem,  cl_mem_flags, cl_buffer_create_type, void *, cl_int *)
+    
+    cl_int clSetEventCallback (cl_event, cl_int, CL_CALLBACK, void*)
     
 cdef extern from "OpenCL/cl_gl.h":
     

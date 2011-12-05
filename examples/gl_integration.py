@@ -27,5 +27,6 @@ queue = Queue(ctx, ctx.devices[0])
 with view.map(queue) as buffer:
     print np.asarray(buffer)
 
-    
+
 print "done"
+
