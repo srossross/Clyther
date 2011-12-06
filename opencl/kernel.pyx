@@ -5,9 +5,9 @@ from opencl.cl_mem import MemoryObject
 
 from inspect import isfunction
 from opencl.type_formats import refrence, ctype_from_format, type_format, cdefn
-
+from cpython cimport PyObject, PyArg_VaParseTupleAndKeywords
 from libc.stdlib cimport malloc, free
-from _cl cimport *
+from _cl cimport * 
 from opencl.cl_mem cimport clMemFrom_pyMemoryObject
 
 class global_memory(object):
@@ -48,11 +48,53 @@ set_kerne_arg_errors = {
                           'argument that is not a memory object or if the argument is a memory object and arg_size')
 }
 
+class _Undefined: pass
+
+def parse_args(name, args, kwargs, argnames, defaults):
+    
+    narg_names = len(argnames)
+    nargs = len(args)
+    
+    if nargs > narg_names:
+        raise TypeError("%s() takes at most %i argument(s) (%i given)" % (narg_names, nargs))
+    
+    default_idx = narg_names - len(defaults)
+    
+    result = [_Undefined]*narg_names
+    
+    arg_set = set(argnames[:nargs])
+    kw_set = set(kwargs)
+    overlap = kw_set.intersection(arg_set)
+    if overlap:
+        raise TypeError("%s() got multiple values for keyword argument(s) %r" % (name, overlap))
+    
+    extra = kw_set - set(argnames)
+    if extra:
+        raise TypeError("%s() got unexpected keyword argument(s) %r" % (name, extra))
+    
+    result[default_idx:] = defaults
+    result[:nargs] = args
+    
+    expected_kw = argnames[nargs:default_idx]
+    cdef int i
+    for i in range(nargs, default_idx):
+        required_keyword = argnames[i] 
+        if required_keyword not in kwargs:
+            raise TypeError("%s() takes at least %i argument(s) (%i given)" % (default_idx, nargs))
+        
+        result[i] = kwargs[required_keyword]
+
+    for i in range(default_idx, narg_names):
+        keyword = argnames[i]
+        result[i] = kwargs.get(keyword, result[i])
+        
+    return tuple(result)
 
 cdef class Kernel:
     cdef cl_kernel kernel_id
     cdef object _argtypes 
     cdef object _argnames 
+    cdef public object __defaults__
     cdef public object global_work_size
     cdef public object global_work_offset
     cdef public object local_work_size
@@ -81,7 +123,16 @@ cdef class Kernel:
         def __set__(self, value):
             self._argtypes = tuple(value)
             if len(self._argtypes) != self.nargs:
-                raise TypeError("argtypes must have %i values (got %i)" % (self.nargs, len(self.argtypes)))
+                raise TypeError("argtypes must have %i values (got %i)" % (self.nargs, len(self._argtypes)))
+
+    property argnames:
+        def __get__(self):
+            return self._argnames
+        
+        def __set__(self, value):
+            self._argnames = tuple(value)
+            if len(self._argnames) != self.nargs:
+                raise TypeError("argnames must have %i values (got %i)" % (self.nargs, len(self._argnames)))
             
     property nargs:
         def __get__(self):
@@ -113,23 +164,28 @@ cdef class Kernel:
             
             return pyname
         
-        
     def __repr__(self):
         return '<Kernel %s nargs=%r>' % (self.name, self.nargs)
     
-    def set_args(self, *args):
+    def set_args(self, *args, **kwargs):
+        
         if self._argtypes is None:
             raise TypeError("argtypes must be set before calling ")
         
-        if len(args) != len(self._argtypes):
-            raise TypeError("kernel requires %i arguments (got %i)" % (self.nargs, len(args)))
+        argnames = range(self.nargs) if self._argnames is None else self._argnames
+        defaults = [] if  self.__defaults__ is None else self.__defaults__
+         
+        arglist = parse_args(self.name, args, kwargs, argnames, defaults)
+        
+#        if len(args) != len(self._argtypes):
+#            raise TypeError("kernel requires %i arguments (got %i)" % (self.nargs, len(args)))
         
         cdef cl_int err_code
         cdef size_t arg_size
         cdef size_t tmp
         cdef void * arg_value
         cdef cl_mem mem_id
-        for arg_index, (argtype, arg) in enumerate(zip(self._argtypes, args)):
+        for arg_index, (argtype, arg) in enumerate(zip(self._argtypes, arglist)):
             carg = argtype(arg)
             if isinstance(argtype, global_memory):
                 arg_size = sizeof(cl_mem)
@@ -145,8 +201,9 @@ cdef class Kernel:
                 print arg_index, arg_size, arg 
                 raise OpenCLException(err_code, set_kerne_arg_errors)
          
-    def __call__(self, queue, *args, global_work_size=None, global_work_offset=None, local_work_size=None, wait_on=()):
-        self.set_args(*args)
+    def __call__(self, queue, *args, global_work_size=None, global_work_offset=None, local_work_size=None, wait_on=(), **kwargs):
+        
+        self.set_args(*args, **kwargs)
         
         if global_work_size is None:
             if isfunction(self.global_work_size):
@@ -170,10 +227,10 @@ cdef class Kernel:
         
         queue.enqueue_nd_range_kernel(self, len(global_work_size), global_work_size, global_work_offset, local_work_size, wait_on)
     
-
 #===============================================================================
 # API
 #===============================================================================
+
 cdef api cl_kernel KernelFromPyKernel(object py_kernel):
     cdef Kernel kernel = < Kernel > py_kernel
     return kernel.kernel_id

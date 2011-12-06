@@ -186,20 +186,28 @@ cdef class Context:
         def __get__(self):
             pass
         
+    property num_devices:
+        def __get__(self):
+            
+            cdef cl_int err_code
+            cdef cl_uint num_devices
+            err_code = clGetContextInfo (self.context_id, CL_CONTEXT_NUM_DEVICES, sizeof(cl_uint), &num_devices, NULL)
+            
+            if err_code != CL_SUCCESS:
+                raise OpenCLException(err_code)
+            
+            return num_devices
+            
     property devices:
         def __get__(self):
             
             cdef cl_int err_code
-            cdef size_t num_devices
+            cdef size_t num_devices = self.num_devices
             cdef cl_device_id * _devices
-            err_code = clGetContextInfo (self.context_id, CL_CONTEXT_DEVICES, 0, NULL, & num_devices)
-    
-            if err_code != CL_SUCCESS:
-                raise OpenCLException(err_code)
     
             _devices = < cl_device_id *> malloc(num_devices * sizeof(cl_device_id))
     
-            err_code = clGetContextInfo (self.context_id, CL_CONTEXT_DEVICES, num_devices, _devices, NULL)
+            err_code = clGetContextInfo(self.context_id, CL_CONTEXT_DEVICES, num_devices*sizeof(cl_device_id), _devices, NULL)
     
             if err_code != CL_SUCCESS:
                 free(_devices)
@@ -228,3 +236,6 @@ cdef api object ContextAsPyContext(cl_context context):
     clRetainContext(context)
     ctx.context_id = context
     return ctx
+
+cdef api int PyContext_Check(object context):
+    return isinstance(context, Context) 

@@ -1,14 +1,14 @@
 
 from opencl.errors import OpenCLException
 
-from _cl cimport *
+from _cl cimport * 
 
 from cpython cimport PyObject, Py_DECREF, Py_INCREF, PyBuffer_IsContiguous, PyBuffer_FillContiguousStrides
 from libc.stdlib cimport malloc, free 
 from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FORMAT, PyBUF_INDIRECT, PyBUF_WRITABLE
 
 from opencl.copencl cimport DeviceIDFromPyDevice, DeviceIDAsPyDevice, PyEvent_New, cl_eventFrom_PyEvent, PyEvent_Check 
-from opencl.context cimport ContextFromPyContext, ContextAsPyContext
+from opencl.context cimport ContextFromPyContext, ContextAsPyContext, PyContext_Check
 from opencl.kernel cimport KernelFromPyKernel
 from opencl.cl_mem cimport clMemFrom_pyMemoryObject, PyMemoryObject_Check
 
@@ -121,9 +121,24 @@ cdef class Queue:
     
     cdef cl_command_queue queue_id
     
-    def __cinit__(self, context, device, out_of_order_exec_mode=False, profiling=False):
+    def __cinit__(self):
+        self.queue_id = NULL
+    
+    def __dealloc__(self):
+        if self.queue_id != NULL:
+            clReleaseCommandQueue(self.queue_id)
+        self.queue_id = NULL
+    
+    def __init__(self, context, device=None, out_of_order_exec_mode=False, profiling=False):
         
-        
+        if not PyContext_Check(context):
+            raise TypeError("argument 'context' must be a valid opencl.context object (got %s)" % type(context))
+            
+        if device is None:
+            if len(context.num_devices) != 1:
+                raise TypeError("must specify a device. context does does not contain a unique device (has %i)" % (context.num_devices))
+            device = context.devices[0]
+            
         cdef cl_command_queue_properties properties = 0
         
         properties |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE if out_of_order_exec_mode else 0
@@ -197,7 +212,7 @@ cdef class Queue:
         cdef cl_event event_id = NULL
         cdef cl_int err_code
          
-        err_code = clEnqueueMarker(self.queue_id, &event_id)
+        err_code = clEnqueueMarker(self.queue_id, & event_id)
          
         if err_code != CL_SUCCESS:
             raise OpenCLException(err_code)
@@ -218,7 +233,7 @@ cdef class Queue:
         cdef cl_event * event_wait_list
         cdef cl_uint num_events_in_wait_list = _make_wait_list(events, & event_wait_list)
         
-        if event_wait_list == <cl_event*>1:
+        if event_wait_list == < cl_event *> 1:
             raise Exception("One of the items in argument 'wait_on' is not a valid event")
         
         cdef cl_uint err_code
@@ -467,7 +482,7 @@ cdef class Queue:
 
         err_code = clEnqueueNDRangeKernel(self.queue_id, kernel_id,
                                           work_dim, goffset, gsize, lsize,
-                                          num_events_in_wait_list, event_wait_list, &event_id)
+                                          num_events_in_wait_list, event_wait_list, & event_id)
         
         if gsize != NULL: free(gsize)
         if goffset != NULL: free(goffset)
@@ -494,7 +509,7 @@ cdef class Queue:
         cdef cl_mem dst_buffer = clMemFrom_pyMemoryObject(dest)
         
         err_code = clEnqueueCopyBuffer(self.queue_id, src_buffer, dst_buffer, src_offset, dst_offset, size,
-                                       num_events_in_wait_list, event_wait_list, &event_id)
+                                       num_events_in_wait_list, event_wait_list, & event_id)
         
         if err_code != CL_SUCCESS:
             raise OpenCLException(err_code, _enqueue_copy_buffer_errors)
@@ -565,7 +580,7 @@ cdef class Queue:
         err_code = clEnqueueWriteBuffer(self.queue_id, src_buffer, blocking_read, src_offset, size, dst_buffer.buf,
                                        num_events_in_wait_list, event_wait_list, & event_id)
         
-        PyBuffer_Release(&dst_buffer)
+        PyBuffer_Release(& dst_buffer)
         
         if err_code != CL_SUCCESS:
             raise OpenCLException(err_code, _enqueue_copy_buffer_errors)
@@ -607,7 +622,7 @@ cdef class Queue:
                                            _src_origin, _dst_origin, _region,
                                            src_row_pitch, src_slice_pitch,
                                            dst_row_pitch, dst_slice_pitch,
-                                           num_events_in_wait_list, event_wait_list, &event_id)
+                                           num_events_in_wait_list, event_wait_list, & event_id)
                 
         
         if err_code != CL_SUCCESS:
@@ -627,7 +642,7 @@ cdef cl_uint _make_wait_list(wait_on, cl_event ** event_wait_list_ptr):
     
     for i, pyevent in enumerate(wait_on):
         if not PyEvent_Check(pyevent):
-            event_wait_list_ptr[0] = <cl_event *> 1
+            event_wait_list_ptr[0] = < cl_event *> 1
             return 0
         event_id = cl_eventFrom_PyEvent(pyevent)
         event_wait_list[i] = event_id
@@ -638,10 +653,10 @@ cdef cl_uint _make_wait_list(wait_on, cl_event ** event_wait_list_ptr):
     
 
 cdef api cl_command_queue clQueueFrom_PyQueue(object queue):
-    return (<Queue>queue).queue_id
+    return (< Queue > queue).queue_id
 
 cdef api object clQueueAs_PyQueue(cl_command_queue queue_id):
-    cdef Queue queue = <Queue> Queue.__new__(Queue)
+    cdef Queue queue = < Queue > Queue.__new__(Queue)
     clRetainCommandQueue(queue_id)
     queue.queue_id = queue_id
     return queue

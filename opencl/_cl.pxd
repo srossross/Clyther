@@ -118,7 +118,9 @@ cdef extern from "OpenCL/cl.h":
         
     enum cl_context_info:
         CL_CONTEXT_DEVICES
-        
+        CL_CONTEXT_NUM_DEVICES
+        CL_CONTEXT_PROPERTIES
+        CL_CONTEXT_REFERENCE_COUNT
         
     enum cl_device_exec_capabilities:
         CL_EXEC_KERNEL

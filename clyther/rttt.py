@@ -14,7 +14,7 @@ from meta.asttools.visitors.print_visitor import print_ast
 from clast import cast
 import _ctypes
 import abc
-from opencl.types_formats import type_format, cdefn
+from opencl.type_formats import type_format, cdefn
 
 int_ctypes = {ctypes.c_int, ctypes.c_int32, ctypes.c_int8, ctypes.c_int16, ctypes.c_int64, ctypes.c_long , ctypes.c_longlong,
               ctypes.c_size_t, ctypes.c_ssize_t,
@@ -123,7 +123,7 @@ type_map = {ctypes.c_float:'float',
 class cltype(object):
     __metaclass__ = abc.ABCMeta
     pass
-from opencl.copencl import global_memory
+from opencl import global_memory
 cltype.register(global_memory)
 
 

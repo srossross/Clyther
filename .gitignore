@@ -11,3 +11,7 @@ build
 copencl.c
 kernel.c
 type_formats.c
+cl_mem.c
+context.c
+errors.c
+queue.c

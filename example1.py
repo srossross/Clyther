@@ -5,8 +5,7 @@ Created on Dec 2, 2011
 '''
 import ctypes
 
-from opencl.copencl import global_memory
-import opencl.copencl as cl
+import opencl as cl
 import numpy as np
 import clyther.runtime as clrt
 from clyther.runtime import float2
@@ -52,13 +51,13 @@ def funcA(a, b, c=funcB):
 def main():
     ctx = cl.Context(device_type=cl.Device.CPU)
     
-    sin = generate_sin.compile(ctx, a=global_memory(clrt.float2), scale=ctypes.c_float)
+    sin = generate_sin.compile(ctx, a=cl.global_memory(clrt.float2), scale=ctypes.c_float)
     
     a = cl.empty(ctx, [10], 'ff')
     
     queue = cl.Queue(ctx, ctx.devices[0])
     
-    sin(queue, a , 1)
+    sin(queue, a=a)
     
     with a.map(queue) as b:
         print np.asarray(b)

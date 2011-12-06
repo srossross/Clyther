@@ -6,6 +6,7 @@ Created on Sep 27, 2011
 
 from opencl import Platform, get_platforms, Context, Device, Queue, Program, DeviceMemoryView, empty
 from opencl import ContextProperties, global_memory, UserEvent, Event
+from opencl.kernel import parse_args
 
 import unittest
 import ctypes
@@ -138,6 +139,27 @@ class TestKernel(unittest.TestCase):
         expected = np.zeros([10], dtype=[('x', np.float32), ('y', np.float32)])
         expected['x'] = np.arange(10)
         expected['y'] = np.sin(expected['x'] / 10)
+        
+        with buf.map(queue) as host:
+            self.assertTrue(np.all(expected['x'] == np.asarray(host)['f0']))
+            self.assertTrue(np.all(expected['y'] == np.asarray(host)['f1']))
+
+        generate_sin.argnames = ['a', 'scale']
+        generate_sin.set_args(a=buf, scale=1.0)
+        queue.enqueue_nd_range_kernel(generate_sin, 1, global_work_size=[buf.size])
+        
+        with buf.map(queue) as host:
+            self.assertTrue(np.all(expected['x'] == np.asarray(host)['f0']))
+            self.assertTrue(np.all(expected['y'] == np.asarray(host)['f1']))
+            
+        with self.assertRaises(TypeError):
+            generate_sin.set_args(a=buf)
+            
+        generate_sin.__defaults__ = [1.0]
+        generate_sin.set_args(a=buf)
+        
+        queue.enqueue_nd_range_kernel(generate_sin, 1, global_work_size=[buf.size])
+        
         with buf.map(queue) as host:
             self.assertTrue(np.all(expected['x'] == np.asarray(host)['f0']))
             self.assertTrue(np.all(expected['y'] == np.asarray(host)['f1']))
@@ -179,7 +201,45 @@ class TestKernel(unittest.TestCase):
             self.assertTrue(np.all(expected['x'] == np.asarray(host)['f0']))
             self.assertTrue(np.all(expected['y'] == np.asarray(host)['f1']))
 
+    def test_parse_args(self):
+        
+        arglist = parse_args('test', (1, 2, 3), dict(d=4, e=5), ('a', 'b', 'c', 'd', 'e'), ())
+        self.assertEqual(arglist, (1, 2, 3, 4, 5))
 
+        arglist = parse_args('test', (1, 2, 3), dict(), ('a', 'b', 'c', 'd', 'e'), (4, 5))
+        self.assertEqual(arglist, (1, 2, 3, 4, 5))
+
+        arglist = parse_args('test', (1, 2), dict(c=3), ('a', 'b', 'c', 'd', 'e'), (4, 5))
+        self.assertEqual(arglist, (1, 2, 3, 4, 5))
+
+        arglist = parse_args('test', (1, 2), dict(c=3, d=5), ('a', 'b', 'c', 'd', 'e'), (4, 5))
+        self.assertEqual(arglist, (1, 2, 3, 5, 5))
+
+        arglist = parse_args('test', (1, 2), dict(c=6, d=6), ('a', 'b', 'c', 'd', 'e'), (4, 5))
+        self.assertEqual(arglist, (1, 2, 6, 6, 5))
+
+        arglist = parse_args('test', (), dict(), ('a', 'b', 'c', 'd', 'e'), (1, 2, 3, 4, 5))
+        self.assertEqual(arglist, (1, 2, 3, 4, 5))
+
+        
+        arglist = parse_args('test', (1, 2, 3, 4, 5), dict(), ('a', 'b', 'c', 'd', 'e'), ())
+        self.assertEqual(arglist, (1, 2, 3, 4, 5))
+        
+        arglist = parse_args('test', (), dict(a=1, b=2, c=3, d=4, e=5), ('a', 'b', 'c', 'd', 'e'), ())
+        self.assertEqual(arglist, (1, 2, 3, 4, 5))
+        
+        with self.assertRaises(TypeError):
+            arglist = parse_args('test', (), dict(), ('a', 'b'), ())
+
+        with self.assertRaises(TypeError):
+            arglist = parse_args('test', (1), dict(a=1), ('a', 'b'), ())
+
+        with self.assertRaises(TypeError):
+            arglist = parse_args('test', (), dict(b=1), ('a', 'b'), (2))
+            
+        with self.assertRaises(TypeError):
+            arglist = parse_args('test', (1, 2, 3), dict(), ('a', 'b'), ())
+        
 class TestBuffer(unittest.TestCase):
     
     def test_size(self):     

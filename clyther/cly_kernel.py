@@ -15,12 +15,15 @@ from clyther.clast.mutators.placeholder_replace import resolve_functions
 
 from clyther.clast.visitors.returns import return_nodes
 from clyther.clast import cast
-import opencl.copencl as cl
+import opencl as cl
+from meta.asttools.visitors.print_visitor import print_ast
+
 class ClytherKernel(object):
     pass
 
 class CLComileError(cl.OpenCLException):
     pass
+
 class kernel(object):
     
     def __init__(self, func):
@@ -28,7 +31,7 @@ class kernel(object):
         self.global_work_size = None
         
     def compile(self, ctx, **kwargs):
-        args, source, kernel_name = create_kernel_source(self.func, kwargs)
+        args, defaults, source, kernel_name = create_kernel_source(self.func, kwargs)
         
         
         program = cl.Program(ctx, source)
@@ -42,6 +45,8 @@ class kernel(object):
         
         kernel.global_work_size = self.global_work_size
         kernel.argtypes = [arg[1] for arg in args]
+        kernel.argnames = [arg[0] for arg in args]
+        kernel.__defaults__ = defaults
         
         return kernel
 
@@ -73,7 +78,6 @@ def create_kernel_source(function, argtypes):
     globls = function.func_globals
     
     mod_ast, func_ast = typify_function(argtypes, globls, func_ast)
-
     
     # convert type calls to casts 
     # eg int(i) -> ((int) (i))
@@ -90,10 +94,13 @@ def create_kernel_source(function, argtypes):
     #typify created function placeholders. resolve them here 
     resolve_functions(mod_ast)
     
+    defaults = function.func_defaults
+    
     args = [(arg.id, arg.ctype) for arg in func_ast.args.args]
+    
     #replace python type objects with strings 
     replace_types(mod_ast)
     
-    #generate source 
-    return args, opencl_source(mod_ast), func_ast.name
+    #generate source
+    return args, defaults, opencl_source(mod_ast), func_ast.name
     
