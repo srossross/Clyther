@@ -16,13 +16,14 @@ errors = Extension('opencl.errors', ['opencl/errors.pyx'], extra_link_args=['-fr
 cl_mem = Extension('opencl.cl_mem', ['opencl/cl_mem.pyx'], extra_link_args=['-framework', 'OpenCL'], include_dirs=[include_dirs])
 context = Extension('opencl.context', ['opencl/context.pyx'], extra_link_args=['-framework', 'OpenCL'], include_dirs=[include_dirs])
 queue = Extension('opencl.queue', ['opencl/queue.pyx'], extra_link_args=['-framework', 'OpenCL'], include_dirs=[include_dirs])
+clgl = Extension('opencl.clgl', ['opencl/clgl.pyx'], extra_link_args=['-framework', 'OpenCL'], include_dirs=[include_dirs])
 
 type_formats = Extension('opencl.type_formats', ['opencl/type_formats.pyx'], include_dirs=[include_dirs])
 
 setup(
     name='Clyther',
     cmdclass={'build_ext': build_ext},
-    ext_modules=[type_formats, copencl, kernel, cl_mem, context, queue, errors],
+    ext_modules=[type_formats, copencl, kernel, cl_mem, context, queue, errors, clgl],
     version='0.1',
     author='Enthought, Inc.',
     author_email='srossross@enthought.com',

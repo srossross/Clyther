@@ -69,8 +69,8 @@ cdef class MemoryObject:
         def __get__(self):
             cdef cl_uint param_value
             cdef cl_int err_code
-            clGetMemObjectInfo (self.buffer_id, CL_MEM_REFERENCE_COUNT, sizeof(cl_uint),
-                                < void *>& param_value, NULL)
+            err_code = clGetMemObjectInfo(self.buffer_id, CL_MEM_REFERENCE_COUNT, sizeof(cl_uint),
+                                           < void *>& param_value, NULL)
     
             if err_code != CL_SUCCESS:
                 raise OpenCLException(err_code)
@@ -82,8 +82,8 @@ cdef class MemoryObject:
             
             cdef cl_uint param_value
             cdef cl_int err_code
-            clGetMemObjectInfo (self.buffer_id, CL_MEM_MAP_COUNT, sizeof(cl_uint),
-                                < void *>& param_value, NULL)
+            err_code = clGetMemObjectInfo(self.buffer_id, CL_MEM_MAP_COUNT, sizeof(cl_uint),
+                                          < void *>& param_value, NULL)
     
             if err_code != CL_SUCCESS:
                 raise OpenCLException(err_code)
@@ -95,7 +95,7 @@ cdef class MemoryObject:
             cdef cl_mem param_value
             cdef cl_int err_code
             
-            clGetMemObjectInfo(self.buffer_id, CL_MEM_ASSOCIATED_MEMOBJECT, sizeof(cl_mem), < void *>& param_value, NULL)
+            err_code = clGetMemObjectInfo(self.buffer_id, CL_MEM_ASSOCIATED_MEMOBJECT, sizeof(cl_mem), < void *>& param_value, NULL)
     
             if err_code != CL_SUCCESS:
                 raise OpenCLException(err_code)
@@ -334,10 +334,11 @@ cdef class DeviceMemoryView(MemoryObject):
         
     def copy(self, queue):
         
-        cdef size_t src_row_pitch  
-        cdef size_t src_slice_pitch 
-        cdef size_t dst_row_pitch
-        cdef size_t dst_slice_pitch
+        cdef size_t src_row_pitch = 0   
+        cdef size_t src_slice_pitch = 0 
+        cdef size_t dst_row_pitch = 0
+        cdef size_t dst_slice_pitch = 0
+        
         dest = empty(self.context, self.shape, ctype=self.format)
         
         
@@ -389,68 +390,6 @@ cdef class DeviceMemoryView(MemoryObject):
             
     def __releasebuffer__(self, Py_buffer * view):
         pass
-
-
-def empty_gl(context, shape, ctype='B'):
-    
-    cdef cl_context ctx = ContextFromPyContext(context)
-
-    cdef cl_mem_flags flags = CL_MEM_READ_WRITE
-    
-    cdef char * format
-    cdef cl_int err_code
-    
-    if isinstance(ctype, str):
-        format = ctype
-    else:
-        format = ctype._type_
-
-    cdef size_t itemsize = struct.calcsize(format)
-    cdef size_t size = itemsize
-    for i in shape:
-        size *= i
-       
-    cdef GLuint vbo 
-    glGenBuffers(1, & vbo)
-    glBindBuffer(GL_ARRAY_BUFFER, vbo)
-    
-    cdef GLsizeiptr nbytes = itemsize
-    for i in shape:
-        nbytes *= i
-                
-    glBufferData(GL_ARRAY_BUFFER, nbytes, NULL, GL_STATIC_DRAW)
-    
-    if glGetError() != GL_NO_ERROR:
-        raise Exception("OpenGL error")
-    
-    cdef cl_mem buffer_id = clCreateFromGLBuffer(ctx, flags, vbo, & err_code)
-    
-    
-    glBindBuffer(GL_ARRAY_BUFFER, 0)
-    
-    if err_code != CL_SUCCESS:
-        raise OpenCLException(err_code)
-
-    cdef DeviceMemoryView buffer = DeviceMemoryView.__new__(DeviceMemoryView)
-    buffer.buffer_id = buffer_id
-    
-    buffer._format = format
-    buffer.readonly = 0
-    buffer.itemsize = itemsize
-    buffer.ndim = len(shape)
-    
-    buffer._shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
-    buffer._strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
-    buffer._suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
-    
-    strides = [buffer.itemsize]
-    for i in range(buffer.ndim):
-        buffer._shape[i] = shape[i]
-        buffer._suboffsets[i] = 0
-    
-    PyBuffer_FillContiguousStrides(buffer.ndim, buffer._shape, buffer._strides, buffer.itemsize, 'C')
-    
-    return buffer
 
 def empty(context, shape, ctype='B'):
     
@@ -588,6 +527,22 @@ cdef api object MemObjectAs_pyMemoryObject(cl_mem buffer_id):
     cdef MemoryObject cview = < MemoryObject > MemoryObject.__new__(MemoryObject)
     clRetainMemObject(buffer_id)
     cview.buffer_id = buffer_id
+    return cview
+
+
+
+cdef api object DeviceMemoryView_New(cl_mem buffer_id, char * _format, int readonly, int ndim, 
+                                     Py_ssize_t * _shape, Py_ssize_t * _strides, Py_ssize_t * _suboffsets, 
+                                     Py_ssize_t itemsize):
+    cdef DeviceMemoryView cview = < DeviceMemoryView > DeviceMemoryView.__new__(DeviceMemoryView)
+    cview.buffer_id = buffer_id
+    cview._format = _format
+    cview.readonly = readonly
+    cview.ndim = ndim
+    cview._shape = _shape
+    cview._strides = _strides
+    cview._suboffsets = _suboffsets
+    cview.itemsize=itemsize
     return cview
 
 cdef api int PyMemoryObject_Check(object memobj):
