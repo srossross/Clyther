@@ -11,6 +11,17 @@ from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FOR
 from opencl.cl_mem cimport DeviceMemoryView_New
 from opencl.context cimport ContextFromPyContext
 
+
+def get_current_opengl_context():
+    return < size_t > CGLGetCurrentContext()
+
+def get_current_opengl_sharegroup():
+    return < size_t > CGLGetShareGroup(< void *> CGLGetCurrentContext())
+
+def set_opengl_properties(context_properties):
+    context_properties.set_property("gl_sharegroup", <size_t>CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE,
+                                <size_t> get_current_opengl_sharegroup())
+
 def empty_gl(context, shape, ctype='B'):
     
     cdef cl_context ctx = ContextFromPyContext(context)

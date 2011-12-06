@@ -7,110 +7,61 @@ from libc.stdlib cimport malloc, free
 
 cdef class ContextProperties:
 
-    cdef cl_platform_id platform_id
-    cdef size_t _gl_context
-    cdef size_t _gl_sharegroup
+    cdef public object properties_dict
     
     def __cinit__(self):
-        self.platform_id = NULL
-        self.gl_context = 0
-        self._gl_sharegroup = 0
+        self.properties_dict = {}
         
     property platform:
         def __get__(self):
-            if self.platform_id != NULL:
-                return clPlatformAs_PyPlatform(self.platform_id)
+            cdef cl_platform_id platform_id = NULL
+            
+            if 'platform' in self.properties_dict:
+                plat = <size_t>self.properties_dict['platform'][1]
+                platform_id = <cl_platform_id> plat
+                return clPlatformAs_PyPlatform(<cl_platform_id>plat)
             else:
                 return None
 
         def __set__(self, value):
-            self.platform_id = clPlatformFromPyPlatform(value)
+            cdef cl_platform_id platform_id = clPlatformFromPyPlatform(value)
+            self.properties_dict['platform'] = (< size_t > CL_CONTEXT_PLATFORM, <size_t> platform_id)
 
-    property gl_context:
-        def __get__(self):
-            return self._gl_context
-
-        def __set__(self, value):
-            self._gl_context = value
-            
-    property gl_sharegroup:
-        def __get__(self):
-            return self._gl_sharegroup
-
-        def __set__(self, value):
-            self._gl_sharegroup = value
+    def set_property(self, name, size_t property, size_t value):
+        self.properties_dict['name'] = (property, value)
     
-    @classmethod
-    def get_current_opengl_context(cls):
-        return < size_t > CGLGetCurrentContext()
-
-    @classmethod
-    def get_current_opengl_sharegroup(cls):
-        return < size_t > CGLGetShareGroup(< void *> CGLGetCurrentContext())
-        
     def as_dict(self):
-        nprops = 0
-        
-        if self.platform_id != NULL:
-            nprops += 1
-        if self._gl_context != 0:
-            nprops += 1
-        if self._gl_context != 0:
-            nprops += 1
-            
-        props = {}
-           
-        if self.platform_id != NULL:
-             props[ < size_t > CL_CONTEXT_PLATFORM] = < size_t > self.platform_id
-        if self._gl_sharegroup != 0:
-             props[ < size_t > CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE] = < size_t > self._gl_sharegroup
-        
-        props[nprops * 2] = None
-        
-        return props
+        return self.properties_dict
     
-        
     cdef cl_context_properties * context_properties(self):
         
-        nprops = 0
+        nprops = len(self.properties_dict)
+        
         cdef cl_context_properties * props = NULL
-        
-        if self.platform_id != NULL:
-            nprops += 1
-        if self._gl_context != 0:
-            nprops += 1
-        if self._gl_sharegroup != 0:
-            nprops += 1
             
-        if nprops > 0:
-            props = < cl_context_properties *> malloc(sizeof(cl_context_properties) * (1 + 2 * nprops))
-           
-        cdef count = 0
-        if self.platform_id != NULL:
-             props[count] = CL_CONTEXT_PLATFORM
-             count += 1
-             props[count] = < cl_context_properties > self.platform_id
-             count += 1
+        if nprops == 0:
+            return NULL
+            
+        props = < cl_context_properties *> malloc(sizeof(cl_context_properties) * (1 + 2 * nprops))
 
-        if self._gl_context != 0:
-             props[count] = < cl_context_properties > CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
-             count += 1
-             props[count] = < cl_context_properties > self._gl_context
-             count += 1
-             
-        if self._gl_sharegroup != 0:
-             props[count] = < cl_context_properties > CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
-             count += 1
-             props[count] = < cl_context_properties > self._gl_sharegroup
-             count += 1
-             
-        props[count] = < cl_context_properties > 0
+        cdef size_t property
+        cdef size_t value
+        cdef int i
+        for i, (property, value) in enumerate(self.properties_dict.values()):
+            props[i*2] = <cl_context_properties> property
+            props[i*2+1] = <cl_context_properties> value
+
+        props[nprops*2] = <cl_context_properties> NULL
         
+        print <size_t>props[0], <size_t>props[1], <size_t>props[2]
         return props
     
     def __repr__(self):
-        return '<ContextProperties platform=%r gl_context=%r gl_sharegroup=%r>' % (self.platform, self.gl_context, self.gl_sharegroup)
-    
+        items = ['%s=%r' % (key, value[1]) for (key, value) in self.properties_dict.items()]
+        
+        return '<ContextProperties %s>' % (' '.join(items))
+
+
 _context_errors = {
                        CL_INVALID_PLATFORM : ('Properties is NULL and no platform could be selected or if ' 
                                               'platform value specified in properties is not a valid platform.'),

@@ -71,7 +71,7 @@ class TestContext(unittest.TestCase):
         properties = ContextProperties()
         
         properties.platform = platform
-        
+                
         self.assertEqual(platform.name, properties.platform.name)
         
         ctx = Context(device_type=Device.CPU, properties=properties)
