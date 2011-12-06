@@ -243,7 +243,6 @@ class TestKernel(unittest.TestCase):
 class TestBuffer(unittest.TestCase):
     
     def test_size(self):     
-        
         ctx = Context(device_type=Device.CPU)   
         buf = empty(ctx, [4])
         

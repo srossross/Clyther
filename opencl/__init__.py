@@ -5,3 +5,5 @@ from .kernel import global_memory
 from .queue import Queue
 from .cl_mem import DeviceMemoryView, empty
 from .errors import OpenCLException
+
+import clgl as gl

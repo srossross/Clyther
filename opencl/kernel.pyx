@@ -8,7 +8,7 @@ from opencl.type_formats import refrence, ctype_from_format, type_format, cdefn
 from cpython cimport PyObject, PyArg_VaParseTupleAndKeywords
 from libc.stdlib cimport malloc, free
 from _cl cimport * 
-from opencl.cl_mem cimport clMemFrom_pyMemoryObject
+from opencl.cl_mem cimport CyMemoryObject_GetID
 
 class global_memory(object):
     def __init__(self, ctype=None, shape=None):
@@ -29,7 +29,7 @@ class global_memory(object):
     def __call__(self, memobj):
         if not isinstance(memobj, MemoryObject):
             raise TypeError("arguemnt must be an instance of MemoryObject")
-        cdef cl_mem buffer = clMemFrom_pyMemoryObject(memobj)
+        cdef cl_mem buffer = CyMemoryObject_GetID(memobj)
         return ctypes.c_voidp(< size_t > buffer)
     
     def ctype_string(self):
@@ -189,7 +189,7 @@ cdef class Kernel:
             carg = argtype(arg)
             if isinstance(argtype, global_memory):
                 arg_size = sizeof(cl_mem)
-                mem_id = clMemFrom_pyMemoryObject(arg)
+                mem_id = CyMemoryObject_GetID(arg)
                 arg_value = < void *> & mem_id
             else:
                 arg_size = ctypes.sizeof(carg)

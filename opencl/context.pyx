@@ -53,7 +53,6 @@ cdef class ContextProperties:
 
         props[nprops*2] = <cl_context_properties> NULL
         
-        print <size_t>props[0], <size_t>props[1], <size_t>props[2]
         return props
     
     def __repr__(self):

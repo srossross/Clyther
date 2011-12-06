@@ -10,7 +10,7 @@ from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FOR
 from opencl.copencl cimport DeviceIDFromPyDevice, DeviceIDAsPyDevice, PyEvent_New, cl_eventFrom_PyEvent, PyEvent_Check 
 from opencl.context cimport ContextFromPyContext, ContextAsPyContext, PyContext_Check
 from opencl.kernel cimport KernelFromPyKernel
-from opencl.cl_mem cimport clMemFrom_pyMemoryObject, PyMemoryObject_Check
+from opencl.cl_mem cimport CyMemoryObject_GetID, CyMemoryObject_Check
 
 
 cdef extern from "Python.h":
@@ -23,7 +23,6 @@ cdef extern from "Python.h":
     void PyEval_InitThreads()
 
 MAGIC_NUMBER = 0xabc123
-
     
 PyEval_InitThreads()
 
@@ -135,7 +134,7 @@ cdef class Queue:
             raise TypeError("argument 'context' must be a valid opencl.context object (got %s)" % type(context))
             
         if device is None:
-            if len(context.num_devices) != 1:
+            if context.num_devices != 1:
                 raise TypeError("must specify a device. context does does not contain a unique device (has %i)" % (context.num_devices))
             device = context.devices[0]
             
@@ -500,13 +499,13 @@ cdef class Queue:
         cdef cl_event * event_wait_list
         cdef cl_uint num_events_in_wait_list = _make_wait_list(wait_on, & event_wait_list)
         
-        if not PyMemoryObject_Check(source):
+        if not CyMemoryObject_Check(source):
             raise TypeError("Argument 'source' must be a valid memory object")
-        if not PyMemoryObject_Check(dest):
+        if not CyMemoryObject_Check(dest):
             raise TypeError("Argument 'dest' must be a valid memory object")
         
-        cdef cl_mem src_buffer = clMemFrom_pyMemoryObject(source)
-        cdef cl_mem dst_buffer = clMemFrom_pyMemoryObject(dest)
+        cdef cl_mem src_buffer = CyMemoryObject_GetID(source)
+        cdef cl_mem dst_buffer = CyMemoryObject_GetID(dest)
         
         err_code = clEnqueueCopyBuffer(self.queue_id, src_buffer, dst_buffer, src_offset, dst_offset, size,
                                        num_events_in_wait_list, event_wait_list, & event_id)
@@ -523,7 +522,7 @@ cdef class Queue:
         cdef cl_event * event_wait_list
         cdef cl_uint num_events_in_wait_list = _make_wait_list(wait_on, & event_wait_list)
         
-        cdef cl_mem src_buffer = clMemFrom_pyMemoryObject(source)
+        cdef cl_mem src_buffer = CyMemoryObject_GetID(source)
         
         cdef int flags = PyBUF_SIMPLE
         
@@ -556,7 +555,7 @@ cdef class Queue:
         cdef cl_event * event_wait_list
         cdef cl_uint num_events_in_wait_list = _make_wait_list(wait_on, & event_wait_list)
         
-        cdef cl_mem src_buffer = clMemFrom_pyMemoryObject(source)
+        cdef cl_mem src_buffer = CyMemoryObject_GetID(source)
         
         cdef int flags = PyBUF_SIMPLE | PyBUF_WRITABLE
         
@@ -598,9 +597,9 @@ cdef class Queue:
         
         cdef cl_uint num_events_in_wait_list = _make_wait_list(wait_on, & event_wait_list)
         
-        cdef cl_mem src_buffer = clMemFrom_pyMemoryObject(source)
+        cdef cl_mem src_buffer = CyMemoryObject_GetID(source)
         
-        cdef cl_mem dst_buffer = clMemFrom_pyMemoryObject(dest)
+        cdef cl_mem dst_buffer = CyMemoryObject_GetID(dest)
         
         cdef size_t _src_origin[3]
         _src_origin[:] = [0, 0, 0]
@@ -631,7 +630,7 @@ cdef class Queue:
         event = PyEvent_New(event_id)
         return event
 
-cdef cl_uint _make_wait_list(wait_on, cl_event ** event_wait_list_ptr):
+cdef api cl_uint _make_wait_list(wait_on, cl_event ** event_wait_list_ptr):
     if not wait_on:
         event_wait_list_ptr[0] = NULL
         return 0
@@ -652,10 +651,13 @@ cdef cl_uint _make_wait_list(wait_on, cl_event ** event_wait_list_ptr):
     return num_events
     
 
-cdef api cl_command_queue clQueueFrom_PyQueue(object queue):
+cdef api int CyQueue_Check(object queue):
+    return isinstance(queue, Queue)
+
+cdef api cl_command_queue CyQueue_GetID(object queue):
     return (< Queue > queue).queue_id
 
-cdef api object clQueueAs_PyQueue(cl_command_queue queue_id):
+cdef api object CyQueue_Create(cl_command_queue queue_id):
     cdef Queue queue = < Queue > Queue.__new__(Queue)
     clRetainCommandQueue(queue_id)
     queue.queue_id = queue_id

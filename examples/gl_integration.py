@@ -1,8 +1,7 @@
 # IPython log file
 
 import numpy as np
-from opencl.copencl import Platform, get_platforms, Context, Device, Queue, Program, DeviceMemoryView, empty,empty_gl
-from opencl.copencl import ContextProperties
+import opencl as cl
 from PySide.QtGui import *
 from PySide.QtOpenGL import *
 
@@ -10,23 +9,26 @@ app = QApplication([])
 qgl = QGLWidget()
 qgl.makeCurrent()
 
-props = ContextProperties()
-props.gl_sharegroup = props.get_current_opengl_sharegroup()
+props = cl.ContextProperties()
+cl.gl.set_opengl_properties(props)
 
-ctx = Context(device_type=Device.DEFAULT, properties=props)
+ctx = cl.Context(device_type=cl.Device.DEFAULT, properties=props)
 
-view = empty_gl(ctx, [10], ctype='ff')
+view = cl.gl.empty_gl(ctx, [10], ctype='ff')
+view2 = cl.empty(ctx, [10], ctype='ff')
 
 view.shape
 
-view[::2] = 1
-
 print view
-queue = Queue(ctx, ctx.devices[0])
+queue = cl.Queue(ctx)
 
-with view.map(queue) as buffer:
+with cl.gl.acquire(queue, view), view.map(queue) as buffer:
     print np.asarray(buffer)
 
-
+print
+print 'cl.gl.is_gl_object: view2', cl.gl.is_gl_object(view2)
+print 'cl.gl.is_gl_object: view ', cl.gl.is_gl_object(view)
+print 'cl.gl.get_gl_name', cl.gl.get_gl_name(view)
+print
 print "done"
 
