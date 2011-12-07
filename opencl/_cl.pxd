@@ -76,6 +76,7 @@ cdef extern from "OpenCL/cl.h":
     enum cl_mem_flags:
         CL_MEM_READ_WRITE
         CL_MEM_READ_ONLY
+        CL_MEM_WRITE_ONLY
         
         CL_MEM_USE_HOST_PTR
         CL_MEM_ALLOC_HOST_PTR
@@ -161,6 +162,22 @@ cdef extern from "OpenCL/cl.h":
         CL_SUBMITTED
         CL_RUNNING
         CL_COMPLETE
+        
+    enum cl_image_info:
+        CL_IMAGE_FORMAT
+        CL_IMAGE_ELEMENT_SIZE
+        CL_IMAGE_ROW_PITCH
+        CL_IMAGE_SLICE_PITCH
+        CL_IMAGE_WIDTH
+        CL_IMAGE_HEIGHT
+        CL_IMAGE_DEPTH
+        
+    ctypedef size_t cl_mem_object_type
+    
+    cdef cl_mem_object_type CL_MEM_OBJECT_BUFFER
+    cdef cl_mem_object_type CL_MEM_OBJECT_IMAGE2D
+    cdef cl_mem_object_type CL_MEM_OBJECT_IMAGE3D
+        
 
     cdef cl_int CL_COMPLETE
         
@@ -250,8 +267,6 @@ cdef extern from "OpenCL/cl.h":
 
     ctypedef cl_bitfield cl_mem_flags
 
-    ctypedef cl_uint cl_mem_object_type
-
     ctypedef cl_uint cl_mem_info
 
     ctypedef cl_uint cl_image_info
@@ -283,6 +298,38 @@ cdef extern from "OpenCL/cl.h":
     cdef struct _cl_image_format:
         cl_channel_order image_channel_order
         cl_channel_type image_channel_data_type
+
+    enum cl_channel_order:
+        CL_R
+        CL_Rx
+        CL_A
+        CL_INTENSITY
+        CL_LUMINANCE
+        CL_RG
+        CL_RGx
+        CL_RA
+        CL_RGB
+        CL_RGBx
+        CL_RGBA
+        CL_ARGB
+        CL_BGRA
+        
+    enum cl_channel_type:
+        CL_SNORM_INT8
+        CL_SNORM_INT16
+        CL_UNORM_INT8
+        CL_UNORM_INT16
+        CL_UNORM_SHORT_565
+        CL_UNORM_SHORT_555
+        CL_UNORM_INT_101010
+        CL_SIGNED_INT8
+        CL_SIGNED_INT16
+        CL_SIGNED_INT32
+        CL_UNSIGNED_INT8
+        CL_UNSIGNED_INT16
+        CL_UNSIGNED_INT32
+        CL_HALF_FLOAT
+        CL_FLOAT
 
     ctypedef _cl_image_format cl_image_format
 

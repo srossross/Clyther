@@ -2,18 +2,23 @@ import weakref
 import struct
 import ctypes
 
+from opencl.type_formats import type_format, size_from_format, ctype_from_format
 from opencl.errors import OpenCLException
 
 from libc.stdlib cimport malloc, free 
+from libc.string cimport strcpy 
+ 
 from cpython cimport PyObject, Py_DECREF, Py_INCREF, PyBuffer_IsContiguous, PyBuffer_FillContiguousStrides
 from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FORMAT, PyBUF_INDIRECT, PyBUF_WRITABLE
 
-from _cl cimport *
-from opencl.context cimport ContextFromPyContext, ContextAsPyContext
+from _cl cimport * 
+from opencl.context cimport CyContext_GetID, ContextAsPyContext, CyContext_Check
 from opencl.queue cimport CyQueue_GetID, CyQueue_Create
 
 
-
+#cdef extern from "cstring":
+#    char * strcpy (char * destination, char * source)
+    
 cdef extern from "Python.h":
 
     object PyByteArray_FromStringAndSize(char * , Py_ssize_t)
@@ -24,10 +29,15 @@ cdef extern from "Python.h":
 
 
 cdef class MemoryObject:
+
+    BUFFER = CL_MEM_OBJECT_BUFFER
+    IMAGE2D = CL_MEM_OBJECT_IMAGE2D
+    IMAGE3D = CL_MEM_OBJECT_IMAGE3D    
+
     cdef cl_mem buffer_id
     
     def get_buffer_id(self):
-        return <size_t>self.buffer_id
+        return < size_t > self.buffer_id
         
     def __cinit__(self):
         self.buffer_id = NULL
@@ -50,6 +60,20 @@ cdef class MemoryObject:
     
             return ContextAsPyContext(param_value)
 
+            
+    property type:
+        def __get__(self):
+    
+            cdef cl_mem_object_type param_value
+            cdef cl_int err_code
+            
+            err_code = clGetMemObjectInfo(self.buffer_id, CL_MEM_TYPE, sizeof(cl_mem_object_type),
+                                          < void *> & param_value, NULL)
+            
+            if err_code != CL_SUCCESS:
+                raise OpenCLException(err_code)
+    
+            return param_value
             
     property mem_size:
         def __get__(self):
@@ -108,30 +132,27 @@ cdef class MemoryObject:
     
 cdef class DeviceMemoryView(MemoryObject):
     
-    cdef Py_buffer *buffer    
-#    cdef char * _format
-#    cdef public int readonly
-#    cdef public int ndim
-#    cdef Py_ssize_t * _shape
-#    cdef Py_ssize_t * _strides
-#    cdef Py_ssize_t * _suboffsets
-#    cdef public Py_ssize_t itemsize
+    cdef Py_buffer * buffer    
     cdef object __weakref__
     
     def __cinit__(self):
         self.buffer = NULL
         
-    def __init__(self, context, size_t size, cl_mem_flags flags=CL_MEM_READ_WRITE):
+    def __dealloc__(self):
+        if self.buffer == NULL:
+            return 
         
-        cdef cl_context ctx = ContextFromPyContext(context)
-        
-        self.buffer_id = NULL 
-        cdef void * host_ptr = NULL
-        cdef cl_int err_code
-        self.buffer_id = clCreateBuffer(ctx, flags, size, host_ptr, & err_code)
+#        if self.buffer.format != NULL: free(self.buffer.format)
+        if self.buffer.shape != NULL: free(self.buffer.shape)
+        if self.buffer.strides != NULL: free(self.buffer.strides)
+        if self.buffer.suboffsets != NULL: free(self.buffer.suboffsets)
 
-        if err_code != CL_SUCCESS:
-            raise OpenCLException(err_code)
+        free(self.buffer)
+        
+        self.buffer = NULL
+        
+    def __init__(self):
+        raise TypeError("Can not initialize 'DeviceMemoryView' directly use 'opencl.empty'")
     
     property ndim:
         def __get__(self):
@@ -193,17 +214,20 @@ cdef class DeviceMemoryView(MemoryObject):
     @classmethod
     def from_host(cls, context, host):
         
-        cdef cl_context ctx = ContextFromPyContext(context)
+        if not CyContext_Check(context):
+            raise TypeError("argument 'context' must be a valid opencl.Context object")
+        
+        cdef cl_context ctx = CyContext_GetID(context)
          
         cdef Py_buffer view
-        cdef Py_buffer *buffer = <Py_buffer*>malloc(sizeof(Py_buffer))
+        cdef Py_buffer * buffer = < Py_buffer *> malloc(sizeof(Py_buffer))
         cdef cl_mem buffer_id = NULL
         
         cdef int py_flags = PyBUF_SIMPLE | PyBUF_STRIDES | PyBUF_ND | PyBUF_FORMAT
         
         cdef cl_mem_flags mem_flags = CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE
         cdef cl_int err_code
-         
+        cdef char * tmp
         if not PyObject_CheckBuffer(host):
             raise Exception("argument host must support the buffer protocal (got %r)" % host)
         
@@ -219,7 +243,9 @@ cdef class DeviceMemoryView(MemoryObject):
             if err_code != CL_SUCCESS:
                 raise OpenCLException(err_code)
             
-            buffer.format = view.format
+            tmp = < char *> view.format
+            buffer.format = < char *> malloc(len(view.format) + 1)
+            strcpy(buffer.format, view.format)
             buffer.readonly = 1
             buffer.itemsize = view.itemsize
             buffer.ndim = view.ndim
@@ -269,7 +295,7 @@ cdef class DeviceMemoryView(MemoryObject):
             else:
                 raise IndexError()
         
-        cdef Py_buffer *buffer = <Py_buffer *> malloc(sizeof(Py_buffer)) 
+        cdef Py_buffer * buffer = < Py_buffer *> malloc(sizeof(Py_buffer)) 
         
 #        buffer.buffer_id = self.buffer_id
         
@@ -385,19 +411,21 @@ cdef class DeviceMemoryView(MemoryObject):
 
 def empty(context, shape, ctype='B'):
     
-    cdef cl_context ctx = ContextFromPyContext(context)
+    if not CyContext_Check(context):
+        raise TypeError("argument 'context' must be a valid opencl.Context object")
+
+    cdef cl_context ctx = CyContext_GetID(context)
 
     cdef cl_mem_flags flags = CL_MEM_READ_WRITE
     
-    cdef char * format
     cdef cl_int err_code
     
     if isinstance(ctype, str):
         format = ctype
     else:
-        format = ctype._type_
+        format = type_format(ctype)
 
-    cdef size_t itemsize = struct.calcsize(format)
+    cdef size_t itemsize = size_from_format(format)
     cdef size_t size = itemsize
     for i in shape:
         size *= i
@@ -407,9 +435,11 @@ def empty(context, shape, ctype='B'):
     if err_code != CL_SUCCESS:
         raise OpenCLException(err_code)
 
-    cdef Py_buffer *buffer = <Py_buffer *>malloc(sizeof(Py_buffer))
+    cdef Py_buffer * buffer = < Py_buffer *> malloc(sizeof(Py_buffer))
     
-    buffer.format = format
+    buffer.format = < char *> malloc(len(format) + 1)
+    cdef char * tmp = < char *> format
+    strcpy(buffer.format, tmp)
     buffer.readonly = 0
     buffer.itemsize = itemsize
     buffer.ndim = len(shape)
@@ -418,7 +448,6 @@ def empty(context, shape, ctype='B'):
     buffer.strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
     buffer.suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
     
-    strides = [buffer.itemsize]
     for i in range(buffer.ndim):
         buffer.shape[i] = shape[i]
         buffer.suboffsets[i] = 0
@@ -487,13 +516,14 @@ cdef class MemoryViewMap:
         
         cdef Py_buffer buffer
         
-        CyView_GetBuffer(self.dview(), &buffer)
+        CyView_GetBuffer(self.dview(), & buffer)
         
         cdef cl_mem memobj = CyMemoryObject_GetID(self.dview())
         writable = bool(self.map_flags & CL_MAP_WRITE)
 
         view.readonly = 0 if writable else 1 
         
+
         view.format = buffer.format
         view.ndim = buffer.ndim
         view.shape = buffer.shape
@@ -509,12 +539,447 @@ cdef class MemoryViewMap:
     def __releasebuffer__(self, Py_buffer * view):
         pass
     
-cdef class Image(MemoryObject):
-    pass
+cdef class ImageFormat:
+    CHANNEL_ORDERS = {
+        CL_R : 'CL_R',
+        CL_Rx : 'CL_Rx',
+        CL_A : 'CL_A',
+        CL_INTENSITY : 'CL_INTENSITY',
+        CL_LUMINANCE : 'CL_LUMINANCE',
+        CL_RG : 'CL_RG',
+        CL_RGx : 'CL_RGx',
+        CL_RA : 'CL_RA',
+        CL_RGB : 'CL_RGB',
+        CL_RGBx : 'CL_RGBx',
+        CL_RGBA : 'CL_RGBA',
+        CL_ARGB : 'CL_ARGB',
+        CL_BGRA : 'CL_BGRA',
+        }
+        
+    CHANNEL_DTYPES = {
+        CL_SNORM_INT8 : 'CL_SNORM_INT8',
+        CL_SNORM_INT16 : 'CL_SNORM_INT16',
+        CL_UNORM_INT8 : 'CL_UNORM_INT8',
+        CL_UNORM_INT16 : 'CL_UNORM_INT16',
+        CL_UNORM_SHORT_565 : 'CL_UNORM_SHORT_565',
+        CL_UNORM_SHORT_555 : 'CL_UNORM_SHORT_555',
+        CL_UNORM_INT_101010 : 'CL_UNORM_INT_101010',
+        CL_SIGNED_INT8 : 'CL_SIGNED_INT8',
+        CL_SIGNED_INT16 : 'CL_SIGNED_INT16',
+        CL_SIGNED_INT32 : 'CL_SIGNED_INT32',
+        CL_UNSIGNED_INT8 : 'CL_UNSIGNED_INT8',
+        CL_UNSIGNED_INT16 : 'CL_UNSIGNED_INT16',
+        CL_UNSIGNED_INT32 : 'CL_UNSIGNED_INT32',
+        CL_HALF_FLOAT : 'CL_HALF_FLOAT',
+        CL_FLOAT : 'CL_FLOAT',
+                      }
+    
+    _CHANNEL_CTYPE_MAP = {
+        CL_SNORM_INT8 : 'b',
+        CL_SNORM_INT16 : 'h',
+        CL_UNORM_INT8 : 'B',
+        CL_UNORM_INT16 : 'H',
+#        CL_UNORM_SHORT_565 : 'CL_UNORM_SHORT_565',
+#        CL_UNORM_SHORT_555 : 'CL_UNORM_SHORT_555',
+#        CL_UNORM_INT_101010 : 'CL_UNORM_INT_101010',
+        CL_SIGNED_INT8 : 'b',
+        CL_SIGNED_INT16 : 'h',
+        CL_SIGNED_INT32 : 'l',
+        CL_UNSIGNED_INT8 : 'B',
+        CL_UNSIGNED_INT16 : 'H',
+        CL_UNSIGNED_INT32 : 'L',
+#        CL_HALF_FLOAT : 'CL_HALF_FLOAT',
+        CL_FLOAT : 'f',
 
+                                }
+    
+    _CHANNEL_ORDER_CTYPE_MAP = {
+        #CL_R : 'T{%(dtype)s:r:}',
+        #CL_Rx : 'CL_Rx',
+        #CL_A : 'CL_A',
+        CL_INTENSITY : 'T{%(dtype)s:i:}',
+#        CL_LUMINANCE : 'CL_LUMINANCE',
+#        CL_RG : 'CL_RG',
+#        CL_RGx : 'CL_RGx',
+#        CL_RA : 'CL_RA',
+        CL_RGB : 'T{%(dtype)s:r:%(dtype)s:g:%(dtype)s:b:}',
+#        CL_RGBx : 'CL_RGBx',
+        CL_RGBA : 'T{%(dtype)s:r:%(dtype)s:g:%(dtype)s:b:%(dtype)s:a:}',
+        CL_ARGB : 'T{%(dtype)s:a:%(dtype)s:r:%(dtype)s:g:%(dtype)s:b:}',
+        CL_BGRA : 'T{%(dtype)s:b:%(dtype)s:g:%(dtype)s:r:%(dtype)s:a:}',
+        }
+
+    cdef cl_image_format cl_format
+    
+    @classmethod
+    def supported_formats(cls, context, readable=True, wirteable=True):
+        
+        if not CyContext_Check(context):
+            raise TypeError("argument 'context' must be a valid opencl.Context object")
+        
+        cdef cl_mem_flags flags
+        
+        if readable and wirteable:
+            flags = CL_MEM_READ_WRITE
+        elif not (readable ^ wirteable):
+            raise TypeError("al least one of readable or wirteable must be True")
+        elif readable:
+            flags = CL_MEM_READ_ONLY
+        else:
+            flags = CL_MEM_WRITE_ONLY
+            
+        cdef cl_context ctx = CyContext_GetID(context)
+
+        cdef cl_int err_code
+        cdef cl_image_format * image_formats
+        cdef cl_uint num_image_formats
+        cdef cl_mem_object_type image_type = CL_MEM_OBJECT_IMAGE2D
+        
+        err_code = clGetSupportedImageFormats(ctx, flags, image_type, 0, NULL, & num_image_formats)
+    
+        if err_code != CL_SUCCESS:
+            raise OpenCLException(err_code)
+        
+        image_formats = < cl_image_format *> malloc(sizeof(cl_image_format) * num_image_formats)
+
+        err_code = clGetSupportedImageFormats(ctx, flags, image_type, num_image_formats, image_formats, NULL)
+    
+    
+        if err_code != CL_SUCCESS:
+            free(image_formats)
+            raise OpenCLException(err_code)
+        
+        
+        image_format_list = []
+        
+        cdef ImageFormat fmt
+        for i in range(num_image_formats):
+            fmt = CyImageFormat_New(image_formats[i])
+            image_format_list.append(fmt)
+
+        free(image_formats)
+        
+        return image_format_list
+
+    @classmethod
+    def from_ctype(cls, format):
+        
+        cdef ImageFormat fmt
+        
+        if not isinstance(format, str):
+            format = type_format(format)
+        
+        for cl_order, order in cls._CHANNEL_ORDER_CTYPE_MAP.items():
+            for cl_dtype, dtype in cls._CHANNEL_CTYPE_MAP.items():
+                expected_format = order % dict(dtype=dtype)
+                
+                if format == expected_format:
+                    fmt = ImageFormat.__new__(ImageFormat)
+                    fmt.cl_format.image_channel_data_type = cl_dtype
+                    fmt.cl_format.image_channel_order = cl_order
+                    return fmt
+        else:
+            raise TypeError("Could not create opencl image format from ctype format specifier (got %r)" % (format,))
+
+    def __init__(self, str order, str dtype):
+        
+        order_lookup = dict([(value, key) for key, value in self.CHANNEL_ORDERS.items()])
+        self.cl_format.image_channel_order = order_lookup[order]
+
+        dtype_lookup = dict([(value, key) for key, value in self.CHANNEL_DTYPES.items()])
+        self.cl_format.image_channel_data_type = dtype_lookup[dtype]
+        
+    property format:
+        def __get__(self):
+            type_format = self._CHANNEL_CTYPE_MAP[self.cl_format.image_channel_data_type]
+            type_struct = self._CHANNEL_ORDER_CTYPE_MAP[self.cl_format.image_channel_order]
+            
+            return type_struct % dict(dtype=type_format) 
+
+    property ctype:
+        def __get__(self):
+            format = self.format
+            return ctype_from_format(format, struct_name=self.CHANNEL_ORDERS[self.channel_order])
+        
+    
+    property channel_order:
+        def __get__(self):
+            return self.cl_format.image_channel_order
+
+    property channel_data_type:
+        def __get__(self):
+            return self.cl_format.image_channel_data_type
+    
+    def __repr__(self):
+        order = self.CHANNEL_ORDERS[self.channel_order]
+        dtype = self.CHANNEL_DTYPES[self.channel_data_type]
+        
+        return "<ImageFormat channel_order=%r channel_data_type=%r>" % (order, dtype)
+    
+    def __richcmp__(ImageFormat self, other, op):
+        
+        if not ImageFormat_Check(other):
+            return False
+        
+        cdef cl_image_format cl_format = ImageFormat_Get(other)
+        
+        if op == 2: # == 
+            return ((self.cl_format.image_channel_data_type == cl_format.image_channel_data_type) and
+                    self.cl_format.image_channel_order == cl_format.image_channel_order)
+        else:
+            return NotImplemented
+        
+    
+cdef class Image(MemoryObject):
+    cdef Py_buffer * buffer    
+    cdef object __weakref__
+    
+    def __cinit__(self):
+        self.buffer = NULL
+        
+    property image_format:
+        def __get__(self):
+            cdef cl_int err_code
+            
+            cdef cl_image_format image_format
+            err_code = clGetImageInfo(self.buffer_id, CL_IMAGE_FORMAT, sizeof(cl_image_format), & image_format, NULL)
+            if err_code != CL_SUCCESS:
+                raise OpenCLException(err_code)
+            
+            return CyImageFormat_New(image_format)
+
+    property image_width:
+        def __get__(self):
+            cdef cl_int err_code
+            cdef size_t value
+            err_code = clGetImageInfo(self.buffer_id, CL_IMAGE_WIDTH, sizeof(size_t), & value, NULL)
+            if err_code != CL_SUCCESS:
+                raise OpenCLException(err_code)
+            return value
+
+    property image_height:
+        def __get__(self):
+            cdef cl_int err_code
+            cdef size_t value
+            err_code = clGetImageInfo(self.buffer_id, CL_IMAGE_HEIGHT, sizeof(size_t), & value, NULL)
+            if err_code != CL_SUCCESS:
+                raise OpenCLException(err_code)
+            return value
+
+    property image_depth:
+        def __get__(self):
+            cdef cl_int err_code
+            cdef size_t value
+            err_code = clGetImageInfo(self.buffer_id, CL_IMAGE_DEPTH, sizeof(size_t), & value, NULL)
+            if err_code != CL_SUCCESS:
+                raise OpenCLException(err_code)
+            return value
+        
+    property format:
+        def __get__(self):
+            if self.buffer.format != NULL:
+                return str(self.buffer.format)
+            else:
+                return "B"
+        
+    property shape:
+        def __get__(self):
+            shape = []
+            for i in range(self.buffer.ndim):
+                shape.append(self.buffer.shape[i])
+            return tuple(shape)
+
+    property suboffsets:
+        def __get__(self):
+            
+            if self.buffer.suboffsets == NULL:
+                return None
+            
+            suboffsets = []
+            for i in range(self.buffer.ndim):
+                suboffsets.append(self.buffer.suboffsets[i])
+            return tuple(suboffsets)
+
+    property strides:
+        def __get__(self):
+            strides = []
+            for i in range(self.buffer.ndim):
+                strides.append(self.buffer.strides[i])
+            return tuple(strides)
+
+    def map(self, queue, blocking=True, readonly=False):
+        
+        cdef cl_map_flags flags = CL_MAP_READ
+        
+        if not readonly: 
+            flags |= CL_MAP_WRITE
+        
+        cdef cl_bool blocking_map = 1 if blocking else 0
+            
+        return ImageMap(queue, self, blocking_map, flags)
+
+cdef class ImageMap:
+    
+    cdef cl_command_queue command_queue
+#    cdef DeviceMemoryView dview
+    cdef public object dview
+    
+    cdef cl_bool blocking_map
+    cdef cl_map_flags map_flags
+    cdef size_t offset
+    cdef size_t image_row_pitch
+    cdef size_t image_slice_pitch
+    cdef void* bytes
+        
+    def __init__(self, queue, dview, cl_bool blocking_map, cl_map_flags map_flags):
+        
+        self.dview = weakref.ref(dview)
+        
+        self.command_queue = CyQueue_GetID(queue)
+        
+        self.blocking_map = blocking_map
+        self.map_flags = map_flags
+    
+    def __enter__(self):
+        cdef void * bytes 
+        cdef cl_uint num_events_in_wait_list = 0
+        cdef cl_event * event_wait_list = NULL
+        
+        cdef cl_int err_code
+        
+        cdef cl_mem memobj = CyMemoryObject_GetID(self.dview())
+        cdef size_t origin[3]
+        cdef size_t region[3]
+        cdef size_t image_row_pitch
+        cdef size_t image_slice_pitch
+
+        cdef Py_buffer buffer
+        CyImage_GetBuffer(self.dview(), & buffer)
+        
+        origin[0] = buffer.suboffsets[0]
+        origin[1] = buffer.suboffsets[1]
+        origin[2] = 0
+        if buffer.ndim == 3:
+            origin[2] = buffer.suboffsets[2]
+            
+        region[0] = buffer.shape[0]
+        region[1] = buffer.shape[1]
+        region[2] = 1
+        
+        if buffer.ndim == 3:
+            region[2] = buffer.shape[2]
+        
+        bytes = clEnqueueMapImage(self.command_queue, memobj, self.blocking_map, self.map_flags,
+                                  origin, region, &image_row_pitch, &image_slice_pitch,
+                                  num_events_in_wait_list, event_wait_list, NULL,
+                                  &err_code)
+        
+        if err_code != CL_SUCCESS:
+            raise OpenCLException(err_code)
+        
+        self.bytes = bytes
+        
+        self.image_row_pitch = image_row_pitch
+        self.image_slice_pitch = image_slice_pitch
+
+        return memoryview(self)
+    
+
+    def __exit__(self, *args):
+
+        cdef cl_int err_code
+        
+        cdef cl_mem memobj = (< DeviceMemoryView > self.dview()).buffer_id
+        
+        err_code = clEnqueueUnmapMemObject(self.command_queue, memobj, self.bytes, 0, NULL, NULL)
+        clEnqueueBarrier(self.command_queue)
+        
+        if err_code != CL_SUCCESS:
+            raise OpenCLException(err_code)
+        
+    def __getbuffer__(self, Py_buffer * view, int flags):
+        cdef Py_buffer buffer
+        
+        CyImage_GetBuffer(self.dview(), & buffer)
+        
+        writable = bool(self.map_flags & CL_MAP_WRITE)
+
+        view.readonly = 0 if writable else 1 
+        
+        view.format = buffer.format
+        view.ndim = buffer.ndim
+        view.shape = buffer.shape
+        view.itemsize = buffer.itemsize
+        view.internal = NULL
+        view.strides = buffer.strides
+        view.suboffsets = NULL
+        
+        view.buf = self.bytes
+        
+    def __releasebuffer__(self, Py_buffer * view):
+        pass
+
+def empty_image(context, shape, image_format):
+    
+    if not CyContext_Check(context):
+        raise TypeError("argument 'context' must be a valid opencl.Context object")
+    
+    if len(shape) not in [2, 3]:
+        raise TypeError("shape must be 2 or 3 dimentional (got ndim=%i)" % len(shape))
+    
+    cdef cl_context ctx = CyContext_GetID(context)
+
+    cdef cl_mem_flags flags = CL_MEM_READ_WRITE
+    
+    cdef cl_int err_code
+    
+    
+    if not ImageFormat_Check(image_format):
+        raise TypeError("arguement 'image_format' must be a valid ImageFormat object")
+    
+    cdef cl_image_format fmt = ImageFormat_Get(image_format)
+
+    cdef size_t image_width = shape[0]
+    cdef size_t image_height = shape[1]
+    cdef size_t image_depth
+    cdef size_t image_row_pitch = 0
+    cdef size_t image_slice_pitch = 0
+    cdef void * host_ptr = NULL
+        
+    cdef cl_mem buffer_id
+    if len(shape) == 2:
+        buffer_id = clCreateImage2D(ctx, flags, & fmt, image_width, image_height, image_row_pitch, NULL, & err_code)
+    else:
+        image_depth = shape[2]
+        buffer_id = clCreateImage3D(ctx, flags, & fmt, image_width, image_height, image_depth, image_row_pitch, image_slice_pitch, NULL, & err_code)
+
+    if err_code != CL_SUCCESS:
+        raise OpenCLException(err_code)
+
+    cdef Py_buffer * buffer = < Py_buffer *> malloc(sizeof(Py_buffer))
+    
+    format = image_format.format
+    buffer.format = < char *> malloc(len(format) + 1)
+    cdef char * tmp = < char *> format
+    strcpy(buffer.format, tmp)
+    buffer.readonly = 0
+    buffer.itemsize = size_from_format(format)
+    buffer.ndim = len(shape)
+    
+    buffer.shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
+    buffer.strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
+    buffer.suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
+    
+    for i in range(buffer.ndim):
+        buffer.shape[i] = shape[i]
+        buffer.suboffsets[i] = 0
+    
+    PyBuffer_FillContiguousStrides(buffer.ndim, buffer.shape, buffer.strides, buffer.itemsize, 'C')
+    
+    return CyImage_Create(buffer_id, buffer, 0)
 
 #===============================================================================
-# 
+# API
 #===============================================================================
 
 cdef api object CyMemoryObject_Create(cl_mem buffer_id):
@@ -523,13 +988,13 @@ cdef api object CyMemoryObject_Create(cl_mem buffer_id):
     cview.buffer_id = buffer_id
     return cview
 
-cdef api int CyView_GetBuffer(object view, Py_buffer* buffer):
+cdef api int CyView_GetBuffer(object view, Py_buffer * buffer):
     cdef DeviceMemoryView dview = < DeviceMemoryView > view
     buffer[0] = dview.buffer[0]
     return 0
 
     
-cdef api object CyView_Create(cl_mem buffer_id, Py_buffer* buffer, int incref):
+cdef api object CyView_Create(cl_mem buffer_id, Py_buffer * buffer, int incref):
     cdef DeviceMemoryView dview = < DeviceMemoryView > DeviceMemoryView.__new__(DeviceMemoryView)
     if incref:
         clRetainMemObject(buffer_id)
@@ -539,6 +1004,20 @@ cdef api object CyView_Create(cl_mem buffer_id, Py_buffer* buffer, int incref):
     
     return dview
 
+cdef api object CyImage_Create(cl_mem buffer_id, Py_buffer * buffer, int incref):
+    cdef Image image = < Image > Image.__new__(Image)
+    if incref:
+        clRetainMemObject(buffer_id)
+        
+    image.buffer_id = buffer_id
+    image.buffer = buffer
+    
+    return image
+
+cdef api int CyImage_GetBuffer(object view, Py_buffer * buffer):
+    cdef Image dview = < Image > view
+    buffer[0] = dview.buffer[0]
+    return 0
 
 cdef api int CyMemoryObject_Check(object memobj):
     return isinstance(memobj, MemoryObject)
@@ -547,4 +1026,57 @@ cdef api cl_mem CyMemoryObject_GetID(object memobj):
     obj = (< MemoryObject > memobj)
     cdef cl_mem buffer_id = obj.buffer_id
     return buffer_id
+
+
+cdef api int ImageFormat_Check(object fmt):
+    return isinstance(fmt, ImageFormat)
+
+cdef api cl_image_format ImageFormat_Get(object fmt):
+    return (< ImageFormat > fmt).cl_format
+
+cdef api object CyImageFormat_New(cl_image_format image_format):
+    cdef ImageFormat fmt = < ImageFormat > ImageFormat.__new__(ImageFormat)
+    fmt.cl_format = image_format
+    return fmt
+
+cdef api object CyImage_New(cl_mem buffer_id):
+    cdef Image image = < Image > Image.__new__(Image)
+    image.buffer_id = buffer_id
+    
+    cdef Py_buffer * buffer = < Py_buffer *> malloc(sizeof(Py_buffer))
+    
+    format = image.image_format.format
+    
+    buffer.format = < char *> malloc(len(format) + 1)
+    cdef char * tmp = < char *> format
+    strcpy(buffer.format, tmp)
+    
+    buffer.readonly = 0
+    buffer.itemsize = size_from_format(format)
+#    buffer.ndim = len(shape)
+    if image.type == CL_MEM_OBJECT_IMAGE2D:
+        buffer.ndim = 2
+    elif image.type == CL_MEM_OBJECT_IMAGE3D:
+        buffer.ndim = 3
+    else:
+        raise TypeError("CyImage_New takes a valid image object as an argument")
+        return <object> NULL
+    
+    buffer.shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
+    buffer.strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
+    buffer.suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
+    
+    buffer.shape[0] = image.image_width
+    buffer.shape[1] = image.image_height
+    
+    if buffer.ndim == 3:
+        buffer.shape[2] = image.image_depth
+        
+    for i in range(buffer.ndim):
+        buffer.suboffsets[i] = 0
+    
+    PyBuffer_FillContiguousStrides(buffer.ndim, buffer.shape, buffer.strides, buffer.itemsize, 'C')
+    
+    image.buffer = buffer
+    return image
 

@@ -8,7 +8,7 @@ from libc.stdlib cimport malloc, free
 from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FORMAT, PyBUF_INDIRECT, PyBUF_WRITABLE
 
 from opencl.copencl cimport DeviceIDFromPyDevice, DeviceIDAsPyDevice, PyEvent_New, cl_eventFrom_PyEvent, PyEvent_Check 
-from opencl.context cimport ContextFromPyContext, ContextAsPyContext, PyContext_Check
+from opencl.context cimport CyContext_GetID, ContextAsPyContext, CyContext_Check
 from opencl.kernel cimport KernelFromPyKernel
 from opencl.cl_mem cimport CyMemoryObject_GetID, CyMemoryObject_Check
 
@@ -130,7 +130,7 @@ cdef class Queue:
     
     def __init__(self, context, device=None, out_of_order_exec_mode=False, profiling=False):
         
-        if not PyContext_Check(context):
+        if not CyContext_Check(context):
             raise TypeError("argument 'context' must be a valid opencl.context object (got %s)" % type(context))
             
         if device is None:
@@ -145,7 +145,7 @@ cdef class Queue:
             
         cdef cl_int err_code = CL_SUCCESS
        
-        cdef cl_context ctx = ContextFromPyContext(context)
+        cdef cl_context ctx = CyContext_GetID(context)
         cdef cl_device_id device_id = DeviceIDFromPyDevice(device)
          
         self.queue_id = clCreateCommandQueue(ctx, device_id, properties, & err_code)

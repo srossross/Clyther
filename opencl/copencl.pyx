@@ -14,7 +14,7 @@ from cpython cimport PyObject, Py_DECREF, Py_INCREF, PyBuffer_IsContiguous, PyBu
 from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FORMAT, PyBUF_INDIRECT, PyBUF_WRITABLE
 
 from opencl.kernel cimport KernelFromPyKernel, KernelAsPyKernel
-from opencl.context cimport ContextFromPyContext, ContextAsPyContext
+from opencl.context cimport CyContext_GetID, ContextAsPyContext
 
 cdef extern from "Python.h":
     void PyEval_InitThreads()
@@ -304,7 +304,7 @@ cdef class UserEvent(Event):
         
         cdef cl_int err_code
 
-        cdef cl_context ctx = ContextFromPyContext(context)
+        cdef cl_context ctx = CyContext_GetID(context)
         self.event_id = clCreateUserEvent(ctx, & err_code)
 
         if err_code != CL_SUCCESS:
@@ -340,7 +340,7 @@ cdef class Program:
         cdef char * strings
         cdef cl_int err_code
         
-        cdef cl_context ctx = ContextFromPyContext(context)
+        cdef cl_context ctx = CyContext_GetID(context)
         
         if source is not None:
             

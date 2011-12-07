@@ -11,3 +11,6 @@ cdef api int CyMemoryObject_Check(object memobj)
 
 cdef api cl_mem CyMemoryObject_GetID(object memobj)
 
+cdef api object CyImageFormat_New(cl_image_format image_format)
+
+cdef api object CyImage_New(cl_mem buffer_id)

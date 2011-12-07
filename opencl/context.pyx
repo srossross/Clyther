@@ -177,7 +177,7 @@ cdef class Context:
 # API
 #===============================================================================
 
-cdef api cl_context ContextFromPyContext(object pycontext):
+cdef api cl_context CyContext_GetID(object pycontext):
     cdef Context context = < Context > pycontext
     return context.context_id
 
@@ -187,5 +187,5 @@ cdef api object ContextAsPyContext(cl_context context):
     ctx.context_id = context
     return ctx
 
-cdef api int PyContext_Check(object context):
+cdef api int CyContext_Check(object context):
     return isinstance(context, Context) 

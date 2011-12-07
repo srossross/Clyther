@@ -7,6 +7,7 @@ Created on Sep 27, 2011
 from opencl import Platform, get_platforms, Context, Device, Queue, Program, DeviceMemoryView, empty
 from opencl import ContextProperties, global_memory, UserEvent, Event
 from opencl.kernel import parse_args
+import opencl as cl
 
 import unittest
 import ctypes
@@ -522,10 +523,67 @@ class TestBuffer(unittest.TestCase):
                 self.assertTrue(np.all(expected == b))
 
         
+class TestImage(unittest.TestCase):
+    def test_supported_formats(self):
+        ctx = cl.Context()
+        image_format = cl.ImageFormat.supported_formats(ctx)[0]
+        
+        format_copy = cl.ImageFormat.from_ctype(image_format.ctype)
+        
+        self.assertEqual(image_format, format_copy)
+        
+    def test_empty(self):
+
+        ctx = cl.Context()
+        image_format = cl.ImageFormat('CL_RGBA', 'CL_UNSIGNED_INT8')
+        
+        image = cl.empty_image(ctx, [4, 4], image_format)
+        
+        self.assertEqual(image.type, cl.Image.IMAGE2D)
+        
+        self.assertEqual(image.image_format, image_format)
+        self.assertEqual(image.image_width, 4)
+        self.assertEqual(image.image_height, 4)
+        self.assertEqual(image.image_depth, 1)
+
+    def test_empty_3d(self):
+
+        ctx = cl.Context()
+        image_format = cl.ImageFormat('CL_RGBA', 'CL_UNSIGNED_INT8')
+        
+        image = cl.empty_image(ctx, [4, 4, 4], image_format)
+        
+        self.assertEqual(image.type, cl.Image.IMAGE3D)
+        self.assertEqual(image.image_format, image_format)
+        self.assertEqual(image.image_width, 4)
+        self.assertEqual(image.image_height, 4)
+        self.assertEqual(image.image_depth, 4)
+
+        
+    def test_map(self):
+
+        ctx = cl.Context()
+        image_format = cl.ImageFormat('CL_RGBA', 'CL_UNSIGNED_INT8')
+        
+        image = cl.empty_image(ctx, [4, 4], image_format)
+        
+        queue = Queue(ctx)   
+
+        with image.map(queue) as img:
+            self.assertEqual(img.format, 'T{B:r:B:g:B:b:B:a:}')
+            self.assertEqual(img.ndim, 2)
+            self.assertEqual(img.shape, (4, 4))
+            
+            array = np.asarray(img)
+            array['r'] = 1
+            
+        with image.map(queue) as img:
+            array = np.asarray(img)
+            self.assertTrue(np.all(array['r'] == 1))
+        
 class TestEvent(unittest.TestCase):
     
     def test_status(self):
-        
         
         ctx = Context(device_type=Device.DEFAULT)
         event = UserEvent(ctx)

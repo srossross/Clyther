@@ -106,7 +106,7 @@ def find_closing_brace(format, braces='{}'):
     
 struct_types = 'cbB?hHiIlLqQfdspP'
 
-def _ctype_from_format(format):
+def _ctype_from_format(format, struct_name='T'):
     i = 0
     fields = []
     while i < len(format):
@@ -129,7 +129,7 @@ def _ctype_from_format(format):
             cstruct = format[i:i + n]
             
             _fields_ = [(name, ctype) for name, ctype in _ctype_from_format(cstruct)]
-            T = type('T', (ctypes.Structure,), {'_fields_':_fields_})
+            T = type(struct_name, (ctypes.Structure,), {'_fields_':_fields_})
             fields.append(['', T])
             i += n + 1
             
@@ -152,8 +152,8 @@ def _ctype_from_format(format):
     
     return fields
 
-def ctype_from_format(format):
-    ctype_lst = _ctype_from_format(format)
+def ctype_from_format(format, struct_name='T'):
+    ctype_lst = _ctype_from_format(format, struct_name=struct_name)
     if len(ctype_lst) == 1:
         return ctype_lst[0][1]
     else:
