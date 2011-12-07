@@ -14,7 +14,7 @@ cdef api object clPlatformAs_PyPlatform(cl_platform_id platform_id)
 # 
 #===============================================================================
 
-cdef api cl_device_id DeviceIDFromPyDevice(object py_device)
+cdef api cl_device_id CyDevice_GetID(object py_device)
 
 cdef api object DeviceIDAsPyDevice(cl_device_id device_id)
 

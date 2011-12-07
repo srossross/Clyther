@@ -29,6 +29,11 @@ __kernel void generate_sin(__global float2* a, float scale)
 }
 """
 
+DEVICE_TYPE = cl.Device.CPU
+DEVICE_TYPE = cl.Device.GPU
+
+ctx = cl.Context(device_type=DEVICE_TYPE)
+
 class Test(unittest.TestCase):
     
     
@@ -38,16 +43,12 @@ class Test(unittest.TestCase):
     def test_get_devices(self):
         plat = get_platforms()[0]
         devices = plat.devices()
-        native_kernels = [dev.native_kernel for dev in devices]
+        native_kernels = [dev.has_native_kernel for dev in devices]
 
-    def test_context(self):
         
-        ctx = Context(device_type=Device.CPU)
+    @unittest.skipIf(not ctx.devices[0].has_native_kernel, "Device does not support native kernels")
+    def test_enqueue_native_kernel(self):
         
-    
-    def test_create_queue(self):
-        
-        ctx = Context(device_type=Device.CPU)
         queue = Queue(ctx, ctx.devices[0])
 
         global foo
@@ -65,6 +66,39 @@ class Test(unittest.TestCase):
         
         self.assertEqual(foo, 12)
 
+class TestDevice(unittest.TestCase):
+    
+    def _test_device_properties(self):
+        
+        device = ctx.devices[0]
+        print 
+        print "device_type", device.device_type
+        print "name", device.name
+        print "has_image_support", device.has_image_support
+        print "has_native_kernel", device.has_native_kernel
+        print "max_compute_units", device.max_compute_units
+        print "max_work_item_dimension", device.max_work_item_dimensions
+        print "max_work_item_sizes", device.max_work_item_sizes
+        print "max_work_group_size", device.max_work_group_size
+        print "max_clock_frequency", device.max_clock_frequency, 'MHz'
+        print "address_bits", device.address_bits, 'bits'
+        print "max_read_image_args", device.max_read_image_args
+        print "max_write_image_args", device.max_write_image_args
+        print "max_image2d_shape", device.max_image2d_shape
+        print "max_image3d_shape", device.max_image3d_shape
+        print "max_parameter_size", device.max_parameter_size, 'bytes'
+        print "max_const_buffer_size", device.max_const_buffer_size, 'bytes'
+        print "has_local_mem", device.has_local_mem
+        print "local_mem_size", device.local_mem_size, 'bytes'
+        print "host_unified_memory", device.host_unified_memory
+        print "available", device.available
+        print "compiler_available", device.compiler_available
+        print "driver_version", device.driver_version
+        print "device_profile", device.profile
+        print "version", device.version
+        print "extensions", device.extensions
+        
+
 class TestContext(unittest.TestCase):
     def test_properties(self):
         platform = get_platforms()[0]
@@ -75,19 +109,49 @@ class TestContext(unittest.TestCase):
                 
         self.assertEqual(platform.name, properties.platform.name)
         
-        ctx = Context(device_type=Device.CPU, properties=properties)
+        ctx = Context(device_type=DEVICE_TYPE, properties=properties)
 
 class TestProgram(unittest.TestCase):
         
     def test_program(self):
-        ctx = Context(device_type=Device.CPU)
         
         program = Program(ctx, source=source)
         
         program.build()
+
+    def test_source(self):
+        
+        program = Program(ctx, source=source)
+        
+        self.assertEqual(program.source, source)
+
+    def test_binaries(self):
+        
+        program = Program(ctx, source=source)
+        
+        self.assertEqual(program.binaries, dict.fromkeys(ctx.devices))
+        
+        program.build()
+        
+        binaries = program.binaries
+        self.assertIsNotNone(binaries[ctx.devices[0]])
+        self.assertEqual(len(binaries[ctx.devices[0]]), program.binary_sizes[0])
+        
+        program2 = Program(ctx, binaries=binaries)
+        
+        self.assertIsNone(program2.source)
+        
+        self.assertEqual(program2.binaries, binaries)
+        
+    def test_constructor(self):
+        
+        with self.assertRaises(TypeError):
+            Program(None, binaries=None)
+
+        with self.assertRaises(TypeError):
+            Program(ctx, binaries={None:None})
         
     def test_devices(self):
-        ctx = Context(device_type=Device.CPU)
         
         program = Program(ctx, source=source)
         
@@ -96,7 +160,6 @@ class TestProgram(unittest.TestCase):
 class TestKernel(unittest.TestCase):
     
     def test_name(self):
-        ctx = Context(device_type=Device.CPU)
         program = Program(ctx, source=source)
         
         program.build()
@@ -107,7 +170,6 @@ class TestKernel(unittest.TestCase):
         
     def test_argtypes(self):
 
-        ctx = Context(device_type=Device.CPU)
         program = Program(ctx, source=source)
         
         program.build()
@@ -121,7 +183,6 @@ class TestKernel(unittest.TestCase):
 
     def test_set_args(self):
 
-        ctx = Context(device_type=Device.CPU)
         program = Program(ctx, source=source)
         
         program.build()
@@ -143,7 +204,7 @@ class TestKernel(unittest.TestCase):
         
         with buf.map(queue) as host:
             self.assertTrue(np.all(expected['x'] == np.asarray(host)['f0']))
-            self.assertTrue(np.all(expected['y'] == np.asarray(host)['f1']))
+            self.assertTrue(np.allclose(expected['y'], np.asarray(host)['f1']))
 
         generate_sin.argnames = ['a', 'scale']
         generate_sin.set_args(a=buf, scale=1.0)
@@ -151,7 +212,7 @@ class TestKernel(unittest.TestCase):
         
         with buf.map(queue) as host:
             self.assertTrue(np.all(expected['x'] == np.asarray(host)['f0']))
-            self.assertTrue(np.all(expected['y'] == np.asarray(host)['f1']))
+            self.assertTrue(np.allclose(expected['y'], np.asarray(host)['f1']))
             
         with self.assertRaises(TypeError):
             generate_sin.set_args(a=buf)
@@ -163,7 +224,7 @@ class TestKernel(unittest.TestCase):
         
         with buf.map(queue) as host:
             self.assertTrue(np.all(expected['x'] == np.asarray(host)['f0']))
-            self.assertTrue(np.all(expected['y'] == np.asarray(host)['f1']))
+            self.assertTrue(np.allclose(expected['y'], np.asarray(host)['f1']))
 
     def test_call(self):
 
@@ -171,7 +232,6 @@ class TestKernel(unittest.TestCase):
         expected['x'] = np.arange(10)
         expected['y'] = np.sin(expected['x'] / 10)
         
-        ctx = Context(device_type=Device.CPU)
         program = Program(ctx, source=source)
         
         program.build()
@@ -192,7 +252,7 @@ class TestKernel(unittest.TestCase):
         
         with buf.map(queue) as host:
             self.assertTrue(np.all(expected['x'] == np.asarray(host)['f0']))
-            self.assertTrue(np.all(expected['y'] == np.asarray(host)['f1']))
+            self.assertTrue(np.allclose(expected['y'], np.asarray(host)['f1']))
 
         generate_sin.global_work_size = lambda a, scale: [a.size]
         
@@ -200,7 +260,7 @@ class TestKernel(unittest.TestCase):
         
         with buf.map(queue) as host:
             self.assertTrue(np.all(expected['x'] == np.asarray(host)['f0']))
-            self.assertTrue(np.all(expected['y'] == np.asarray(host)['f1']))
+            self.assertTrue(np.allclose(expected['y'], np.asarray(host)['f1']))
 
     def test_parse_args(self):
         
@@ -244,7 +304,6 @@ class TestKernel(unittest.TestCase):
 class TestBuffer(unittest.TestCase):
     
     def test_size(self):     
-        ctx = Context(device_type=Device.CPU)   
         buf = empty(ctx, [4])
         
         self.assertEqual(buf._refcount, 1)
@@ -253,7 +312,6 @@ class TestBuffer(unittest.TestCase):
         self.assertEqual(buf.mem_size, 4)
         
     def test_from_host(self):
-        ctx = Context(device_type=Device.CPU)
         a = np.array([[1, 2], [3, 4]])
         view_a = memoryview(a)
         clmem = DeviceMemoryView.from_host(ctx, a)
@@ -263,7 +321,6 @@ class TestBuffer(unittest.TestCase):
         self.assertEqual(clmem.strides, view_a.strides)
         
     def test_read_write(self):
-        ctx = Context(device_type=Device.CPU)   
         a = np.array([[1, 2], [3, 4]])
         clbuf = DeviceMemoryView.from_host(ctx, a)
         
@@ -283,7 +340,6 @@ class TestBuffer(unittest.TestCase):
         
     def test_map(self):
         
-        ctx = Context(device_type=Device.CPU)   
         a = np.array([[1, 2], [3, 4]])
         view_a = memoryview(a)
         
@@ -323,7 +379,6 @@ class TestBuffer(unittest.TestCase):
             
     def test_refcount(self):
 
-        ctx = Context(device_type=Device.CPU)
         a = np.array([[1, 2], [3, 4]])
         
         clbuf = DeviceMemoryView.from_host(ctx, a)
@@ -335,13 +390,39 @@ class TestBuffer(unittest.TestCase):
         self.assertEqual(clbuf._refcount, 2)
         
         del new_buf
+        gc.collect()
         
         self.assertEqual(clbuf._refcount, 1)
+        
+        self.assertEqual(clbuf.base, None)
+        
+        #create sub_buffer
+        new_buf = clbuf[1, :]
+
+        self.assertEqual(clbuf._refcount, 2)
+        
+        event = PyEvent()
+        def callback():
+            event.set()
+            
+        new_buf.add_destructor_callback(callback)
+        
+        del new_buf
+        gc.collect()
+        
+        timed_out = not event.wait(2)
+        
+        self.assertFalse(timed_out)
+        
+        
+        self.assertEqual(clbuf._refcount, 1)
+        
+#        print clbuf._refcount
+#        print new_fuf._refcount
         
         
     def test_get_slice(self):
         
-        ctx = Context(device_type=Device.CPU)
         queue = Queue(ctx, ctx.devices[0])   
         a = np.array([1, 2, 3, 4])
         
@@ -368,9 +449,43 @@ class TestBuffer(unittest.TestCase):
             self.assertTrue(np.all(b == a[::-1]))
             
         
+    def test_dim_reduce(self):
+        queue = Queue(ctx, ctx.devices[0])   
+        a = np.array([[1, 2], [3, 4], [5, 6]])
+    
+        view = DeviceMemoryView.from_host(ctx, a)
+        
+        new_view = view[:, 0]
+        
+        self.assertEqual(new_view.ndim, 1)
+        self.assertEqual(new_view.shape, (3,))
+        self.assertEqual(new_view.base_offset, 0)
+        self.assertEqual(new_view.strides, (8,))
+
+        with new_view.map(queue) as buf:
+            b = np.asarray(buf)
+            self.assertTrue(np.all(b == a[:, 0]))
+
+        new_view = view[:, 1]
+        
+        with new_view.map(queue) as buf:
+            b = np.asarray(buf)
+            self.assertTrue(np.all(b == a[:, 1]))
+
+        new_view = view[0, :]
+        
+        with new_view.map(queue) as buf:
+            b = np.asarray(buf)
+            self.assertTrue(np.all(b == a[0, :]))
+
+        new_view = view[1, :]
+        
+        with new_view.map(queue) as buf:
+            b = np.asarray(buf)
+            self.assertTrue(np.all(b == a[1, :]))
+
     def test_getitem(self):
 
-        ctx = Context(device_type=Device.CPU)
         queue = Queue(ctx, ctx.devices[0])   
         a = np.array([[1, 2], [3, 4]])
         
@@ -384,19 +499,19 @@ class TestBuffer(unittest.TestCase):
         new_buf = clbuf[:, :-1]
         
         self.assertEqual(clbuf._refcount, 2)
-        with new_buf.map(queue) as buf:
+        
+        mapp = new_buf.map(queue)
+        
+        with mapp as buf:
+            
             b = np.asanyarray(buf)
             self.assertTrue(np.all(b == a[:, :-1]))
-            
-            
-        del buf, new_buf
+        
+        del buf
+        del new_buf
         gc.collect()
         
-        self.assertEqual(clbuf._refcount, 1)
-        
         new_buf = clbuf[:, 1:]
-        
-        self.assertEqual(clbuf._refcount, 2)
         
         with new_buf.map(queue) as buf:
             b = np.asanyarray(buf)
@@ -410,7 +525,6 @@ class TestBuffer(unittest.TestCase):
         
     def test_is_contiguous(self):
         
-        ctx = Context(device_type=Device.CPU)
         a = np.array([[1, 2], [3, 4]])
         
         clbuf = DeviceMemoryView.from_host(ctx, a)
@@ -423,7 +537,6 @@ class TestBuffer(unittest.TestCase):
         
     def test_copy_contig(self):
 
-        ctx = Context(device_type=Device.CPU)
         queue = Queue(ctx, ctx.devices[0])   
         a = np.array([[1, 2], [3, 4]])
         
@@ -436,8 +549,7 @@ class TestBuffer(unittest.TestCase):
             self.assertTrue(np.all(a == b))
             
     def test_copy_1D(self):
-
-        ctx = Context(device_type=Device.CPU)
+        
         queue = Queue(ctx, ctx.devices[0])   
         a = np.array([1, 2, 3, 4])
         
@@ -464,7 +576,6 @@ class TestBuffer(unittest.TestCase):
     def test_copy_2D(self):
 
 
-        ctx = Context(device_type=Device.CPU)
         queue = Queue(ctx, ctx.devices[0])   
         a = np.arange(6 * 6).reshape([6, 6])
         
@@ -497,7 +608,6 @@ class TestBuffer(unittest.TestCase):
     def test_copy_2D_negative_stride(self):
 
 
-        ctx = Context(device_type=Device.CPU)
         queue = Queue(ctx, ctx.devices[0])   
         a = np.arange(4 * 4).reshape([4, 4])
         
@@ -525,7 +635,6 @@ class TestBuffer(unittest.TestCase):
         
 class TestImage(unittest.TestCase):
     def test_supported_formats(self):
-        ctx = cl.Context()
         image_format = cl.ImageFormat.supported_formats(ctx)[0]
         
         format_copy = cl.ImageFormat.from_ctype(image_format.ctype)
@@ -534,7 +643,6 @@ class TestImage(unittest.TestCase):
         
     def test_empty(self):
 
-        ctx = cl.Context()
         image_format = cl.ImageFormat('CL_RGBA', 'CL_UNSIGNED_INT8')
         
         image = cl.empty_image(ctx, [4, 4], image_format)
@@ -548,7 +656,6 @@ class TestImage(unittest.TestCase):
 
     def test_empty_3d(self):
 
-        ctx = cl.Context()
         image_format = cl.ImageFormat('CL_RGBA', 'CL_UNSIGNED_INT8')
         
         image = cl.empty_image(ctx, [4, 4, 4], image_format)
@@ -562,7 +669,6 @@ class TestImage(unittest.TestCase):
         
     def test_map(self):
 
-        ctx = cl.Context()
         image_format = cl.ImageFormat('CL_RGBA', 'CL_UNSIGNED_INT8')
         
         image = cl.empty_image(ctx, [4, 4], image_format)
@@ -585,7 +691,6 @@ class TestEvent(unittest.TestCase):
     
     def test_status(self):
         
-        ctx = Context(device_type=Device.DEFAULT)
         event = UserEvent(ctx)
         
         self.assertEqual(event.status, Event.SUBMITTED)
@@ -594,7 +699,6 @@ class TestEvent(unittest.TestCase):
         
     def test_wait(self):
         
-        ctx = Context(device_type=Device.DEFAULT)
         event = UserEvent(ctx)
 
         queue = Queue(ctx, ctx.devices[0])
@@ -620,7 +724,6 @@ class TestEvent(unittest.TestCase):
             self.callback_called = True
             self.py_event.set()
         
-        ctx = Context(device_type=Device.DEFAULT)
         event = UserEvent(ctx)
 
         queue = Queue(ctx, ctx.devices[0])

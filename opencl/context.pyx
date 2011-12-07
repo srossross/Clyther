@@ -2,7 +2,7 @@ from opencl.errors import OpenCLException
 
 from _cl cimport *
 from opencl.copencl cimport clPlatformFromPyPlatform, clPlatformAs_PyPlatform
-from opencl.copencl cimport DeviceIDFromPyDevice, DeviceIDAsPyDevice
+from opencl.copencl cimport CyDevice_GetID, DeviceIDAsPyDevice
 from libc.stdlib cimport malloc, free 
 
 cdef class ContextProperties:
@@ -101,7 +101,7 @@ cdef class Context:
             num_devices = len(devices)
             _devices = < cl_device_id *> malloc(num_devices * sizeof(cl_device_id))
             for i in range(num_devices): 
-                _devices[i] = DeviceIDFromPyDevice(devices[i])
+                _devices[i] = CyDevice_GetID(devices[i])
                  
             self.context_id = clCreateContext(props, num_devices, _devices, NULL, NULL, & err_code)
             
@@ -181,7 +181,7 @@ cdef api cl_context CyContext_GetID(object pycontext):
     cdef Context context = < Context > pycontext
     return context.context_id
 
-cdef api object ContextAsPyContext(cl_context context):
+cdef api object CyContext_Create(cl_context context):
     ctx = < Context > Context.__new__(Context)
     clRetainContext(context)
     ctx.context_id = context

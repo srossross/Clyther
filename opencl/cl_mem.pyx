@@ -12,13 +12,13 @@ from cpython cimport PyObject, Py_DECREF, Py_INCREF, PyBuffer_IsContiguous, PyBu
 from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FORMAT, PyBUF_INDIRECT, PyBUF_WRITABLE
 
 from _cl cimport * 
-from opencl.context cimport CyContext_GetID, ContextAsPyContext, CyContext_Check
+from opencl.context cimport CyContext_GetID, CyContext_Create, CyContext_Check
 from opencl.queue cimport CyQueue_GetID, CyQueue_Create
 
 
 #cdef extern from "cstring":
 #    char * strcpy (char * destination, char * source)
-    
+
 cdef extern from "Python.h":
 
     object PyByteArray_FromStringAndSize(char * , Py_ssize_t)
@@ -27,6 +27,14 @@ cdef extern from "Python.h":
     int PyObject_CheckBuffer(object obj)
     void PyBuffer_Release(Py_buffer * view)
 
+
+cdef void pfn_notify_destroy_mem_object(cl_mem memobj, void * user_data) with gil:
+    
+    cdef object callback = (< object > user_data)
+    
+    callback()
+    
+    Py_DECREF(callback)
 
 cdef class MemoryObject:
 
@@ -47,6 +55,20 @@ cdef class MemoryObject:
             clReleaseMemObject(self.buffer_id)
         self.buffer_id = NULL
     
+    
+    def add_destructor_callback(self, callback):
+        
+        Py_INCREF(callback)
+        
+        cdef void * user_data = < void *> callback
+        
+        cdef cl_int err_code
+        
+        err_code = clSetMemObjectDestructorCallback(self.buffer_id, < void *> & pfn_notify_destroy_mem_object, user_data)
+    
+        if err_code != CL_SUCCESS:
+            raise OpenCLException(err_code)
+
     property context:
         def __get__(self):
             cdef cl_context param_value
@@ -58,7 +80,7 @@ cdef class MemoryObject:
             if err_code != CL_SUCCESS:
                 raise OpenCLException(err_code)
     
-            return ContextAsPyContext(param_value)
+            return CyContext_Create(param_value)
 
             
     property type:
@@ -113,6 +135,25 @@ cdef class MemoryObject:
                 raise OpenCLException(err_code)
 
             return param_value
+        
+    property base_offset:
+        def __get__(self):
+            
+            cdef size_t param_value
+            cdef cl_int err_code
+            
+            err_code = clGetMemObjectInfo(self.buffer_id, CL_MEM_OFFSET, sizeof(size_t),
+                                          < void *>& param_value, NULL)
+    
+            if err_code != CL_SUCCESS:
+                raise OpenCLException(err_code)
+
+            return param_value
+    
+    cdef cl_mem _get_base(self):
+            cdef cl_mem param_value
+            clGetMemObjectInfo(self.buffer_id, CL_MEM_ASSOCIATED_MEMOBJECT, sizeof(cl_mem), < void *>& param_value, NULL)
+            return param_value
     
     property base:
         def __get__(self):
@@ -145,7 +186,6 @@ cdef class DeviceMemoryView(MemoryObject):
 #        if self.buffer.format != NULL: free(self.buffer.format)
         if self.buffer.shape != NULL: free(self.buffer.shape)
         if self.buffer.strides != NULL: free(self.buffer.strides)
-        if self.buffer.suboffsets != NULL: free(self.buffer.suboffsets)
 
         free(self.buffer)
         
@@ -179,17 +219,6 @@ cdef class DeviceMemoryView(MemoryObject):
             for i in range(self.buffer.ndim):
                 shape.append(self.buffer.shape[i])
             return tuple(shape)
-
-    property suboffsets:
-        def __get__(self):
-            
-            if self.buffer.suboffsets == NULL:
-                return None
-            
-            suboffsets = []
-            for i in range(self.buffer.ndim):
-                suboffsets.append(self.buffer.suboffsets[i])
-            return tuple(suboffsets)
 
     property strides:
         def __get__(self):
@@ -252,12 +281,11 @@ cdef class DeviceMemoryView(MemoryObject):
             
             buffer.shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * view.ndim)
             buffer.strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * view.ndim)
-            buffer.suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * view.ndim)
+            buffer.suboffsets = NULL
             
             for i in range(view.ndim):
                 buffer.shape[i] = view.shape[i]
                 buffer.strides[i] = view.strides[i]
-                buffer.suboffsets[i] = 0
 
             return CyView_Create(buffer_id, buffer, 0)
         else:
@@ -275,7 +303,8 @@ cdef class DeviceMemoryView(MemoryObject):
         ndim = self.buffer.ndim
         shape = list(self.shape)
         strides = list(self.strides)
-        suboffsets = list(self.suboffsets)
+        
+        cdef size_t offset = self.base_offset
         
         i = 0 
         for arg in args:
@@ -285,19 +314,17 @@ cdef class DeviceMemoryView(MemoryObject):
                 modd = (stop - start) % step
                 if modd != 0: shape[i] += 1
                 
-                if suboffsets[i] > 0:
-                    suboffsets[i] += start * strides[i]
-                else:
-                    suboffsets[i] = start * strides[i]
-                    
+                offset += start * strides[i]
                 strides[i] = strides[i] * step
+                
                 i += 1
             else:
-                raise IndexError()
+                offset += arg * strides[i]
+                ndim -= 1
+                del strides[i]
+                del shape[i]
         
         cdef Py_buffer * buffer = < Py_buffer *> malloc(sizeof(Py_buffer)) 
-        
-#        buffer.buffer_id = self.buffer_id
         
         buffer.format = self.buffer.format
         buffer.readonly = self.readonly
@@ -306,14 +333,33 @@ cdef class DeviceMemoryView(MemoryObject):
         
         buffer.shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * ndim)
         buffer.strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * ndim)
-        buffer.suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * ndim)
+        buffer.suboffsets = NULL
         
         for i in range(ndim):
             buffer.shape[i] = shape[i]
             buffer.strides[i] = strides[i]
-            buffer.suboffsets[i] = suboffsets[i]
+
+        if offset == 0:
+            return CyView_Create(self.buffer_id, buffer, 1)
+
+        cdef cl_mem sub_buffer = NULL
+        cdef cl_mem base = self._get_base()
         
-        return CyView_Create(self.buffer_id, buffer, 1)
+        if base == NULL:
+            base = self.buffer_id
+        
+        cdef cl_int err_code
+        cdef size_t mem_size = self.mem_size
+        cdef cl_buffer_region buffer_create_info
+        
+        buffer_create_info.origin = offset
+        buffer_create_info.size = mem_size - offset
+        sub_buffer = clCreateSubBuffer(base, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION, & buffer_create_info, & err_code)
+
+        if err_code != CL_SUCCESS:
+            raise OpenCLException(err_code)
+        
+        return CyView_Create(sub_buffer, buffer, 0)
     
     property size:
         def __get__(self):
@@ -326,15 +372,6 @@ cdef class DeviceMemoryView(MemoryObject):
     property nbytes:
         def __get__(self):
             return self.size * self.buffer.itemsize
-
-    property offset:
-        def __get__(self):
-            cdef size_t offset = 0
-            
-            for i in range(self.buffer.ndim):
-                offset += self.buffer.suboffsets[i]
-                
-            return offset
 
     def __len__(self):
         return self.size 
@@ -361,7 +398,7 @@ cdef class DeviceMemoryView(MemoryObject):
         
         
         if self.is_contiguous:
-            queue.enqueue_copy_buffer(self, dest, self.offset, dst_offset=0, size=self.nbytes, wait_on=())
+            queue.enqueue_copy_buffer(self, dest, src_offset=0, dst_offset=0, size=self.nbytes, wait_on=())
             
         elif any(stride < 0 for stride in self.strides):
             raise NotImplementedError("stride < 0")
@@ -373,7 +410,7 @@ cdef class DeviceMemoryView(MemoryObject):
             dst_slice_pitch = 0
             
             region = (dest.itemsize, dest.size, 1)
-            src_origin = (self.offset, 0, 0)
+            src_origin = (0, 0, 0)
             dst_origin = (0, 0, 0)
             
             queue.enqueue_copy_buffer_rect(self, dest, region, src_origin, dst_origin,
@@ -389,7 +426,7 @@ cdef class DeviceMemoryView(MemoryObject):
             src_slice_pitch = self.buffer.strides[0] 
 
             region = shape2, shape1, shape0
-            src_origin = (self.offset, 0, 0)
+            src_origin = (0, 0, 0)
             dst_origin = (0, 0, 0)
             
             queue.enqueue_copy_buffer_rect(self, dest, region, src_origin, dst_origin,
@@ -401,10 +438,10 @@ cdef class DeviceMemoryView(MemoryObject):
         return dest
     
     def read(self, queue, out, wait_on=(), blocking=False):
-        queue.enqueue_read_buffer(self, out, self.offset, self.nbytes, wait_on, blocking_read=blocking)
+        queue.enqueue_read_buffer(self, out, 0, self.nbytes, wait_on, blocking_read=blocking)
 
     def write(self, queue, buf, wait_on=(), blocking=False):
-        queue.enqueue_write_buffer(self, buf, self.offset, self.nbytes, wait_on, blocking_read=blocking)
+        queue.enqueue_write_buffer(self, buf, 0, self.nbytes, wait_on, blocking_read=blocking)
             
     def __releasebuffer__(self, Py_buffer * view):
         pass
@@ -446,11 +483,10 @@ def empty(context, shape, ctype='B'):
     
     buffer.shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
     buffer.strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
-    buffer.suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
+    buffer.suboffsets = NULL
     
     for i in range(buffer.ndim):
         buffer.shape[i] = shape[i]
-        buffer.suboffsets[i] = 0
     
     PyBuffer_FillContiguousStrides(buffer.ndim, buffer.shape, buffer.strides, buffer.itemsize, 'C')
     
@@ -506,10 +542,12 @@ cdef class MemoryViewMap:
         cdef cl_mem memobj = (< DeviceMemoryView > self.dview()).buffer_id
         
         err_code = clEnqueueUnmapMemObject(self.command_queue, memobj, self.bytes, 0, NULL, NULL)
+        
         clEnqueueBarrier(self.command_queue)
         
         if err_code != CL_SUCCESS:
             raise OpenCLException(err_code)
+        
         
     def __getbuffer__(self, Py_buffer * view, int flags):
         view.len = self.cb
@@ -532,9 +570,9 @@ cdef class MemoryViewMap:
         view.strides = buffer.strides
         view.suboffsets = NULL
         
-        cdef size_t offset = self.dview().offset 
+#        cdef size_t offset = self.dview().offset 
         
-        view.buf = self.bytes + offset
+        view.buf = self.bytes
         
     def __releasebuffer__(self, Py_buffer * view):
         pass
@@ -789,17 +827,6 @@ cdef class Image(MemoryObject):
                 shape.append(self.buffer.shape[i])
             return tuple(shape)
 
-    property suboffsets:
-        def __get__(self):
-            
-            if self.buffer.suboffsets == NULL:
-                return None
-            
-            suboffsets = []
-            for i in range(self.buffer.ndim):
-                suboffsets.append(self.buffer.suboffsets[i])
-            return tuple(suboffsets)
-
     property strides:
         def __get__(self):
             strides = []
@@ -829,7 +856,7 @@ cdef class ImageMap:
     cdef size_t offset
     cdef size_t image_row_pitch
     cdef size_t image_slice_pitch
-    cdef void* bytes
+    cdef void * bytes
         
     def __init__(self, queue, dview, cl_bool blocking_map, cl_map_flags map_flags):
         
@@ -856,11 +883,9 @@ cdef class ImageMap:
         cdef Py_buffer buffer
         CyImage_GetBuffer(self.dview(), & buffer)
         
-        origin[0] = buffer.suboffsets[0]
-        origin[1] = buffer.suboffsets[1]
+        origin[0] = 0
+        origin[1] = 0
         origin[2] = 0
-        if buffer.ndim == 3:
-            origin[2] = buffer.suboffsets[2]
             
         region[0] = buffer.shape[0]
         region[1] = buffer.shape[1]
@@ -870,9 +895,9 @@ cdef class ImageMap:
             region[2] = buffer.shape[2]
         
         bytes = clEnqueueMapImage(self.command_queue, memobj, self.blocking_map, self.map_flags,
-                                  origin, region, &image_row_pitch, &image_slice_pitch,
+                                  origin, region, & image_row_pitch, & image_slice_pitch,
                                   num_events_in_wait_list, event_wait_list, NULL,
-                                  &err_code)
+                                  & err_code)
         
         if err_code != CL_SUCCESS:
             raise OpenCLException(err_code)
@@ -968,11 +993,10 @@ def empty_image(context, shape, image_format):
     
     buffer.shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
     buffer.strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
-    buffer.suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
+    buffer.suboffsets = NULL
     
     for i in range(buffer.ndim):
         buffer.shape[i] = shape[i]
-        buffer.suboffsets[i] = 0
     
     PyBuffer_FillContiguousStrides(buffer.ndim, buffer.shape, buffer.strides, buffer.itemsize, 'C')
     
@@ -1060,20 +1084,17 @@ cdef api object CyImage_New(cl_mem buffer_id):
         buffer.ndim = 3
     else:
         raise TypeError("CyImage_New takes a valid image object as an argument")
-        return <object> NULL
+        return < object > NULL
     
     buffer.shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
     buffer.strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
-    buffer.suboffsets = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
+    buffer.suboffsets = NULL
     
     buffer.shape[0] = image.image_width
     buffer.shape[1] = image.image_height
     
     if buffer.ndim == 3:
         buffer.shape[2] = image.image_depth
-        
-    for i in range(buffer.ndim):
-        buffer.suboffsets[i] = 0
     
     PyBuffer_FillContiguousStrides(buffer.ndim, buffer.shape, buffer.strides, buffer.itemsize, 'C')
     

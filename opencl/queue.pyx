@@ -7,8 +7,8 @@ from cpython cimport PyObject, Py_DECREF, Py_INCREF, PyBuffer_IsContiguous, PyBu
 from libc.stdlib cimport malloc, free 
 from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FORMAT, PyBUF_INDIRECT, PyBUF_WRITABLE
 
-from opencl.copencl cimport DeviceIDFromPyDevice, DeviceIDAsPyDevice, PyEvent_New, cl_eventFrom_PyEvent, PyEvent_Check 
-from opencl.context cimport CyContext_GetID, ContextAsPyContext, CyContext_Check
+from opencl.copencl cimport CyDevice_GetID, DeviceIDAsPyDevice, PyEvent_New, cl_eventFrom_PyEvent, PyEvent_Check 
+from opencl.context cimport CyContext_GetID, CyContext_Create, CyContext_Check
 from opencl.kernel cimport KernelFromPyKernel
 from opencl.cl_mem cimport CyMemoryObject_GetID, CyMemoryObject_Check
 
@@ -146,7 +146,7 @@ cdef class Queue:
         cdef cl_int err_code = CL_SUCCESS
        
         cdef cl_context ctx = CyContext_GetID(context)
-        cdef cl_device_id device_id = DeviceIDFromPyDevice(device)
+        cdef cl_device_id device_id = CyDevice_GetID(device)
          
         self.queue_id = clCreateCommandQueue(ctx, device_id, properties, & err_code)
         if err_code != CL_SUCCESS:
@@ -174,7 +174,7 @@ cdef class Queue:
             if err_code != CL_SUCCESS:
                 raise OpenCLException(err_code)
             
-            return ContextAsPyContext(context_id) 
+            return CyContext_Create(context_id) 
         
     def barrier(self):
         cdef cl_int err_code

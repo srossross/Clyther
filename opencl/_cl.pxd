@@ -88,11 +88,49 @@ cdef extern from "OpenCL/cl.h":
         CL_DEVICE_IMAGE_SUPPORT
         CL_DEVICE_NAME
         CL_DEVICE_EXECUTION_CAPABILITIES
+        CL_DEVICE_MAX_COMPUTE_UNITS
+        CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS
+        CL_DEVICE_MAX_WORK_ITEM_SIZES
+        CL_DEVICE_MAX_WORK_GROUP_SIZE
+        CL_DEVICE_ADDRESS_BITS
+        CL_DEVICE_MAX_CLOCK_FREQUENCY
+        CL_DEVICE_MAX_MEM_ALLOC_SIZE
+        CL_DEVICE_MAX_READ_IMAGE_ARGS
+        CL_DEVICE_MAX_WRITE_IMAGE_ARGS
+
+        CL_DEVICE_IMAGE2D_MAX_WIDTH
+        CL_DEVICE_IMAGE2D_MAX_HEIGHT
+
+        CL_DEVICE_IMAGE3D_MAX_WIDTH
+        CL_DEVICE_IMAGE3D_MAX_HEIGHT
+        CL_DEVICE_IMAGE3D_MAX_DEPTH
+        CL_DEVICE_MAX_PARAMETER_SIZE
+        
+        CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE
+        
+        CL_DEVICE_LOCAL_MEM_TYPE
+        CL_DEVICE_LOCAL_MEM_SIZE
+        CL_DEVICE_HOST_UNIFIED_MEMORY
+        
+        CL_DEVICE_PROFILING_TIMER_RESOLUTION
+        CL_DEVICE_AVAILABLE
+        CL_DEVICE_COMPILER_AVAILABLE
+        CL_DRIVER_VERSION
+        CL_DEVICE_PROFILE
+        CL_DEVICE_VERSION
+        CL_DEVICE_EXTENSIONS
+
+    
+        
         
     enum cl_program_info:
         CL_PROGRAM_CONTEXT
         CL_PROGRAM_DEVICES
         CL_PROGRAM_NUM_DEVICES
+        CL_PROGRAM_REFERENCE_COUNT
+        CL_PROGRAM_SOURCE
+        CL_PROGRAM_BINARY_SIZES
+        CL_PROGRAM_BINARIES
         
     enum cl_context_info:
         CL_CONTEXT_DEVICES
@@ -137,6 +175,7 @@ cdef extern from "OpenCL/cl.h":
         CL_MEM_MAP_COUNT
         CL_MEM_ASSOCIATED_MEMOBJECT
         CL_MEM_CONTEXT
+        CL_MEM_OFFSET
 
     enum cl_kernel_info:
         CL_KERNEL_FUNCTION_NAME
@@ -172,6 +211,9 @@ cdef extern from "OpenCL/cl.h":
         CL_IMAGE_HEIGHT
         CL_IMAGE_DEPTH
         
+    ctypedef enum cl_buffer_create_type:
+        CL_BUFFER_CREATE_TYPE_REGION
+        
     ctypedef size_t cl_mem_object_type
     
     cdef cl_mem_object_type CL_MEM_OBJECT_BUFFER
@@ -181,6 +223,10 @@ cdef extern from "OpenCL/cl.h":
 
     cdef cl_int CL_COMPLETE
         
+    
+    ctypedef struct cl_buffer_region:
+        size_t origin
+        size_t size
     
     cdef struct _cl_platform_id:
         pass
@@ -250,6 +296,9 @@ cdef extern from "OpenCL/cl.h":
     ctypedef cl_uint cl_device_mem_cache_type
 
     ctypedef cl_uint cl_device_local_mem_type
+    
+    cdef cl_device_local_mem_type CL_LOCAL
+    cdef cl_device_local_mem_type CL_GLOBAL
 
     ctypedef cl_bitfield cl_device_exec_capabilities
 
@@ -475,5 +524,5 @@ cdef extern from "OpenCL/cl.h":
     
     cl_int clSetEventCallback (cl_event, cl_int, CL_CALLBACK, void*)
     
-
+    cl_int clSetMemObjectDestructorCallback(cl_mem, void *, void *)
     
