@@ -157,10 +157,12 @@ def _ctype_from_format(format, struct_name='T'):
 
 def ctype_from_format(format, struct_name='T'):
     ctype_lst = _ctype_from_format(format, struct_name=struct_name)
+    if len(ctype_lst) == 0:
+        raise Exception("invalid type format %r" % format)
     if len(ctype_lst) == 1:
         return ctype_lst[0][1]
     else:
-        raise NotImplementedError("")
+        raise NotImplementedError("type format %r" % format)
 
 def descriptor_from_format(format):
     

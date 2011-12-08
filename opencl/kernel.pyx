@@ -1,5 +1,6 @@
 
 import ctypes
+import _ctypes
 from opencl.errors import OpenCLException
 from opencl.cl_mem import MemoryObject
 
@@ -8,9 +9,11 @@ from opencl.type_formats import refrence, ctype_from_format, type_format, cdefn
 from cpython cimport PyObject, PyArg_VaParseTupleAndKeywords
 from libc.stdlib cimport malloc, free
 from _cl cimport * 
-from opencl.cl_mem cimport CyMemoryObject_GetID
+from opencl.cl_mem cimport CyMemoryObject_GetID, CyMemoryObject_Check
 from opencl.cl_mem import mem_layout
-from opencl.copencl import CyProgram_Create
+from opencl.copencl cimport CyProgram_Create
+
+CData = _ctypes._SimpleCData.__base__
 
 class global_memory(object):
     def __init__(self, ctype=None, shape=None):
@@ -48,6 +51,12 @@ class global_memory(object):
     def derefrence(self):
         return self.ctype
     
+    def from_param(self, arg):
+        if not CyMemoryObject_Check(arg):
+            raise TypeError("from_param expected a MemoryObject")
+        cdef void * ptr = CyMemoryObject_GetID(arg)
+        return ctypes.c_void_p(< size_t > ptr)
+    
 set_kerne_arg_errors = {
     CL_INVALID_KERNEL : 'kernel is not a valid kernel object.',
     CL_INVALID_ARG_INDEX :'arg_index is not a valid argument index.',
@@ -60,14 +69,22 @@ set_kerne_arg_errors = {
 
 class _Undefined: pass
 
+def call_with_used_args(func, argnames, arglist):
+    func_args = func.func_code.co_varnames[:func.func_code.co_argcount]
+    
+    args = [arg for name, arg in zip(argnames, arglist) if name in func_args]
+    result = func(*args)
+    return result
+    
 def parse_args(name, args, kwargs, argnames, defaults):
     
     narg_names = len(argnames)
     nargs = len(args)
     
     if nargs > narg_names:
-        raise TypeError("%s() takes at most %i argument(s) (%i given)" % (narg_names, nargs))
+        raise TypeError("%s() takes at most %i argument(s) (%i given)" % (name, narg_names, nargs))
     
+    if not defaults: defaults = ()
     default_idx = narg_names - len(defaults)
     
     result = [_Undefined]*narg_names
@@ -90,7 +107,7 @@ def parse_args(name, args, kwargs, argnames, defaults):
     for i in range(nargs, default_idx):
         required_keyword = argnames[i] 
         if required_keyword not in kwargs:
-            raise TypeError("%s() takes at least %i argument(s) (%i given)" % (default_idx, nargs))
+            raise TypeError("%s() takes at least %i argument(s) (%i given)" % (name, default_idx, nargs))
         
         result[i] = kwargs[required_keyword]
 
@@ -162,6 +179,7 @@ cdef class Kernel:
             err_code = clGetKernelInfo(self.kernel_id, CL_KERNEL_PROGRAM, sizeof(cl_program), & program_id, NULL)
             if err_code != CL_SUCCESS: raise OpenCLException(err_code)
             
+            
             return CyProgram_Create(program_id)
 
     property name:
@@ -197,28 +215,24 @@ cdef class Kernel:
          
         arglist = parse_args(self.name, args, kwargs, argnames, defaults)
         
-#        if len(args) != len(self._argtypes):
-#            raise TypeError("kernel requires %i arguments (got %i)" % (self.nargs, len(args)))
-        
         cdef cl_int err_code
         cdef size_t arg_size
         cdef size_t tmp
         cdef void * arg_value
         cdef cl_mem mem_id
         for arg_index, (argtype, arg) in enumerate(zip(self._argtypes, arglist)):
-            carg = argtype(arg)
-            if isinstance(argtype, global_memory):
-                arg_size = sizeof(cl_mem)
-                mem_id = CyMemoryObject_GetID(arg)
-                arg_value = < void *> & mem_id
-            else:
-                arg_size = ctypes.sizeof(carg)
-                tmp = < size_t > ctypes.addressof(carg)
-                arg_value = < void *> tmp
+            carg = argtype.from_param(arg)
+            
+            if not isinstance(carg, CData):
+                carg = argtype(arg)
+                
+            arg_size = ctypes.sizeof(carg)
+            tmp = < size_t > ctypes.addressof(carg)
+            arg_value = < void *> tmp
             
             err_code = clSetKernelArg(self.kernel_id, arg_index, arg_size, arg_value)
             if err_code != CL_SUCCESS:
-                print arg_index, arg_size, arg 
+                print arg_index, arg_size, arg
                 raise OpenCLException(err_code, set_kerne_arg_errors)
             
         return arglist
@@ -229,7 +243,7 @@ cdef class Kernel:
         
         if global_work_size is None:
             if isfunction(self.global_work_size):
-                global_work_size = self.global_work_size(*arglist)
+                global_work_size = call_with_used_args(self.global_work_size, self.argnames, arglist)
             elif self.global_work_size is None:
                 raise TypeError("missing required keyword arguement 'global_work_size'")
             else:
@@ -237,17 +251,17 @@ cdef class Kernel:
 
         if global_work_offset is None:
             if isfunction(self.global_work_offset):
-                global_work_offset = self.global_work_offset(*arglist)
+                global_work_offset = call_with_used_args(self.global_work_offset, self.argnames, arglist)
             else:
                 global_work_offset = self.global_work_offset
 
         if local_work_size is None:
             if isfunction(self.local_work_size):
-                local_work_size = self.local_work_size(*arglist)
+                local_work_size = call_with_used_args(self.local_work_size, self.argnames, arglist)
             else:
                 local_work_size = self.local_work_size
         
-        queue.enqueue_nd_range_kernel(self, len(global_work_size), global_work_size, global_work_offset, local_work_size, wait_on)
+        return queue.enqueue_nd_range_kernel(self, len(global_work_size), global_work_size, global_work_offset, local_work_size, wait_on)
     
 #===============================================================================
 # API

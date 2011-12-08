@@ -13,10 +13,12 @@ from meta.asttools.visitors import Visitor
 from meta.asttools.visitors.print_visitor import print_ast
 from meta.decompiler import decompile_func
 from opencl import global_memory
+from opencl.type_formats import type_format
 import __builtin__ as builtins
 import _ctypes
 import ast
 import ctypes
+import re
 
 class CException(Exception): pass
 
@@ -42,6 +44,11 @@ def is_slice(slice):
     else:
         raise NotImplementedError(slice)
 
+vector_len = re.compile('^\((\d)\)([f|i|d|l|L])$')
+
+def is_vetor_type(ctype):
+    return vector_len.match(type_format(ctype)) is not None
+
 def getattrtype(ctype, attr):
     if isclass(ctype) and issubclass(ctype, _ctypes.Structure):
         return dict(ctype._fields_)[attr]
@@ -49,6 +56,9 @@ def getattrtype(ctype, attr):
         return getattr(ctype, attr)
     elif isinstance(ctype, global_memory):
         return getattr(ctype, attr)
+    elif is_vetor_type(ctype):
+        return derefrence(ctype)
+#        raise NotImplementedError("is_vetor_type", ctype, attr, derefrence(ctype))
     else:
         raise NotImplementedError("getattrtype", ctype, attr)
     
@@ -56,6 +66,8 @@ def derefrence(ctype):
     
     if isinstance(ctype, cltype):
         return ctype.derefrence()
+    elif is_vetor_type(ctype):
+        return ctype._type_
     elif isclass(ctype) and issubclass(ctype, _ctypes._Pointer):
         return ctype._type_
     else:

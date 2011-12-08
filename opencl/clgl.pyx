@@ -1,5 +1,6 @@
 import struct
 from opencl.errors import OpenCLException
+import opencl as cl
 import opencl.errors
 from opencl.type_formats import type_format, size_from_format
 
@@ -259,10 +260,10 @@ class acquire(object):
         self.wait_on = wait_on
         
     def __enter__(self):
-        enqueue_acquire_gl_objects(self.queue, self.mem_objects, wait_on=self.wait_on)
+        enqueue_acquire_gl_objects(self.queue, *self.mem_objects, wait_on=self.wait_on)
         
     def __exit__(self, *args):
-        enqueue_release_gl_objects(self.queue, self.mem_objects)
+        enqueue_release_gl_objects(self.queue, *self.mem_objects)
         
 
 def enqueue_acquire_gl_objects(queue, *mem_objects, wait_on=()):
@@ -278,6 +279,7 @@ def enqueue_acquire_gl_objects(queue, *mem_objects, wait_on=()):
     if event_wait_list == < cl_event *> 1:
         raise Exception("One of the items in argument 'wait_on' is not a valid event")
 
+    print "mem_objects", mem_objects
     if len(mem_objects) == 1:
         if isinstance(mem_objects[0], (list, tuple)):
             mem_objects = mem_objects[0]
@@ -357,3 +359,14 @@ def enqueue_release_gl_objects(queue, *mem_objects, wait_on=()):
 
     return PyEvent_New(event_id)
 
+
+
+def context(props=None):
+    if props is None:
+        props = cl.ContextProperties()
+        
+    set_opengl_properties(props)
+    
+    return cl.Context(device_type=cl.Device.DEFAULT, properties=props)
+    
+    

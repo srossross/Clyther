@@ -20,6 +20,7 @@ from meta.asttools.visitors.print_visitor import print_ast
 from opencl import global_memory
 from clyther.clast.mutators.unpacker import unpack_mem_args
 from clyther.clast.mutators.for_loops import format_for_loops
+from clyther.queue_record import QueueRecord
 
 class ClytherKernel(object):
     pass
@@ -27,12 +28,44 @@ class ClytherKernel(object):
 class CLComileError(Exception):
     pass
 
+def typeof(obj):
+    if isinstance(obj, cl.MemoryObject):
+        return global_memory(obj.format, obj.shape)
+    else:
+        return type(obj)
+    
 class kernel(object):
     
     def __init__(self, func):
         self.func = func
         self.global_work_size = None
+    
+    
+    def __call__(self, queue, *args, **kwargs):
         
+        argnames = self.func.func_code.co_varnames[:self.func.func_code.co_argcount]
+        defaults = self.func.func_defaults
+        arglist = cl.kernel.parse_args(self.func.__name__, args, kwargs, argnames, defaults)
+        
+        kwarg_types = {argnames[i]:typeof(arglist[i]) for i in range(len(argnames))}
+        
+        cl_kernel = self.compile(queue.context, **kwarg_types)
+        
+        kernel_args = {}
+        for name, arg  in zip(argnames, arglist):
+            kernel_args[name] = arg
+            if isinstance(arg, cl.DeviceMemoryView):
+                kernel_args['cly_%s_info' % name] = arg.array_info
+        
+        if isinstance(queue, QueueRecord):
+            queue.enqueue_set_kernel_args(cl_kernel, kernel_args)
+
+        kernel_args.update(global_work_size=kwargs.get('global_work_size'),
+                           global_work_offset=kwargs.get('global_work_offset'),
+                           local_work_size=kwargs.get('local_work_size'))
+        
+        return cl_kernel(queue, **kernel_args)
+    
     def compile(self, ctx, source_only=False, **kwargs):
         args, defaults, source, kernel_name = create_kernel_source(self.func, kwargs)
         
@@ -50,7 +83,10 @@ class kernel(object):
                 log_lines.append(log)
                 
             raise CLComileError('\n'.join(log_lines))
-
+        
+        for device, log in program.logs.items():
+            if log: print log
+            
         kernel = program.kernel(kernel_name)
         
         kernel.global_work_size = self.global_work_size

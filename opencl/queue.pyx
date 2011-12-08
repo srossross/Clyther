@@ -221,7 +221,7 @@ cdef class Queue:
     def copy(self, source, dest):
         pass
     
-    def wait(self, *events):
+    def enqueue_wait_for_events(self, *events):
         
         if len(events) == 1:
             if isinstance(events[0], (list, tuple)):

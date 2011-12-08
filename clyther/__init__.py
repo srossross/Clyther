@@ -7,7 +7,9 @@ Created on Jul 25, 2011
 '''
 from __future__ import print_function
 
-from clyther.cly_kernel import kernel, global_work_size, local_work_size
+from cly_kernel import kernel, global_work_size, local_work_size
+
+from clyther.array.functions import arange, ones, empty_like
 
 
 #from StringIO import StringIO
