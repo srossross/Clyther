@@ -3,21 +3,25 @@ Created on Dec 2, 2011
 
 @author: sean
 '''
-from inspect import isroutine, isclass, ismodule
 from clyther.clast import cast
-import ast
-from meta.asttools.visitors import Visitor
-from clyther.rttt import greatest_common_type, cltype
-import __builtin__ as builtins
-from clyther.clast.cast import build_forward_dec, FuncPlaceHolder
-from clyther.clast.cast import n
-import ctypes
-from meta.decompiler import decompile_func
+from clyther.clast.cast import build_forward_dec, FuncPlaceHolder, n
 from clyther.clast.visitors.returns import returns
-import _ctypes
+from clyther.pybuiltins import builtin_map
+from clyther.rttt import greatest_common_type, cltype
+from inspect import isroutine, isclass, ismodule
+from meta.asttools.visitors import Visitor
 from meta.asttools.visitors.print_visitor import print_ast
+from meta.decompiler import decompile_func
+from opencl import global_memory
+import __builtin__ as builtins
+import _ctypes
+import ast
+import ctypes
 
 class CException(Exception): pass
+
+var_builtins = set(vars(builtins).values())
+
 
 class RuntimeFunction(cltype):
     def __init__(self, name, return_type, *argtypes):
@@ -43,8 +47,10 @@ def getattrtype(ctype, attr):
         return dict(ctype._fields_)[attr]
     elif ismodule(ctype):
         return getattr(ctype, attr)
+    elif isinstance(ctype, global_memory):
+        return getattr(ctype, attr)
     else:
-        raise NotImplementedError(slice)
+        raise NotImplementedError("getattrtype", ctype, attr)
     
 def derefrence(ctype):
     
@@ -65,7 +71,8 @@ class Typify(Visitor):
         
     def make_cfunction(self, node):
         
-        if node.decorator_list:
+        
+        if isinstance(node, ast.FunctionDef) and node.decorator_list:
             raise CException()
 
         func_ast = self.visit(node)
@@ -94,7 +101,16 @@ class Typify(Visitor):
         mod.body.extend(body)
         
         return mod 
-
+    
+    def visitLambda(self, node):
+        args = self.visit(node.args)
+        body = self.visit(node.body)
+        
+        return_type = body.ctype
+        
+        new_body = [ast.Return(body)]
+        return cast.CFunctionDef('lambda', args, new_body, [], return_type)
+    
     def visitFunctionDef(self, node):
         #'name', 'args', 'body', 'decorator_list'
         
@@ -215,6 +231,9 @@ class Typify(Visitor):
         
         
         
+        if func in var_builtins:
+            cl_func = builtin_map[func]
+            return cast.CCall(node.func, args, keywords, cl_func)
         if isroutine(func):
             return self.call_python_function(node, func, args, keywords)
         else:
@@ -224,6 +243,10 @@ class Typify(Visitor):
                 rt = func_name.ctype
                 func = rt.return_type
                 func_name = cast.CName(rt.name, ast.Load(), rt)
+            else:
+                pass
+                # possibly a type cast
+                #raise Exception()
                 
             return cast.CCall(func_name, args, keywords, func) 
             
@@ -257,6 +280,15 @@ class Typify(Visitor):
         
         return subscr
     
+    def visitIfExp(self, node, ctype=None):
+        test = self.visit(node.test)
+        body = self.visit(node.body)
+        orelse = self.visit(node.orelse)
+        
+        ctype = greatest_common_type(body.ctype, orelse.ctype)
+        
+        return cast.CIfExp(test, body, orelse, ctype)
+        
     def visitAttribute(self, node, ctype=None):
         
         value = self.visit(node.value)
@@ -269,6 +301,33 @@ class Typify(Visitor):
         attr = cast.CAttribute(value, node.attr, node.ctx, attr_type)
         
         return attr
+    
+    def visitCompare(self, node):
+        # ('left', 'ops', 'comparators')
+        left = self.visit(node.left)
+        comparators = list(self.visit_list(node.comparators))
+        
+        return cast.CCompare(left, list(node.ops), comparators, ctypes.c_ubyte)
+    
+    def visitAugAssign(self, node):
+        # 'target', 'op', 'value' 
+        value = self.visit(node.value)
+        target = self.visit(node.target, value.ctype)
+        
+        return ast.AugAssign(target, node.op, value)
+        
+    def visitFor(self, node):
+        # 'target', 'iter', 'body', 'orelse'
+        
+        if node.orelse:
+            raise NotImplementedError("todo: for - else")
+        
+        iter = self.visit(node.iter)
+        target = self.visit(node.target, iter.ctype.iter_type)
+        
+        body = list(self.visit_list(node.body))
+        
+        return ast.For(target, iter, body, None)
         
 def typify_function(argtypes, globls, node):
     typify = Typify(argtypes, globls)

@@ -9,6 +9,8 @@ from cpython cimport PyObject, PyArg_VaParseTupleAndKeywords
 from libc.stdlib cimport malloc, free
 from _cl cimport * 
 from opencl.cl_mem cimport CyMemoryObject_GetID
+from opencl.cl_mem import mem_layout
+from opencl.copencl import CyProgram_Create
 
 class global_memory(object):
     def __init__(self, ctype=None, shape=None):
@@ -25,6 +27,14 @@ class global_memory(object):
         else:
             self.ctype = ctype
             self.format = type_format(ctype)
+    
+    @property
+    def size(self):
+        return ctypes.c_size_t
+    
+    @property
+    def array_info(self):
+        return mem_layout
     
     def __call__(self, memobj):
         if not isinstance(memobj, MemoryObject):
@@ -144,6 +154,16 @@ cdef class Kernel:
             
             return nargs
 
+    property program:
+        def __get__(self):
+            cdef cl_int err_code
+            cdef cl_program program_id
+
+            err_code = clGetKernelInfo(self.kernel_id, CL_KERNEL_PROGRAM, sizeof(cl_program), & program_id, NULL)
+            if err_code != CL_SUCCESS: raise OpenCLException(err_code)
+            
+            return CyProgram_Create(program_id)
+
     property name:
         def __get__(self):
             cdef cl_int err_code
@@ -200,14 +220,16 @@ cdef class Kernel:
             if err_code != CL_SUCCESS:
                 print arg_index, arg_size, arg 
                 raise OpenCLException(err_code, set_kerne_arg_errors)
+            
+        return arglist
          
     def __call__(self, queue, *args, global_work_size=None, global_work_offset=None, local_work_size=None, wait_on=(), **kwargs):
         
-        self.set_args(*args, **kwargs)
+        arglist = self.set_args(*args, **kwargs)
         
         if global_work_size is None:
             if isfunction(self.global_work_size):
-                global_work_size = self.global_work_size(*args)
+                global_work_size = self.global_work_size(*arglist)
             elif self.global_work_size is None:
                 raise TypeError("missing required keyword arguement 'global_work_size'")
             else:
@@ -215,13 +237,13 @@ cdef class Kernel:
 
         if global_work_offset is None:
             if isfunction(self.global_work_offset):
-                global_work_offset = self.global_work_offset(*args)
+                global_work_offset = self.global_work_offset(*arglist)
             else:
                 global_work_offset = self.global_work_offset
 
         if local_work_size is None:
             if isfunction(self.local_work_size):
-                local_work_size = self.local_work_size(*args)
+                local_work_size = self.local_work_size(*arglist)
             else:
                 local_work_size = self.local_work_size
         

@@ -27,17 +27,35 @@ class PlaceholderReplacer(Visitor):
         
     def visitCFunctionForwardDec(self, node):
         if isinstance(node.name, FuncPlaceHolder):
-            node.name = node.name.name
+            if node.name.name == '<lambda>':
+                name = 'lambda_id%i' % id(node.name)
+            else:
+                name = node.name.name
+
+            node.name = name
+            
         self.visitDefault(node)
 
     def visitCFunctionDef(self, node):
         if isinstance(node.name, FuncPlaceHolder):
-            node.name = node.name.name
+            if node.name.name == '<lambda>':
+                name = 'lambda_id%i' % id(node.name)
+            else:
+                name = node.name.name
+
+            node.name = name
+            
         self.visitDefault(node)
             
     def visitCCall(self, node):
         if isinstance(node.func, FuncPlaceHolder):
-            node.func = cast.CName(node.func.name, ast.Load(), node.func.key[0])
+            
+            if node.func.name == '<lambda>':
+                name = 'lambda_id%i' % id(node.func)
+            else:
+                name = node.func.name
+                
+            node.func = cast.CName(name, ast.Load(), node.func.key[0])
  
  
 def resolve_functions(mod):

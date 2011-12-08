@@ -19,6 +19,10 @@ from opencl.queue cimport CyQueue_GetID, CyQueue_Create
 #cdef extern from "cstring":
 #    char * strcpy (char * destination, char * source)
 
+class mem_layout(ctypes.Structure):
+    _fields_ = [('shape', ctypes.c_size_t * 4),
+                ('strides', ctypes.c_size_t * 4)]
+    
 cdef extern from "Python.h":
 
     object PyByteArray_FromStringAndSize(char * , Py_ssize_t)
@@ -175,6 +179,7 @@ cdef class DeviceMemoryView(MemoryObject):
     
     cdef Py_buffer * buffer    
     cdef object __weakref__
+    cdef public object _host_pointer
     
     def __cinit__(self):
         self.buffer = NULL
@@ -194,6 +199,16 @@ cdef class DeviceMemoryView(MemoryObject):
     def __init__(self):
         raise TypeError("Can not initialize 'DeviceMemoryView' directly use 'opencl.empty'")
     
+    property array_info:
+        def __get__(self):
+            layout = mem_layout((0, 0, 0, self.size), (0, 0, 0, 0))
+            cdef int i 
+            for i in range(self.buffer.ndim):
+                layout.shape[i] = self.buffer.shape[i]
+                layout.strides[i] = self.buffer.strides[i]
+                
+            return layout
+        
     property ndim:
         def __get__(self):
             return self.buffer.ndim
@@ -227,21 +242,23 @@ cdef class DeviceMemoryView(MemoryObject):
                 strides.append(self.buffer.strides[i])
             return tuple(strides)
         
-    def map(self, queue, blocking=True, readonly=False, size_t offset=0, size_t size=0):
+    def map(self, queue, blocking=True, readable=True, writeable=True):
         
-        cdef cl_map_flags flags = CL_MAP_READ
+        cdef cl_map_flags flags = 0
         
-        if not readonly: 
+        if readable: 
+            flags |= CL_MAP_READ
+        if writeable: 
             flags |= CL_MAP_WRITE
         
         cdef cl_bool blocking_map = 1 if blocking else 0
         if size == 0:
             size = self.mem_size
             
-        return MemoryViewMap(queue, self, blocking_map, flags, offset, size)
+        return MemoryViewMap(queue, self, blocking_map, flags)
 
     @classmethod
-    def from_host(cls, context, host):
+    def from_host(cls, context, host, copy=True, readable=True, writeable=True):
         
         if not CyContext_Check(context):
             raise TypeError("argument 'context' must be a valid opencl.Context object")
@@ -254,7 +271,20 @@ cdef class DeviceMemoryView(MemoryObject):
         
         cdef int py_flags = PyBUF_SIMPLE | PyBUF_STRIDES | PyBUF_ND | PyBUF_FORMAT
         
-        cdef cl_mem_flags mem_flags = CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE
+        cdef cl_mem_flags mem_flags = 0
+        if copy:
+            mem_flags |= CL_MEM_COPY_HOST_PTR
+        else:
+            mem_flags |= CL_MEM_USE_HOST_PTR
+        if readable and writeable:
+            mem_flags |= CL_MEM_READ_WRITE
+        elif readable:
+            mem_flags |= CL_MEM_READ_ONLY
+        elif writeable:
+            mem_flags |= CL_MEM_WRITE_ONLY
+        else:
+            raise Exception("at least one of arguments 'readable' or 'writeable' must be true")
+        
         cdef cl_int err_code
         cdef char * tmp
         if not PyObject_CheckBuffer(host):
@@ -287,7 +317,9 @@ cdef class DeviceMemoryView(MemoryObject):
                 buffer.shape[i] = view.shape[i]
                 buffer.strides[i] = view.strides[i]
 
-            return CyView_Create(buffer_id, buffer, 0)
+            cy_buffer = CyView_Create(buffer_id, buffer, 0)
+            cy_buffer._host_pointer = host
+            return cy_buffer
         else:
             raise NotImplementedError("data must be contiguous")
         
@@ -504,7 +536,7 @@ cdef class MemoryViewMap:
     cdef size_t cb
     cdef void * bytes 
         
-    def __init__(self, queue, dview, cl_bool blocking_map, cl_map_flags map_flags, size_t offset, size_t cb):
+    def __init__(self, queue, dview, cl_bool blocking_map, cl_map_flags map_flags):
         
         self.dview = weakref.ref(dview)
         
@@ -512,8 +544,6 @@ cdef class MemoryViewMap:
         
         self.blocking_map = blocking_map
         self.map_flags = map_flags
-        self.offset = offset
-        self.cb = cb
     
     def __enter__(self):
         cdef void * bytes 
@@ -523,9 +553,9 @@ cdef class MemoryViewMap:
         cdef cl_int err_code
         
         cdef cl_mem memobj = CyMemoryObject_GetID(self.dview())
-        
+        cdef size_t mem_size = self.dview().mem_size
         bytes = clEnqueueMapBuffer(self.command_queue, memobj,
-                                   self.blocking_map, self.map_flags, 0, len(self.dview()),
+                                   self.blocking_map, self.map_flags, 0, mem_size,
                                    num_events_in_wait_list, event_wait_list, NULL,
                                    & err_code)
          

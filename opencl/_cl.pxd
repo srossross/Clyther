@@ -108,6 +108,7 @@ cdef extern from "OpenCL/cl.h":
         
         CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE
         
+        CL_DEVICE_GLOBAL_MEM_SIZE
         CL_DEVICE_LOCAL_MEM_TYPE
         CL_DEVICE_LOCAL_MEM_SIZE
         CL_DEVICE_HOST_UNIFIED_MEMORY

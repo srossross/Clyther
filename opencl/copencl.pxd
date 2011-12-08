@@ -27,4 +27,4 @@ cdef api object PyEvent_New(cl_event event_id)
 cdef api int PyEvent_Check(object event)
 
 ## ############# #### #### #### #### #### #### #### #### #### #### ####
-
+cdef api object CyProgram_Create(cl_program program_id)

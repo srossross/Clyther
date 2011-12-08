@@ -17,11 +17,14 @@ from clyther.clast.visitors.returns import return_nodes
 from clyther.clast import cast
 import opencl as cl
 from meta.asttools.visitors.print_visitor import print_ast
+from opencl import global_memory
+from clyther.clast.mutators.unpacker import unpack_mem_args
+from clyther.clast.mutators.for_loops import format_for_loops
 
 class ClytherKernel(object):
     pass
 
-class CLComileError(cl.OpenCLException):
+class CLComileError(Exception):
     pass
 
 class kernel(object):
@@ -30,16 +33,23 @@ class kernel(object):
         self.func = func
         self.global_work_size = None
         
-    def compile(self, ctx, **kwargs):
+    def compile(self, ctx, source_only=False, **kwargs):
         args, defaults, source, kernel_name = create_kernel_source(self.func, kwargs)
         
+        if source_only:
+            return source
         
         program = cl.Program(ctx, source)
         
         try:
             program.build()
         except cl.OpenCLException:
-            raise CLComileError('\n'.join(program.logs))
+            log_lines = []
+            for device, log in program.logs.items():
+                log_lines.append(repr(device))
+                log_lines.append(log)
+                
+            raise CLComileError('\n'.join(log_lines))
 
         kernel = program.kernel(kernel_name)
         
@@ -53,6 +63,11 @@ class kernel(object):
 def global_work_size(arg):
     def decorator(func):
         func.global_work_size = arg
+        return func
+    return decorator
+def local_work_size(arg):
+    def decorator(func):
+        func.local_work_size = arg
         return func
     return decorator
 
@@ -73,15 +88,21 @@ def typify_function(argtypes, globls, node):
 
 
 def create_kernel_source(function, argtypes):
+    
     func_ast = decompile_func(function)
+    
+#    print_ast(func_ast)
 
     globls = function.func_globals
     
     mod_ast, func_ast = typify_function(argtypes, globls, func_ast)
     
+    unpack_mem_args(mod_ast, argtypes)
     # convert type calls to casts 
     # eg int(i) -> ((int) (i))
     call_type2type_cast(mod_ast)
+    
+    format_for_loops(mod_ast)
     
     # Remove arguments to functions that are constant
     # eg. functions modules. etc

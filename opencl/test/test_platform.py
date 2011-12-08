@@ -97,7 +97,8 @@ class TestDevice(unittest.TestCase):
         print "device_profile", device.profile
         print "version", device.version
         print "extensions", device.extensions
-        
+        print 
+
 
 class TestContext(unittest.TestCase):
     def test_properties(self):
@@ -311,6 +312,11 @@ class TestBuffer(unittest.TestCase):
         self.assertEqual(len(buf), 4 / buf.itemsize)
         self.assertEqual(buf.mem_size, 4)
         
+        layout = buf.layout_struct
+        
+        self.assertEqual(list(layout.shape), [4, 0, 0, 0])
+        self.assertEqual(list(layout.strides), [1, 0, 0, 0])
+        
     def test_from_host(self):
         a = np.array([[1, 2], [3, 4]])
         view_a = memoryview(a)
@@ -349,7 +355,7 @@ class TestBuffer(unittest.TestCase):
         
         self.assertEqual(clbuf._mapcount, 0)
         
-        with clbuf.map(queue, readonly=True) as buf:
+        with clbuf.map(queue, writeable=False) as buf:
             self.assertEqual(clbuf._mapcount, 1)
         
             self.assertEqual(buf.format, view_a.format)
@@ -363,16 +369,16 @@ class TestBuffer(unittest.TestCase):
         
 #        self.assertEqual(clbuf._mapcount, 0)
         
-        with clbuf.map(queue) as buf:
+        with clbuf.map(queue, readable=False) as buf:
             self.assertEqual(clbuf._mapcount, 1)
             b = np.asarray(buf)
-            b[::] = b[::-1]
+            b[::] = a[::-1]
             
             self.assertFalse(buf.readonly)
             
 #        self.assertEqual(clbuf._mapcount, 0)
         
-        with clbuf.map(queue, readonly=True) as buf:
+        with clbuf.map(queue, writeable=False) as buf:
             self.assertEqual(clbuf._mapcount, 1)
             b = np.asarray(buf)
             self.assertTrue(np.all(b == a[::-1]))
@@ -417,10 +423,18 @@ class TestBuffer(unittest.TestCase):
         
         self.assertEqual(clbuf._refcount, 1)
         
-#        print clbuf._refcount
-#        print new_fuf._refcount
+        queue = Queue(ctx)
+        with clbuf.map(queue) as host:
+            self.assertEqual(clbuf._refcount, 1)
+            
+        self.assertEqual(clbuf._refcount, 2, "unmap increments the refcount")
         
+        del host
+        gc.collect()
         
+        #GPU does not decrement the ref count
+        #self.assertEqual(clbuf._refcount, 2, "")
+            
     def test_get_slice(self):
         
         queue = Queue(ctx, ctx.devices[0])   

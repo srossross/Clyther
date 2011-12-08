@@ -143,6 +143,7 @@ class GenOpenCLExpr(Visitor):
     
     visitMult = simple_string('*')
     visitAdd = simple_string('+')
+    visitSub = simple_string('-')
     visitDiv = simple_string('/')
 
     def visitCNum(self, node):
@@ -183,7 +184,42 @@ class GenOpenCLExpr(Visitor):
         with self.no_indent:
             self.print('{0:node}.{1}', node.value, node.attr)
         
+    def visitCIfExp(self, node):
+        with self.no_indent:
+            self.print('{0:node} ? {1:node} : {2:node}', node.test, node.body, node.orelse)
+    
+    def visitCCompare(self, node):
+        with self.no_indent:
+            self.print('({0:node}', node.left)
+            
+            for op, right in zip(node.ops, node.comparators):
+                self.print(' {0:node} {1:node}', op, right)
+                
+            self.print(')')
+            
+    visitLt = simple_string('<')
+    visitGt = simple_string('>')
+    visitGtE = simple_string('>=')
+    visitLtE = simple_string('<=')
+    
+    
+    def visitCAssignExpr(self, node):
+        with self.no_indent:
+            targets = list(node.targets)
+            self.print('{0:node} = ', targets.pop()) 
+            
+            for target in targets:
+                self.print('{0:node} = ', target)
+                
+            self.print('{0:node}', node.value)
+        
+    def visitCAugAssignExpr(self, node):
+        # 'target', 'op', 'value'
+        with self.no_indent:
+            self.print('{0:node} {1:node}= {2:node}', node.target, node.op, node.value)
 
+        
+        
 class GenOpenCLSource(GenOpenCLExpr):
 
     def print_lines(self, lines,):
@@ -229,6 +265,27 @@ class GenOpenCLSource(GenOpenCLExpr):
     def visitCVarDec(self, node):
         
         self.print('{0:node} {1};\n', node.ctype, node.id) 
+        
+    def visitCStruct(self, node):
+        
+        self.print("typedef struct {{")
+        with self.indenter:
+            for dec in node.declaration_list:
+                self.visit(dec)
+        self.print("}} {0};\n\n", node.id)
+        
+    def visitAugAssign(self, node):
+        # 'target', 'op', 'value'
+        self.print('{0:node} {1:node}= {2:node};\n', node.target, node.op, node.value)
+        
+    def visitCFor(self, node):
+        #'init', 'condition', 'increment', 'body', 'orelse'
+        self.print('for ({0:node}; {1:node}; {2:node})', node.init, node.condition, node.increment)
+        
+        with self.brace:
+            for statement in node.body:
+                self.visit(statement)
+        
         
 def opencl_source(node):
     source_gen = GenOpenCLSource()

@@ -6,7 +6,10 @@ Created on Jul 25, 2011
 
 '''
 from __future__ import print_function
-#
+
+from clyther.cly_kernel import kernel, global_work_size, local_work_size
+
+
 #from StringIO import StringIO
 #from meta.asttools import Visitor, print_ast
 #from ccode.type_tree import TypeTree, format_args

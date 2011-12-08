@@ -127,9 +127,9 @@ from opencl import global_memory
 cltype.register(global_memory)
 
 
-def str_type(ctype):
-    if ctype is None:
-        return 'void'
+def str_type(ctype, defined_types):
+    if ctype in defined_types:
+        return defined_types[ctype]
     elif ctype in type_map:
         return type_map[ctype]
     elif isroutine(ctype):
@@ -145,33 +145,41 @@ class TypeReplacer(Visitor):
     '''
     Replace ctype with opencl type string. 
     '''
+    def __init__(self, defined_types):
+        self.defined_types = defined_types
+        
     def visitCVarDec(self, node):
         if not isinstance(node.ctype, cast.CTypeName):
-            node.ctype = cast.CTypeName(str_type(node.ctype))
+            node.ctype = cast.CTypeName(str_type(node.ctype, self.defined_types))
         
         self.visitDefault(node)
         
     def visitCFunctionForwardDec(self, node):
         if not isinstance(node.return_type, cast.CTypeName):
-            node.return_type = cast.CTypeName(str_type(node.return_type))
+            node.return_type = cast.CTypeName(str_type(node.return_type, self.defined_types))
         
         self.visitDefault(node)
             
     def visitCFunctionDef(self, node):
         if not isinstance(node.return_type, cast.CTypeName):
-            node.return_type = cast.CTypeName(str_type(node.return_type))
+            node.return_type = cast.CTypeName(str_type(node.return_type, self.defined_types))
             
         self.visitDefault(node)
         
     def visitDefault(self, node):
         if isinstance(node, ast.expr):
             if not isinstance(node.ctype, cast.CTypeName):
-                node.ctype = cast.CTypeName(str_type(node.ctype))
+                node.ctype = cast.CTypeName(str_type(node.ctype, self.defined_types))
         visit_children(self, node)
         
         
         
 
 def replace_types(node):
-    TypeReplacer().visit(node)
+    defined_types = {None:'void'}
+    if isinstance(node, ast.Module):
+        for statement in node.body:
+            if isinstance(statement, cast.CStruct):
+                defined_types[statement.ctype] = statement.id
+    TypeReplacer(defined_types).visit(node)
     

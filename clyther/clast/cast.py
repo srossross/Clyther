@@ -47,6 +47,27 @@ class CSubscript(ast.Subscript):
 class CAttribute(ast.Attribute):
     _fields = 'value', 'attr', 'ctx', 'ctype'
 
+class CIfExp(ast.IfExp):
+    _fields = 'test', 'body', 'orelse', 'ctype'
+    
+class CCompare(ast.Compare):
+    _fields = 'left', 'ops', 'comparators', 'ctype'
+
+class CFor(ast.AST):
+    _fields = 'init', 'condition', 'increment', 'body', 'orelse'
+
+class CStruct(ast.AST):
+    _fields = "id", 'declaration_list'
+    
+class CAssignExpr(ast.expr):
+    _fields = 'targets', 'value', 'ctype'
+    
+class CAugAssignExpr(ast.expr):
+    _fields = 'target', 'op', 'value', 'ctype'
+    
+#===============================================================================
+# 
+#===============================================================================
 class FuncPlaceHolder(object):
     def __init__(self, name, key, node):
         self.name = name
@@ -58,6 +79,7 @@ class FuncPlaceHolder(object):
 
 def n(node):
     return {'lineno':node.lineno, 'col_offset':node.col_offset}
+
 
 def build_forward_dec(func_def):
     return CFunctionForwardDec(func_def.name, func_def.args, func_def.return_type)

@@ -95,14 +95,6 @@ cdef class Platform:
         def __get__(self):
             return self.get_info(CL_PLATFORM_VERSION)
         
-    property driver_version:
-        def __get__(self):
-            return self.get_info(CL_DRIVER_VERSION)
-
-    property device_profile:
-        def __get__(self):
-            return self.get_info(CL_DEVICE_PROFILE)
-
     property name:
         def __get__(self):
             return self.get_info(CL_PLATFORM_NAME)
@@ -152,7 +144,7 @@ cdef class Device:
         pass
     
     def __repr__(self):
-        return '<opencl.Device name=%r type=%r>' % (self.name, self.device_type,)
+        return '<opencl.Device name=%r type=%r>' % (self.name, self.type,)
     
     def __hash__(Device self):
         
@@ -170,7 +162,7 @@ cdef class Device:
         else:
             return NotImplemented
             
-    property device_type:
+    property type:
         def __get__(self):
             cdef cl_int err_code
             cdef cl_device_type dtype
@@ -283,6 +275,13 @@ cdef class Device:
             if err_code != CL_SUCCESS: raise OpenCLException(err_code)
             return value
 
+    property global_mem_size:
+        def __get__(self):
+            cdef cl_int err_code
+            cdef cl_ulong value = 0
+            err_code = clGetDeviceInfo(self.device_id, CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(value), < void *>& value, NULL)
+            if err_code != CL_SUCCESS: raise OpenCLException(err_code)
+            return value
     property max_mem_alloc_size:
         def __get__(self):
             cdef cl_int err_code
@@ -869,3 +868,8 @@ cdef api int PyEvent_Check(object event):
     return isinstance(event, Event)
 ## ############# #### #### #### #### #### #### #### #### #### #### ####
 
+cdef api object CyProgram_Create(cl_program program_id):
+    cdef Program prog = < Program > Program.__new__(Program)
+    prog.program_id = program_id
+    clRetainProgram(program_id)
+    return prog

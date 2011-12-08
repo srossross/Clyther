@@ -83,6 +83,9 @@ struct_type_map = {
                    'T{f:x:f:y:}':'float2',
                    '(4)f':'float4',
                    'T{f:x:f:y:f:z:f:w:}':'float4',
+
+                   '(4)L':'ulong4',
+                   'T{f:x:f:y:f:z:f:w:}':'float4',
                    }
 
 def cdefn(simple_format):
