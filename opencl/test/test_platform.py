@@ -41,6 +41,29 @@ class Test(unittest.TestCase):
         devices = plat.devices()
         native_kernels = [dev.has_native_kernel for dev in devices]
 
+    def test_enqueue_native_kernel_refcount(self):
+        if not ctx.devices[0].has_native_kernel:
+            self.skipTest("Device does not support native kernels")
+            
+        queue = Queue(ctx, ctx.devices[0])
+
+        def incfoo():
+            pass
+        
+        self.assertEqual(sys.getrefcount(incfoo), 2)
+            
+        e = cl.UserEvent(ctx)
+        queue.enqueue_wait_for_events(e)
+        queue.enqueue_native_kernel(incfoo)
+        
+        self.assertEqual(sys.getrefcount(incfoo), 3)
+        
+        e.complete()
+        
+        queue.finish()
+        
+        self.assertEqual(sys.getrefcount(incfoo), 2)
+        
     def test_enqueue_native_kernel(self):
         
         if not ctx.devices[0].has_native_kernel:
@@ -62,6 +85,34 @@ class Test(unittest.TestCase):
         queue.finish()
         
         self.assertEqual(foo, 12)
+        
+#        
+#    def test_native_kernel_maps_args(self):
+#        
+#        if not ctx.devices[0].has_native_kernel:
+#            self.skipTest("Device does not support native kernels")
+#            
+#        queue = Queue(ctx, ctx.devices[0])
+#        a = cl.empty(ctx, [10], 'f')
+#        
+#
+#        global foo
+#        
+#        foo = 0
+#        
+#        def incfoo(arg):
+#            global foo
+#            
+#            print 'arg', arg
+#        
+#        print "queue.enqueue_native_kernel"
+#        queue.enqueue_native_kernel(incfoo, a)
+#        
+#        print "queue.finish"
+#        queue.finish()
+#        
+#        print "self.assertEqual"
+#        self.assertEqual(foo, 12)
 
 class TestDevice(unittest.TestCase):
     
@@ -764,9 +815,10 @@ ctx = None
 DEVICE_TYPE = cl.Device.DEFAULT
 
 def setUpModule():
-    global ctx
+    global ctx, DEVICE_TYPE
     
     ctx = cl.Context(device_type=DEVICE_TYPE)
+    print ctx.devices
         
 if __name__ == '__main__':
     

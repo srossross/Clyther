@@ -15,3 +15,5 @@ cdef api object CyImageFormat_New(cl_image_format image_format)
 
 cdef api object CyImage_New(cl_mem buffer_id)
 
+
+cdef api Py_buffer* CyView_GetPyBuffer(object memobj)

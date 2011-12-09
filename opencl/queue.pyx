@@ -10,7 +10,7 @@ from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FOR
 from opencl.copencl cimport CyDevice_GetID, DeviceIDAsPyDevice, PyEvent_New, cl_eventFrom_PyEvent, PyEvent_Check 
 from opencl.context cimport CyContext_GetID, CyContext_Create, CyContext_Check
 from opencl.kernel cimport KernelFromPyKernel
-from opencl.cl_mem cimport CyMemoryObject_GetID, CyMemoryObject_Check
+from opencl.cl_mem cimport CyMemoryObject_GetID, CyMemoryObject_Check, CyView_GetPyBuffer
 
 
 cdef extern from "Python.h":
@@ -27,28 +27,34 @@ MAGIC_NUMBER = 0xabc123
 PyEval_InitThreads()
 
 
-cdef struct UserData:
-    int magic
-    PyObject * function
-    PyObject * args
-    PyObject * kwargs
+cdef class UserData:
+    cdef int magic
+    cdef object function
+    cdef object args
+    cdef object kwargs
+    cdef void** args_mem_loc
      
-cdef void user_func(void * data) with gil:
-    cdef UserData user_data = (< UserData *> data)[0]
+     
+cdef void user_func(UserData user_data) with gil:
     
     if user_data.magic != MAGIC_NUMBER:
         raise Exception("Enqueue native kernel can not be used at this time") 
 
-    cdef object function = < object > user_data.function
-    cdef object args = < object > user_data.args
-    cdef object kwargs = < object > user_data.kwargs
+    function = user_data.function
+    args = user_data.args
+    kwargs = user_data.kwargs
     
+#    print "user_data.args", user_data.args
+#    for i, arg in enumerate(user_data.args):
+#        print "arg", i, arg
+        
     function(*args, **kwargs)
     
-    Py_DECREF(< object > user_data.function)
-    Py_DECREF(< object > user_data.args)
-    Py_DECREF(< object > user_data.kwargs)
+    user_data.function = None
+    user_data.args = None
+    user_data.kwargs = None
     
+    Py_DECREF(user_data)
     return
     
 _enqueue_copy_buffer_errors = {
@@ -482,44 +488,43 @@ cdef class Queue:
         :param kwargs: keywords for function
         
         '''
-        cdef UserData user_data
+        cdef UserData user_data = UserData() 
         
         user_data.magic = MAGIC_NUMBER 
         
-        user_data.function = < PyObject *> function
+        user_data.function = function
+        user_data.args = args
+        user_data.kwargs = kwargs
         
-        user_data.args = < PyObject *> args
-        user_data.kwargs = < PyObject *> kwargs
-        
-        Py_INCREF(< object > user_data.function)
-        Py_INCREF(< object > user_data.args)
-        Py_INCREF(< object > user_data.kwargs)
+        cdef cl_mem * mem_list = NULL
+
+        cdef int nbuffers = 0
+        user_data.args_mem_loc = NULL
+                
+        Py_INCREF(user_data)
                     
         cdef cl_int err_code
         cdef cl_event event_id
         cdef cl_uint num_events_in_wait_list = 0
         cdef cl_event * event_wait_list = NULL
-        cdef cl_uint  num_mem_objects = 0 
-        cdef cl_mem * mem_list = NULL
-        cdef void ** args_mem_loc = NULL
 
-        cdef void * _args = < void *>& user_data
+        cdef void * _args = < void *> user_data
         cdef size_t cb_args = sizeof(UserData)
         
         err_code = clEnqueueNativeKernel(self.queue_id,
-                                      & user_func,
+                                      < void *>& user_func,
                                       _args,
                                       cb_args,
-                                      num_mem_objects,
+                                      nbuffers,
                                       mem_list,
-                                      args_mem_loc,
+                                      user_data.args_mem_loc,
                                       num_events_in_wait_list,
                                       event_wait_list,
                                       & event_id) 
-                            
+        
         if err_code != CL_SUCCESS:
             raise OpenCLException(err_code)
-    
+        
         return PyEvent_New(event_id)
     
     

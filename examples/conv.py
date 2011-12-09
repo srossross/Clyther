@@ -11,8 +11,8 @@ from ctypes import c_float
 import numpy as np
 
 
-@cly.global_work_size(lambda a: [a.size // 8])
-@cly.local_work_size([8])
+@cly.global_work_size(lambda a: [a.size])
+#@cly.local_work_size([8])
 @cly.kernel
 def conv(a, b, ret):
     
@@ -28,7 +28,7 @@ def conv(a, b, ret):
     for k in range(start,stop):
         sum += a[k] * b[k+w-i]
         
-    ret[i] = sum
+    ret[i] = c_float(w)
         
 def main():
     
@@ -50,6 +50,9 @@ def main():
     
     with ret.map(queue) as foo:
         print np.asarray(foo)
+        
+        
+    print conv._cache.values()[0].values()[0].program.source
         
 #    source = conv.compile(ctx, a=cl.global_memory(c_float), 
 #                          b=cl.global_memory(c_float), 

@@ -21,7 +21,6 @@ cdef extern from "Python.h":
 
 MAGIC_NUMBER = 0xabc123
 
-    
 PyEval_InitThreads()
 
 
@@ -229,7 +228,6 @@ cdef class Device:
         
     property has_native_kernel:
         def __get__(self):
-            return 
             cdef cl_int err_code
             cdef cl_device_exec_capabilities result
             

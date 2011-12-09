@@ -507,7 +507,7 @@ cdef extern from "OpenCL/cl.h":
 
     cl_int clEnqueueTask(cl_command_queue, cl_kernel, cl_uint, cl_event *, cl_event *)
 
-    cl_int clEnqueueNativeKernel(cl_command_queue, void (*user_func)(void *), void *, size_t, cl_uint, cl_mem *, void **, cl_uint, cl_event *, cl_event *)
+    cl_int clEnqueueNativeKernel(cl_command_queue, void *, void *, size_t, cl_uint, cl_mem *, void **, cl_uint, cl_event *, cl_event *)
 
     cl_int clEnqueueMarker(cl_command_queue, cl_event *)
 

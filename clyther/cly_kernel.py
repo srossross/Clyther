@@ -41,8 +41,11 @@ class kernel(object):
         self.func = func
         self.__doc__ = self.func.__doc__ 
         self.global_work_size = None
+        self._cache = {}
     
     def __call__(self, queue, *args, **kwargs):
+        
+        cache = self._cache.setdefault(queue.context, {})
         
         argnames = self.func.func_code.co_varnames[:self.func.func_code.co_argcount]
         defaults = self.func.func_defaults
@@ -50,7 +53,10 @@ class kernel(object):
         
         kwarg_types = {argnames[i]:typeof(arglist[i]) for i in range(len(argnames))}
         
+        
         cl_kernel = self.compile(queue.context, **kwarg_types)
+        
+        cache[tuple(sorted(kwarg_types.viewitems(), key=lambda item:item[0]))] = cl_kernel 
         
         kernel_args = {}
         for name, arg  in zip(argnames, arglist):
@@ -66,6 +72,8 @@ class kernel(object):
         #FIXME: I don't like that this breaks encapsulation
         if isinstance(event, EventRecord):
             event.set_kernel_args(kernel_args)
+            
+        return event
     
     def compile(self, ctx, source_only=False, **kwargs):
         args, defaults, source, kernel_name = create_kernel_source(self.func, kwargs)

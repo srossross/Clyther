@@ -1056,6 +1056,12 @@ cdef api object CyView_Create(cl_mem buffer_id, Py_buffer * buffer, int incref):
     
     return dview
 
+cdef api Py_buffer*CyView_GetPyBuffer(object memobj):
+    obj = (< DeviceMemoryView > memobj)
+    return obj.buffer
+
+
+
 cdef api object CyImage_Create(cl_mem buffer_id, Py_buffer * buffer, int incref):
     cdef Image image = < Image > Image.__new__(Image)
     if incref:
