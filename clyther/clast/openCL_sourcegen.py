@@ -146,6 +146,10 @@ class GenOpenCLExpr(Visitor):
     visitSub = simple_string('-')
     visitDiv = simple_string('/')
 
+    def visitCStr(self, node):
+        with self.no_indent:
+            self.print('"{!s}"', node.s)
+            
     def visitCNum(self, node):
         with self.no_indent:
             self.print('{!r}', node.n)
@@ -285,6 +289,9 @@ class GenOpenCLSource(GenOpenCLExpr):
         with self.brace:
             for statement in node.body:
                 self.visit(statement)
+                
+    def visitExpr(self, node):
+        self.print('{0:node};\n', node.value)
         
         
 def opencl_source(node):

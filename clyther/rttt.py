@@ -136,10 +136,11 @@ def str_type(ctype, defined_types):
         return None
     elif isinstance(ctype, cltype):
         return ctype.ctype_string()
+    elif isinstance(ctype, str):
+        return ctype
     else:
         format = type_format(ctype)
         return cdefn(format)
-        raise Exception(ctype)
 
 class TypeReplacer(Visitor):
     '''
@@ -176,7 +177,7 @@ class TypeReplacer(Visitor):
         
 
 def replace_types(node):
-    defined_types = {None:'void'}
+    defined_types = {None:'void', str:'char*'}
     if isinstance(node, ast.Module):
         for statement in node.body:
             if isinstance(statement, cast.CStruct):

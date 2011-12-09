@@ -22,6 +22,7 @@ from opencl import global_memory
 from clyther.clast.mutators.unpacker import unpack_mem_args
 from clyther.clast.mutators.for_loops import format_for_loops
 from clyther.queue_record import QueueRecord, EventRecord
+from clyther.clast.mutators.printf import make_printf
 
 class ClytherKernel(object):
     pass
@@ -159,6 +160,8 @@ def create_kernel_source(function, argtypes):
     
     #typify created function placeholders. resolve them here 
     resolve_functions(mod_ast)
+    
+    make_printf(mod_ast)
     
     defaults = function.func_defaults
     

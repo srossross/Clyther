@@ -17,6 +17,9 @@ class CVarDec(ast.AST):
 class CNum(ast.Num):
     _fields = 'n', 'ctype'
     
+class CStr(ast.Str):
+    _fields = 's', 'ctype'
+    
 class CCall(ast.Call):
     _fields = 'func', 'args', 'keywords', 'ctype'
     
@@ -83,3 +86,9 @@ def n(node):
 
 def build_forward_dec(func_def):
     return CFunctionForwardDec(func_def.name, func_def.args, func_def.return_type)
+
+
+
+    
+
+
