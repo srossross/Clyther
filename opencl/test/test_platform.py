@@ -15,6 +15,7 @@ import numpy as np
 import gc
 import time
 from threading import Event as PyEvent
+import sys
 
 source = """
 
@@ -29,11 +30,6 @@ __kernel void generate_sin(__global float2* a, float scale)
 }
 """
 
-DEVICE_TYPE = cl.Device.CPU
-DEVICE_TYPE = cl.Device.GPU
-
-ctx = cl.Context(device_type=DEVICE_TYPE)
-
 class Test(unittest.TestCase):
     
     
@@ -45,10 +41,11 @@ class Test(unittest.TestCase):
         devices = plat.devices()
         native_kernels = [dev.has_native_kernel for dev in devices]
 
-        
-    @unittest.skipIf(not ctx.devices[0].has_native_kernel, "Device does not support native kernels")
     def test_enqueue_native_kernel(self):
         
+        if not ctx.devices[0].has_native_kernel:
+            self.skipTest("Device does not support native kernels")
+            
         queue = Queue(ctx, ctx.devices[0])
 
         global foo
@@ -312,9 +309,9 @@ class TestBuffer(unittest.TestCase):
         self.assertEqual(len(buf), 4 / buf.itemsize)
         self.assertEqual(buf.mem_size, 4)
         
-        layout = buf.layout_struct
+        layout = buf.array_info
         
-        self.assertEqual(list(layout.shape), [4, 0, 0, 0])
+        self.assertEqual(list(layout.shape), [4, 0, 0, 4])
         self.assertEqual(list(layout.strides), [1, 0, 0, 0])
         
     def test_from_host(self):
@@ -647,7 +644,7 @@ class TestBuffer(unittest.TestCase):
                 self.assertTrue(np.all(expected == b))
 
         
-class TestImage(unittest.TestCase):
+class TestImage(unittest.TestCas e):
     def test_supported_formats(self):
         image_format = cl.ImageFormat.supported_formats(ctx)[0]
         
@@ -717,7 +714,7 @@ class TestEvent(unittest.TestCase):
 
         queue = Queue(ctx, ctx.devices[0])
         
-        queue.wait(event)
+        queue.enqueue_wait_for_events(event)
         
         event2 = queue.marker()
         
@@ -742,7 +739,7 @@ class TestEvent(unittest.TestCase):
 
         queue = Queue(ctx, ctx.devices[0])
         
-        queue.wait(event)
+        queue.enqueue_wait_for_events(event)
         
         event2 = queue.marker()
         event2.add_callback(callback)
@@ -762,6 +759,23 @@ class TestEvent(unittest.TestCase):
         self.assertTrue(event_is_set, 'timed out waiting for callback')
 
         self.assertTrue(self.callback_called)
+
+ctx = None
+DEVICE_TYPE = cl.Device.DEFAULT
+
+def setUpModule():
+    global ctx
+    ctx = cl.Context(device_type=DEVICE_TYPE)
         
 if __name__ == '__main__':
-    unittest.main()
+    
+    argv = list(sys.argv)
+    
+    if '--gpu' in argv:
+        del argv[argv.index('--gpu')]
+        DEVICE_TYPE = cl.Device.GPU
+    elif '--cpu' in argv:
+        del argv[argv.index('--cpu')]
+        DEVICE_TYPE = cl.Device.CPU
+
+    unittest.main(argv=argv)

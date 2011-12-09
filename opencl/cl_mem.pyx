@@ -252,8 +252,6 @@ cdef class DeviceMemoryView(MemoryObject):
             flags |= CL_MAP_WRITE
         
         cdef cl_bool blocking_map = 1 if blocking else 0
-        if size == 0:
-            size = self.mem_size
             
         return MemoryViewMap(queue, self, blocking_map, flags)
 

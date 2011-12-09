@@ -117,7 +117,22 @@ nd_range_kernel_errors = {
 }
 
 cdef class Queue:
+    '''
+    opencl.Queue(context, device=None, out_of_order_exec_mode=False, profiling=False)
     
+    OpenCL objects such as memory, program and kernel objects are created using a context.  
+    Operations on these objects are performed using  a command-queue. The command-queue can be 
+    used to queue a set of operations (referred to as commands) in order.  Having multiple 
+    command-queues allows applications to queue multiple independent commands without 
+    requiring synchronization.  Note that this should work as long as these objects are not being 
+    shared.  Sharing of objects across multiple command-queues will require the application to 
+    perform appropriate synchronization
+    
+    :param context: An opencl.Context object 
+    :param device: if None use the first device in the context [default None] 
+    :param, out_of_order_exec_mode: enable out_of_order_exec_mode [default False] 
+    :param profiling: enable profiling [default False]
+    '''
     cdef cl_command_queue queue_id
     
     def __cinit__(self):
@@ -153,6 +168,9 @@ cdef class Queue:
             raise OpenCLException(err_code)
 
     property device:
+        '''
+        Return the device associated with this queue
+        '''
         def __get__(self):
             cdef cl_int err_code
             cdef cl_device_id device_id
@@ -165,6 +183,10 @@ cdef class Queue:
             return DeviceIDAsPyDevice(device_id) 
 
     property context:
+        '''
+        Return the context that this queue was created with
+        '''
+
         def __get__(self):
             cdef cl_int err_code
             cdef cl_context context_id
@@ -177,6 +199,14 @@ cdef class Queue:
             return CyContext_Create(context_id) 
         
     def barrier(self):
+        '''
+        queue.barrier()
+        
+        Enqueues a barrier operation.
+        The queue.barrier command ensures that all queued 
+        commands in command_queue have finished execution before the next batch of commands can 
+        begin execution.  The queue.barrier command is a synchronization point
+        '''
         cdef cl_int err_code
         cdef cl_command_queue queue_id = self.queue_id
          
@@ -187,6 +217,15 @@ cdef class Queue:
             raise OpenCLException(err_code)
         
     def flush(self):
+        '''
+        queue.flush()
+        
+        Issues all previously queued OpenCL commands in command_queue to the device associated 
+        with command_queue.  clFlush only guarantees that all queued commands to command_queue
+        will eventually be submitted to the appropriate device.  There is no guarantee that they will be 
+        complete after clFlush returns. 
+        '''
+        
         cdef cl_int err_code
          
         err_code = clFlush(self.queue_id)
@@ -195,7 +234,14 @@ cdef class Queue:
             raise OpenCLException(err_code)
 
     def finish(self):
+        '''
+        queue.finish()
         
+        Blocks until all previously queued OpenCL commands in command_queue are issued to the 
+        associated device and have completed.  clFinish does not return until all queued commands in 
+        command_queue have been processed and completed.  clFinish is also a synchronization point
+        
+        '''
         cdef cl_int err_code
         cdef cl_command_queue queue_id = self.queue_id
         
@@ -206,7 +252,13 @@ cdef class Queue:
             raise OpenCLException(err_code)
         
     def marker(self):
+        '''queue.marker()
         
+        Enqueues a marker command to command_queue.  The marker command is not completed until 
+        all commands enqueued before it have completed.  The marker command returns an event which 
+        can be waited on, i.e. this event can be waited on to insure that all commands, which have been 
+        queued before the marker command, have been completed. 
+        '''
         
         cdef cl_event event_id = NULL
         cdef cl_int err_code
@@ -222,7 +274,15 @@ cdef class Queue:
         pass
     
     def enqueue_wait_for_events(self, *events):
+        '''
+        queue.enqueue_wait_for_events(self, event, event2, ...)
+        queue.enqueue_wait_for_events(self, eventlist)
         
+        Enqueues a wait for a specific event or a list of events to complete before any future commands 
+        queued in the command-queue are executed.  num_events specifies the number of events given 
+        by event_list. 
+        
+        '''
         if len(events) == 1:
             if isinstance(events[0], (list, tuple)):
                 events = events[0]
@@ -413,7 +473,15 @@ cdef class Queue:
 #        return event
     
     def enqueue_native_kernel(self, function, *args, **kwargs):
+        '''queue.enqueue_native_kernel(function, *args, **kwargs)
         
+        Enqueues a command to execute a python function.
+        
+        :param function: a callable python object
+        :param args: arguments for function
+        :param kwargs: keywords for function
+        
+        '''
         cdef UserData user_data
         
         user_data.magic = MAGIC_NUMBER 
@@ -457,6 +525,23 @@ cdef class Queue:
     
     def enqueue_nd_range_kernel(self, kernel, cl_uint  work_dim,
                                 global_work_size, global_work_offset=None, local_work_size=None, wait_on=()):
+        '''queue.enqueue_nd_range_kernel(kernel, work_dim, global_work_size, global_work_offset=None, local_work_size=None, wait_on=())
+        
+        Enqueues a command to execute a kernel on a device
+        
+        :param kernel: an opencl.Kernel object 
+        :param work_dim:  is the number of dimensions used to specify the global work-items  and work-items in the work-group.
+        :param global_work_size: A list of length work_dim that describe the number of global 
+                work-items in work_dim dimensions that will execute the kernel function.  T
+        :param global_work_offset: Can be used to specify an array of work_dim unsigned values that describe 
+                the offset used to calculate the global ID of a work-item.
+        :param local_work_size:f A list of length work_dim unsigned values that describe the number of 
+                work-items that make up a work-group.
+                If None, the OpenCL implementation will determine how to be break the global work-items into 
+                appropriate work-group instances
+        :param wait_on: A list of events
+        
+        '''
         
         cdef cl_kernel kernel_id = KernelFromPyKernel(kernel)
         

@@ -72,7 +72,11 @@ class _Undefined: pass
 def call_with_used_args(func, argnames, arglist):
     func_args = func.func_code.co_varnames[:func.func_code.co_argcount]
     
-    args = [arg for name, arg in zip(argnames, arglist) if name in func_args]
+    if argnames is None:
+        args = arglist
+    else:
+        args = [arg for name, arg in zip(argnames, arglist) if name in func_args]
+        
     result = func(*args)
     return result
     

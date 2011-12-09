@@ -5,15 +5,20 @@ Created on Dec 8, 2011
 '''
 import opencl as cl
 from uuid import uuid1
+from collections import OrderedDict
 
 class EventRecord(object):
     def __init__(self, uuid):
-        pass
+        self.uuid = uuid
+        
+    def set_event(self, event):
+        self._event = event
     
 class QueueRecord(object):
     def __init__(self, context):
         self._context = context
-        self.operations = []
+        self.operations = OrderedDict()
+        self.events = {}
         
     @property
     def context(self):
@@ -24,15 +29,23 @@ class QueueRecord(object):
     
     def enqueue_set_kernel_args(self, cl_kernel, kernel_args):
         
-        operation = (self.set_kernel_args, (cl_kernel, kernel_args.copy()))
-        self.operations.append(operation)
+        uuid = uuid1()
+        args = cl_kernel, kernel_args.copy()
+        self.operations[uuid] = self.set_kernel_args, args
+        
+        self.events[uuid] = EventRecord(uuid)
+        return self.events[uuid]
     
     def enqueue_nd_range_kernel(self, kernel, work_dim, global_work_size, global_work_offset=None, local_work_size=None, wait_on=()):
         
+        uuid = uuid1()
         args = kernel, work_dim, global_work_size, global_work_offset, local_work_size, wait_on
-        operation = (cl.Queue.enqueue_nd_range_kernel, args) 
-        self.operations.append(operation)
+        self.operations[uuid] = cl.Queue.enqueue_nd_range_kernel, args
+        
+        self.events[uuid] = EventRecord(uuid)
+        return self.events[uuid]
         
     def enqueue(self, queue):
-        for func, args in self.operations:
-            func(queue, *args)
+        for uuid, (func, args) in self.operations.viewitems():
+            event = func(queue, *args)
+            self.events[uuid].set_event(event)
