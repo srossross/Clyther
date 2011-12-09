@@ -340,6 +340,17 @@ class Typify(Visitor):
         body = list(self.visit_list(node.body))
         
         return ast.For(target, iter, body, None)
+    
+    def visitPrint(self, node):
+        #('dest', 'values', 'nl')
+        
+        if node.dest is not None:
+            raise NotImplementedError("print >> dest is not allowed in openCL")
+        
+        values = list(self.visit_list(node.values))
+        
+        return ast.Print(None, values, node.nl)
+        
         
 def typify_function(argtypes, globls, node):
     typify = Typify(argtypes, globls)
