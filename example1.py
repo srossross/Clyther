@@ -4,20 +4,22 @@ Created on Dec 2, 2011
 @author: sean
 '''
 import ctypes
-
 import opencl as cl
 import numpy as np
 import clyther.runtime as clrt
 import clyther as cly
 from ctypes import c_float
     
-def f2test(f2):
-    
-    f2.x = f2.y
 
 @cly.global_work_size(lambda a, scale: [a.size])
 @cly.kernel
 def generate_sin(a, scale=c_float(1)):
+    '''
+    generate sine wave
+    
+    :param a: an opencl float2 array
+    :param scale: scale multiplier the y coords
+    '''
     
     gid = clrt.get_global_id(0)
     n = clrt.get_global_size(0)
@@ -26,15 +28,6 @@ def generate_sin(a, scale=c_float(1)):
     a[gid].x = gid
     a[gid].y = clrt.native_sin(r) * scale;
     
-def funcB(x, y):
-    
-    return x * y
-
-def funcA(a, b, c=funcB):
-    y = int()
-    z = c(a, y=y) + b
-    return
-
 def main():
     ctx = cl.Context(device_type=cl.Device.CPU)
     

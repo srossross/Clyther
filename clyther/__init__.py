@@ -11,7 +11,7 @@ from cly_kernel import kernel, global_work_size, local_work_size
 
 from clyther.array.functions import arange, ones, empty_like
 
-
+from clyther.queue_record import QueueRecord
 #from StringIO import StringIO
 #from meta.asttools import Visitor, print_ast
 #from ccode.type_tree import TypeTree, format_args

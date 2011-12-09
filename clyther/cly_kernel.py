@@ -3,6 +3,7 @@ Created on Dec 4, 2011
 
 @author: sean
 '''
+
 from meta.decompiler import decompile_func
 from clyther.rttt import replace_types
 
@@ -20,7 +21,7 @@ from meta.asttools.visitors.print_visitor import print_ast
 from opencl import global_memory
 from clyther.clast.mutators.unpacker import unpack_mem_args
 from clyther.clast.mutators.for_loops import format_for_loops
-from clyther.queue_record import QueueRecord
+from clyther.queue_record import QueueRecord, EventRecord
 
 class ClytherKernel(object):
     pass
@@ -38,8 +39,8 @@ class kernel(object):
     
     def __init__(self, func):
         self.func = func
+        self.__doc__ = self.func.__doc__ 
         self.global_work_size = None
-    
     
     def __call__(self, queue, *args, **kwargs):
         
@@ -57,14 +58,14 @@ class kernel(object):
             if isinstance(arg, cl.DeviceMemoryView):
                 kernel_args['cly_%s_info' % name] = arg.array_info
         
-        if isinstance(queue, QueueRecord):
-            queue.enqueue_set_kernel_args(cl_kernel, kernel_args)
-
-        kernel_args.update(global_work_size=kwargs.get('global_work_size'),
-                           global_work_offset=kwargs.get('global_work_offset'),
-                           local_work_size=kwargs.get('local_work_size'))
+        event = cl_kernel(queue, global_work_size=kwargs.get('global_work_size'),
+                                 global_work_offset=kwargs.get('global_work_offset'),
+                                 local_work_size=kwargs.get('local_work_size'),
+                                 **kernel_args)
         
-        return cl_kernel(queue, **kernel_args)
+        #FIXME: I don't like that this breaks encapsulation
+        if isinstance(event, EventRecord):
+            event.set_kernel_args(kernel_args)
     
     def compile(self, ctx, source_only=False, **kwargs):
         args, defaults, source, kernel_name = create_kernel_source(self.func, kwargs)

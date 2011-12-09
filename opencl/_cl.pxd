@@ -120,6 +120,8 @@ cdef extern from "OpenCL/cl.h":
         CL_DEVICE_PROFILE
         CL_DEVICE_VERSION
         CL_DEVICE_EXTENSIONS
+        
+        CL_DEVICE_QUEUE_PROPERTIES
 
     
         
@@ -143,7 +145,7 @@ cdef extern from "OpenCL/cl.h":
         CL_EXEC_KERNEL
         CL_EXEC_NATIVE_KERNEL
     
-    enum cl_command_queue_properties:
+    ctypedef enum cl_command_queue_properties:
         CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
         CL_QUEUE_PROFILING_ENABLE
         

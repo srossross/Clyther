@@ -206,9 +206,30 @@ cdef class Device:
             free(result)
             return a_python_byte_string
 
-    property has_native_kernel:
+    property queue_properties:
         def __get__(self):
             cdef size_t size
+            cdef cl_int err_code
+            cdef cl_command_queue_properties result
+            
+            err_code = clGetDeviceInfo(self.device_id, CL_DEVICE_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties), & result, NULL)
+            
+            if err_code != CL_SUCCESS:
+                raise OpenCLException(err_code)
+            
+            return result 
+        
+    property has_queue_out_of_order_exec_mode:
+        def __get__(self):
+            return bool((<cl_command_queue_properties> self.queue_properties) & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)
+
+    property has_queue_profiling:
+        def __get__(self):
+            return bool((<cl_command_queue_properties> self.queue_properties) & CL_QUEUE_PROFILING_ENABLE)
+        
+    property has_native_kernel:
+        def __get__(self):
+            return 
             cdef cl_int err_code
             cdef cl_device_exec_capabilities result
             

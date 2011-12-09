@@ -644,7 +644,7 @@ class TestBuffer(unittest.TestCase):
                 self.assertTrue(np.all(expected == b))
 
         
-class TestImage(unittest.TestCas e):
+class TestImage(unittest.TestCase):
     def test_supported_formats(self):
         image_format = cl.ImageFormat.supported_formats(ctx)[0]
         
@@ -765,6 +765,7 @@ DEVICE_TYPE = cl.Device.DEFAULT
 
 def setUpModule():
     global ctx
+    
     ctx = cl.Context(device_type=DEVICE_TYPE)
         
 if __name__ == '__main__':
