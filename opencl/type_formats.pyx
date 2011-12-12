@@ -70,8 +70,8 @@ struct_type_map = {
                    'H':'unsigned short',
                    'i':'int',
                    'I':'unsigned int',
-                   'l':'long',
-                   'L':'unsigned long',
+                   'l':'int',
+                   'L':'unsigned int',
                    'q':'long long',
                    'Q':'unsigned long long',
                    'f':'float',
@@ -84,7 +84,8 @@ struct_type_map = {
                    '(4)f':'float4',
                    'T{f:x:f:y:f:z:f:w:}':'float4',
 
-                   '(4)L':'ulong4',
+                   '(4)L':'uint4',
+                   '(8)L':'uint8',
                    'T{f:x:f:y:f:z:f:w:}':'float4',
                    }
 

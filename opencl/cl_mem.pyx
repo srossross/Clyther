@@ -19,9 +19,7 @@ from opencl.queue cimport CyQueue_GetID, CyQueue_Create
 #cdef extern from "cstring":
 #    char * strcpy (char * destination, char * source)
 
-class mem_layout(ctypes.Structure):
-    _fields_ = [('shape', ctypes.c_size_t * 4),
-                ('strides', ctypes.c_size_t * 4)]
+mem_layout = ctypes.c_size_t * 8
     
 cdef extern from "Python.h":
 
@@ -201,11 +199,14 @@ cdef class DeviceMemoryView(MemoryObject):
     
     property array_info:
         def __get__(self):
-            layout = mem_layout((0, 0, 0, self.size), (0, 0, 0, 0))
+            layout = mem_layout(0, 0, 0, self.size, 0, 0, 0, 0)
             cdef int i 
             for i in range(self.buffer.ndim):
-                layout.shape[i] = self.buffer.shape[i]
-                layout.strides[i] = self.buffer.strides[i]
+                layout[i] = self.buffer.shape[i]
+                layout[4 + i] = self.buffer.strides[i] // self.itemsize
+            
+            if self.context.devices[0].driver_version == '1.0': #FIXME this should be better
+                layout[7] = self.base_offset // self.itemsize
                 
             return layout
         
@@ -1056,7 +1057,7 @@ cdef api object CyView_Create(cl_mem buffer_id, Py_buffer * buffer, int incref):
     
     return dview
 
-cdef api Py_buffer*CyView_GetPyBuffer(object memobj):
+cdef api Py_buffer * CyView_GetPyBuffer(object memobj):
     obj = (< DeviceMemoryView > memobj)
     return obj.buffer
 

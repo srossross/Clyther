@@ -362,8 +362,8 @@ class TestBuffer(unittest.TestCase):
         
         layout = buf.array_info
         
-        self.assertEqual(list(layout.shape), [4, 0, 0, 4])
-        self.assertEqual(list(layout.strides), [1, 0, 0, 0])
+        self.assertEqual(layout[:4], [4, 0, 0, 4]) #shape
+        self.assertEqual(layout[4:], [1, 0, 0, 0]) #strides
         
     def test_from_host(self):
         a = np.array([[1, 2], [3, 4]])

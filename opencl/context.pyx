@@ -172,7 +172,20 @@ cdef class Context:
             free(_devices)
             
             return devices
+    
+    def __hash__(self):
+        return <size_t> self.context_id
 
+    def __richcmp__(Context self, other, op):
+        
+        if not isinstance(other, Context):
+            return NotImplemented
+        
+        if op == 2:
+            return self.context_id == CyContext_GetID(other)
+        else:
+            return NotImplemented
+    
 #===============================================================================
 # API
 #===============================================================================

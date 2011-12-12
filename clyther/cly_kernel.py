@@ -23,6 +23,7 @@ from clyther.clast.mutators.unpacker import unpack_mem_args
 from clyther.clast.mutators.for_loops import format_for_loops
 from clyther.queue_record import QueueRecord, EventRecord
 from clyther.clast.mutators.printf import make_printf
+import ast
 
 class ClytherKernel(object):
     pass
@@ -33,9 +34,17 @@ class CLComileError(Exception):
 def typeof(obj):
     if isinstance(obj, cl.MemoryObject):
         return global_memory(obj.format, obj.shape)
+    elif isinstance(obj, cl.local_memory):
+        return obj
     else:
         return type(obj)
     
+def developer(func):
+    func._development_mode = True
+    func._no_cache = True
+
+    return func
+
 class kernel(object):
     
     def __init__(self, func):
@@ -43,6 +52,19 @@ class kernel(object):
         self.__doc__ = self.func.__doc__ 
         self.global_work_size = None
         self._cache = {}
+        
+        self._development_mode = False
+        self._no_cache = False
+        
+
+    def run_kernel(self, cl_kernel, queue, kernel_args, kwargs):
+        event = cl_kernel(queue, global_work_size=kwargs.get('global_work_size'),
+                                 global_work_offset=kwargs.get('global_work_offset'),
+                                 local_work_size=kwargs.get('local_work_size'),
+                                 **kernel_args)
+        
+        return event
+    
     
     def __call__(self, queue, *args, **kwargs):
         
@@ -54,21 +76,33 @@ class kernel(object):
         
         kwarg_types = {argnames[i]:typeof(arglist[i]) for i in range(len(argnames))}
         
+        cache_key = tuple(sorted(kwarg_types.viewitems(), key=lambda item:item[0]))
         
-        cl_kernel = self.compile(queue.context, **kwarg_types)
-        
-        cache[tuple(sorted(kwarg_types.viewitems(), key=lambda item:item[0]))] = cl_kernel 
+        if cache_key not in cache or self._no_cache:
+            try:
+                cl_kernel = self.compile(queue.context, **kwarg_types)
+            except cast.CError as error:
+                if self._development_mode: raise
+                
+                redirect = ast.parse('raise error.exc(error.msg)')
+                redirect.body[0].lineno = error.node.lineno
+                filename = self.func.func_code.co_filename
+                redirect_error_to_function = compile(redirect, filename, 'exec')
+                eval(redirect_error_to_function) #use the @cly.developer function decorator to turn this off and see stack trace ...
+            
+            cache[cache_key] = cl_kernel
+
+        cl_kernel = cache[cache_key] 
         
         kernel_args = {}
         for name, arg  in zip(argnames, arglist):
             kernel_args[name] = arg
             if isinstance(arg, cl.DeviceMemoryView):
                 kernel_args['cly_%s_info' % name] = arg.array_info
+            if isinstance(arg, cl.local_memory):
+                kernel_args['cly_%s_info' % name] = arg.local_info
         
-        event = cl_kernel(queue, global_work_size=kwargs.get('global_work_size'),
-                                 global_work_offset=kwargs.get('global_work_offset'),
-                                 local_work_size=kwargs.get('local_work_size'),
-                                 **kernel_args)
+        event = self.run_kernel(cl_kernel, queue, kernel_args, kwargs)
         
         #FIXME: I don't like that this breaks encapsulation
         if isinstance(event, EventRecord):
@@ -106,6 +140,19 @@ class kernel(object):
         
         return kernel
 
+class task(kernel):
+    def run_kernel(self, cl_kernel, queue, kernel_args, kwargs):
+        
+        cl_kernel.set_args(**kernel_args)
+        event = queue.enqueue_task(cl_kernel)
+        
+#        event = cl_kernel(queue, global_work_size=kwargs.get('global_work_size'),
+#                                 global_work_offset=kwargs.get('global_work_offset'),
+#                                 local_work_size=kwargs.get('local_work_size'),
+#                                 **kernel_args)
+        
+        return event
+    
 def global_work_size(arg):
     def decorator(func):
         func.global_work_size = arg

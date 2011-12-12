@@ -528,6 +528,31 @@ cdef class Queue:
         return PyEvent_New(event_id)
     
     
+    def enqueue_task(self, kernel,  wait_on=()):
+        '''queue.enqueue_task(kernel,  wait_on=())
+        
+        Enqueues a command to execute a kernel on a device.  The kernel is executed using a single 
+        work-item.
+        
+        :param kernel: an opencl kernel.
+        :param wait_on: a list of events
+        '''
+        
+        cdef cl_event * event_wait_list
+        cdef cl_uint num_events_in_wait_list = _make_wait_list(wait_on, & event_wait_list)
+        cdef cl_int err_code
+
+        cdef cl_kernel kernel_id = KernelFromPyKernel(kernel)
+        cdef cl_event event_id = NULL
+
+        err_code = clEnqueueTask(self.queue_id, kernel_id, num_events_in_wait_list, event_wait_list, & event_id)
+
+        if err_code != CL_SUCCESS:
+            raise OpenCLException(err_code, nd_range_kernel_errors)
+        
+        return PyEvent_New(event_id)
+
+
     def enqueue_nd_range_kernel(self, kernel, cl_uint  work_dim,
                                 global_work_size, global_work_offset=None, local_work_size=None, wait_on=()):
         '''queue.enqueue_nd_range_kernel(kernel, work_dim, global_work_size, global_work_offset=None, local_work_size=None, wait_on=())

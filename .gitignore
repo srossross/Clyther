@@ -3,6 +3,7 @@
 *.so
 *_api.h
 
+*.egg-info
 .project
 .pydevprojectbuild
 .settings
@@ -15,3 +16,4 @@ cl_mem.c
 context.c
 errors.c
 queue.c
+clgl.c

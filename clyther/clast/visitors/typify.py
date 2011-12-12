@@ -7,12 +7,12 @@ from clyther.clast import cast
 from clyther.clast.cast import build_forward_dec, FuncPlaceHolder, n
 from clyther.clast.visitors.returns import returns
 from clyther.pybuiltins import builtin_map
-from clyther.rttt import greatest_common_type, cltype
+from clyther.rttt import greatest_common_type, cltype, RuntimeFunction
 from inspect import isroutine, isclass, ismodule
 from meta.asttools.visitors import Visitor
 from meta.asttools.visitors.print_visitor import print_ast
 from meta.decompiler import decompile_func
-from opencl import global_memory
+from opencl import contextual_memory, global_memory
 from opencl.type_formats import type_format
 import __builtin__ as builtins
 import _ctypes
@@ -25,14 +25,6 @@ class CException(Exception): pass
 var_builtins = set(vars(builtins).values())
 
 
-class RuntimeFunction(cltype):
-    def __init__(self, name, return_type, *argtypes):
-        self.name = name
-        self.return_type = return_type
-        self.argtypes = argtypes
-        
-    def ctype_string(self):
-        return None
 
 
 def dict2hashable(dct):
@@ -54,7 +46,7 @@ def getattrtype(ctype, attr):
         return dict(ctype._fields_)[attr]
     elif ismodule(ctype):
         return getattr(ctype, attr)
-    elif isinstance(ctype, global_memory):
+    elif isinstance(ctype, contextual_memory):
         return getattr(ctype, attr)
     elif is_vetor_type(ctype):
         return derefrence(ctype)
@@ -80,7 +72,17 @@ class Typify(Visitor):
         self.locls = argtypes.copy()
         
         self.function_calls = {}
-        
+    
+    def visit(self, node, *args, **kwargs):
+        new_node = Visitor.visit(self, node, *args, **kwargs)
+        if isinstance(new_node, ast.AST):
+            if not hasattr(new_node, 'lineno'): 
+                new_node.lineno = node.lineno
+            if not hasattr(new_node, 'col_offset'): 
+                new_node.col_offset = node.col_offset
+                
+        return new_node
+    
     def make_cfunction(self, node):
         
         
@@ -345,12 +347,46 @@ class Typify(Visitor):
         #('dest', 'values', 'nl')
         
         if node.dest is not None:
-            raise NotImplementedError("print >> dest is not allowed in openCL")
+            raise cast.CError(node, NotImplementedError, ("print '>>' operator is not allowed in openCL"))
         
         values = list(self.visit_list(node.values))
         
         return ast.Print(None, values, node.nl)
         
+    def visitExec(self, node):
+        # ('body', 'globals', 'locals')
+        if node.globals is not None:
+            raise cast.CError(node, NotImplementedError, ("exec globals is not allowed in openCL"))
+        if node.locals is not None:
+            raise cast.CError(node, NotImplementedError, "exec locals is not allowed in openCL")
+        
+        body = self.visit(node.body)
+        
+        return ast.Exec(body, None, None)
+    
+    def visitStr(self, node):
+        return cast.CStr(node.s, str)
+    
+    def visitIf(self, node):
+        #('test', 'body', 'orelse')
+        test = self.visit(node.test)
+        body = list(self.visit_list(node.body))
+        orelse = list(self.visit_list(node.orelse))
+        return ast.If(test, body, orelse)
+    
+    def visitWhile(self, node):
+        #('test', 'body', 'orelse')
+        if node.orelse:
+            raise cast.CError(node, NotImplementedError, "while ... else is not yet allowed in openCL")
+        
+        test = self.visit(node.test)
+        body = list(self.visit_list(node.body))
+        
+        return ast.While(test, body, None)
+        
+    def visitExpr(self, node):
+        value = self.visit(node.value)
+        return ast.Expr(value) 
         
 def typify_function(argtypes, globls, node):
     typify = Typify(argtypes, globls)

@@ -40,6 +40,8 @@ def main():
     with a.map(queue) as b:
         print np.asarray(b)
 
+    generate_sin(queue, a=a)
+    
 if __name__ == '__main__':
     main()
 

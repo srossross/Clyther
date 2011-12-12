@@ -205,6 +205,7 @@ class GenOpenCLExpr(Visitor):
     visitGt = simple_string('>')
     visitGtE = simple_string('>=')
     visitLtE = simple_string('<=')
+    visitEq = simple_string('==')
     
     
     def visitCAssignExpr(self, node):
@@ -222,7 +223,10 @@ class GenOpenCLExpr(Visitor):
         with self.no_indent:
             self.print('{0:node} {1:node}= {2:node}', node.target, node.op, node.value)
 
-        
+    def visitExec(self, node):
+            self.print('// Begin Exec Statement\n')
+            self.print('{0!s}\n', node.body.s)
+            self.print('// End exec Statement\n')
         
 class GenOpenCLSource(GenOpenCLExpr):
 
@@ -292,6 +296,39 @@ class GenOpenCLSource(GenOpenCLExpr):
                 
     def visitExpr(self, node):
         self.print('{0:node};\n', node.value)
+        
+    def visitIf(self, node):
+        
+        self.print('if ({0:node}) {{\n', node.test)
+        with self.indenter:
+            for statement in node.body:
+                self.visit(statement)
+        
+        self.print('}}')
+        
+        if not node.orelse:
+            self.print('\n')
+            
+        for orelse in node.orelse:
+            self.print(' else ')
+            if isinstance(orelse, ast.If):
+                self.visit(orelse)
+            else:
+                self.print('{{')
+                with self.indenter:
+                    self.visit(orelse)
+                self.print('}}\n')
+
+    def visitWhile(self, node):
+        
+        self.print('while ({0:node}) {{\n', node.test)
+        with self.indenter:
+            for statement in node.body:
+                self.visit(statement)
+        
+        self.print('}}\n')
+        
+            
         
         
 def opencl_source(node):

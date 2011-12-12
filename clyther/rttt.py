@@ -7,7 +7,7 @@ Created on Nov 29, 2011
 '''
 
 import ctypes
-from meta.asttools.visitors import Visitor, visit_children
+from meta.asttools.visitors import Visitor, visit_children, Mutator
 import ast
 from inspect import isroutine, isclass
 from meta.asttools.visitors.print_visitor import print_ast
@@ -15,6 +15,42 @@ from clast import cast
 import _ctypes
 import abc
 from opencl.type_formats import type_format, cdefn
+
+class cltype(object):
+    __metaclass__ = abc.ABCMeta
+    pass
+from opencl import contextual_memory
+
+cltype.register(contextual_memory)
+
+class RuntimeConstant(object):
+    def __init__(self, name, rtt):
+        self.name = name
+        self.rtt = rtt
+    
+    def ctype_string(self):
+        return self.name
+    
+class RuntimeType(cltype):
+    def __init__(self, name):
+        self.name = name
+    
+            
+    def __call__(self, name):
+        return RuntimeConstant(name, self)
+        
+    def ctype_string(self):
+        return self.name
+    
+class RuntimeFunction(cltype):
+    def __init__(self, name, return_type, *argtypes):
+        self.name = name
+        self.return_type = return_type
+        self.argtypes = argtypes
+        
+    def ctype_string(self):
+        return None
+
 
 int_ctypes = {ctypes.c_int, ctypes.c_int32, ctypes.c_int8, ctypes.c_int16, ctypes.c_int64, ctypes.c_long , ctypes.c_longlong,
               ctypes.c_size_t, ctypes.c_ssize_t,
@@ -111,20 +147,15 @@ type_map = {ctypes.c_float:'float',
             ctypes.c_longdouble:'long double',
             ctypes.c_short:'short',
             ctypes.c_ushort:'unsigned short',
-            ctypes.c_long:'long',
+            ctypes.c_long:'int',
             int:'long',
-            ctypes.c_ulong:'unsigned long',
+            ctypes.c_ulong:'unsigned int',
             ctypes.c_byte:'char',
             ctypes.c_longlong:'long long',
             ctypes.c_ulonglong:'unsigned long long',
             ctypes.c_ubyte:'unsigned char',
             }
 
-class cltype(object):
-    __metaclass__ = abc.ABCMeta
-    pass
-from opencl import global_memory
-cltype.register(global_memory)
 
 
 def str_type(ctype, defined_types):
@@ -142,7 +173,7 @@ def str_type(ctype, defined_types):
         format = type_format(ctype)
         return cdefn(format)
 
-class TypeReplacer(Visitor):
+class TypeReplacer(Mutator):
     '''
     Replace ctype with opencl type string. 
     '''
@@ -167,6 +198,12 @@ class TypeReplacer(Visitor):
             
         self.visitDefault(node)
         
+    def mutateDefault(self, node):
+        if isinstance(node, ast.expr):
+            if isinstance(node.ctype, RuntimeConstant):
+                return cast.CName(node.ctype.name, ast.Load(), node.ctype.rtt)
+        return Mutator.mutateDefault(self, node)
+                
     def visitDefault(self, node):
         if isinstance(node, ast.expr):
             if not isinstance(node.ctype, cast.CTypeName):
@@ -182,5 +219,8 @@ def replace_types(node):
         for statement in node.body:
             if isinstance(statement, cast.CStruct):
                 defined_types[statement.ctype] = statement.id
-    TypeReplacer(defined_types).visit(node)
+    
+    type_replacer = TypeReplacer(defined_types)
+    type_replacer.mutate(node)
+    type_replacer.visit(node)
     

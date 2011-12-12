@@ -5,6 +5,13 @@ Created on Nov 29, 2011
 '''
 import ast
 
+class CError(Exception):
+    def __init__(self, node, exc, msg):
+        self.exc = exc
+        self.node = node
+        self.msg = msg
+        Exception.__init__(self,  node, exc, msg)
+    
 class CTypeCast(ast.expr):
     _fields = 'value', 'ctype'
     
@@ -67,7 +74,7 @@ class CAssignExpr(ast.expr):
     
 class CAugAssignExpr(ast.expr):
     _fields = 'target', 'op', 'value', 'ctype'
-    
+
 #===============================================================================
 # 
 #===============================================================================

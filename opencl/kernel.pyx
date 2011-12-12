@@ -15,9 +15,12 @@ from opencl.copencl cimport CyProgram_Create
 
 CData = _ctypes._SimpleCData.__base__
 
-class global_memory(object):
+class contextual_memory(object):
+    
+    qualifier = None
+    
     def __init__(self, ctype=None, shape=None):
-        self.shape = shape
+        self.shape = tuple(shape) if shape else shape
         
         if ctype is None:
             self.format = ctype
@@ -30,11 +33,28 @@ class global_memory(object):
         else:
             self.ctype = ctype
             self.format = type_format(ctype)
+
+    def __eq__(self, other):
+        if not isinstance(other, type(self)):
+            return False
+        if not self.format == other.format:
+            return False
+        if not self.shape == other.shape:
+            return False
+        
+        return True
     
     @property
     def size(self):
         return ctypes.c_size_t
     
+    @property
+    def nbytes(self):
+        nbytes = ctypes.sizeof(self.ctype)
+        for item in self.shape:
+            nbytes *= item
+        return nbytes
+
     @property
     def array_info(self):
         return mem_layout
@@ -46,7 +66,7 @@ class global_memory(object):
         return ctypes.c_voidp(< size_t > buffer)
     
     def ctype_string(self):
-        return '__global %s' % (cdefn(refrence(self.format)))
+        return '%s %s' % (self.qualifier, cdefn(refrence(self.format)))
     
     def derefrence(self):
         return self.ctype
@@ -54,8 +74,56 @@ class global_memory(object):
     def from_param(self, arg):
         if not CyMemoryObject_Check(arg):
             raise TypeError("from_param expected a MemoryObject")
-        cdef void * ptr = CyMemoryObject_GetID(arg)
+        
+        cdef void * ptr
+        
+        if arg.context.devices[0].driver_version == '1.0': #FIXME this should be better #sub-buffer is not supported
+            base = arg.base
+            if CyMemoryObject_Check(base):
+                arg = base 
+
+        ptr = CyMemoryObject_GetID(arg)
         return ctypes.c_void_p(< size_t > ptr)
+    
+class global_memory(contextual_memory):
+    qualifier = '__global'
+    def __hash__(self):
+        return hash(('global_memory', self.format, self.shape))
+
+class constant_memory(contextual_memory):
+    qualifier = '__constant'
+    
+    def __hash__(self):
+        return hash(('local_memory', self.format, self.shape))
+    
+    @property
+    def local_strides(self):
+        return self.array_info(0, 0, 0, 0, 0, 0, 0, 0,)
+    
+class local_memory(contextual_memory):
+    qualifier = '__local'
+    
+    def __hash__(self):
+        return hash(('local_memory', self.format, self.shape))
+    
+    @property
+    def local_info(self):
+        ai = self.array_info(0, 0, 0, 0, 0, 0, 0, 0,)
+        ndim = len(self.shape)
+        ai[:ndim] = self.shape
+        
+        ai[3] = 1
+        for item in self.shape:
+            ai[3] *= item
+        
+        strides = [0, 0, 0, 0]
+        
+        strides[ndim] = 1
+        for i, j in enumerate(self.shape[1::-1]):
+            strides[ndim - 1 - i] = strides[ndim - i] * j 
+        
+        ai[4:] = strides
+        return ai
     
 set_kerne_arg_errors = {
     CL_INVALID_KERNEL : 'kernel is not a valid kernel object.',
@@ -225,15 +293,20 @@ cdef class Kernel:
         cdef void * arg_value
         cdef cl_mem mem_id
         for arg_index, (argtype, arg) in enumerate(zip(self._argtypes, arglist)):
-            carg = argtype.from_param(arg)
             
-            if not isinstance(carg, CData):
-                carg = argtype(arg)
+            if isinstance(arg, local_memory):
+                arg_size = arg.nbytes
+                arg_value = NULL
+            else:
+                carg = argtype.from_param(arg)
                 
-            arg_size = ctypes.sizeof(carg)
-            tmp = < size_t > ctypes.addressof(carg)
-            arg_value = < void *> tmp
-            
+                if not isinstance(carg, CData):
+                    carg = argtype(arg)
+                    
+                arg_size = ctypes.sizeof(carg)
+                tmp = < size_t > ctypes.addressof(carg)
+                arg_value = < void *> tmp
+                
             err_code = clSetKernelArg(self.kernel_id, arg_index, arg_size, arg_value)
             if err_code != CL_SUCCESS:
                 print arg_index, arg_size, arg
