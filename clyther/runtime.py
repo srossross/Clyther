@@ -5,13 +5,14 @@ Created on Dec 4, 2011
 '''
 
 import ctypes
+from ctypes import c_uint, c_int, c_float
 from clyther.rttt import RuntimeFunction, RuntimeType
 
-get_global_id = RuntimeFunction('get_global_id', ctypes.c_int, ctypes.c_int)
-get_group_id = RuntimeFunction('get_group_id', ctypes.c_int, ctypes.c_int)
-get_local_id = RuntimeFunction('get_local_id', ctypes.c_int, ctypes.c_int)
-get_num_groups = RuntimeFunction('get_num_groups', ctypes.c_int, ctypes.c_int)
-get_global_size = RuntimeFunction('get_global_size', ctypes.c_int, ctypes.c_int)
+get_global_id = RuntimeFunction('get_global_id', c_uint, c_uint)
+get_group_id = RuntimeFunction('get_group_id', c_uint, c_uint)
+get_local_id = RuntimeFunction('get_local_id', c_uint, c_uint)
+get_num_groups = RuntimeFunction('get_num_groups', c_uint, c_uint)
+get_global_size = RuntimeFunction('get_global_size', c_uint, c_uint)
 
 
 cl_mem_fence_flags = RuntimeType('cl_mem_fence_flags')

@@ -24,6 +24,8 @@ from clyther.clast.mutators.for_loops import format_for_loops
 from clyther.queue_record import QueueRecord, EventRecord
 from clyther.clast.mutators.printf import make_printf
 import ast
+from inspect import isfunction
+import ctypes
 
 class ClytherKernel(object):
     pass
@@ -31,11 +33,24 @@ class ClytherKernel(object):
 class CLComileError(Exception):
     pass
 
+def is_const(obj):
+    if isfunction(obj):
+        return True
+    else:
+        return False
+    
 def typeof(obj):
     if isinstance(obj, cl.MemoryObject):
         return global_memory(obj.format, obj.shape)
     elif isinstance(obj, cl.local_memory):
         return obj
+    elif isfunction(obj):
+        return obj
+    
+    elif isinstance(obj, int):
+        return ctypes.c_int
+    elif isinstance(obj, float):
+        return ctypes.c_float
     else:
         return type(obj)
     
@@ -51,6 +66,8 @@ class kernel(object):
         self.func = func
         self.__doc__ = self.func.__doc__ 
         self.global_work_size = None
+        self.local_work_size = None
+        self.global_work_offset = None
         self._cache = {}
         
         self._development_mode = False
@@ -96,6 +113,10 @@ class kernel(object):
         
         kernel_args = {}
         for name, arg  in zip(argnames, arglist):
+            
+            if is_const(arg):
+                continue
+            
             kernel_args[name] = arg
             if isinstance(arg, cl.DeviceMemoryView):
                 kernel_args['cly_%s_info' % name] = arg.array_info
@@ -134,6 +155,8 @@ class kernel(object):
         kernel = program.kernel(kernel_name)
         
         kernel.global_work_size = self.global_work_size
+        kernel.local_work_size = self.local_work_size
+        kernel.global_work_offset = self.global_work_offset
         kernel.argtypes = [arg[1] for arg in args]
         kernel.argnames = [arg[0] for arg in args]
         kernel.__defaults__ = defaults
@@ -158,9 +181,16 @@ def global_work_size(arg):
         func.global_work_size = arg
         return func
     return decorator
+
 def local_work_size(arg):
     def decorator(func):
         func.local_work_size = arg
+        return func
+    return decorator
+
+def global_work_offset(arg):
+    def decorator(func):
+        func.global_work_offset = arg
         return func
     return decorator
 
@@ -216,6 +246,8 @@ def create_kernel_source(function, argtypes):
     
     #replace python type objects with strings 
     replace_types(mod_ast)
+    
+#    mod_ast.body.insert(0, ast.Exec(cast.CStr('#pragma OPENCL EXTENSION cl_amd_printf : enable', str), None, None))
     
     #generate source
     return args, defaults, opencl_source(mod_ast), func_ast.name

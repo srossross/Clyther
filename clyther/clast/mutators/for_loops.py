@@ -9,6 +9,40 @@ from clyther.clast import cast
 from clyther.pybuiltins import cl_range
 import ctypes
 import ast
+from clyther.rttt import cList
+from meta.asttools.visitors.copy_tree import copy_node
+
+class ReplaceCNameMutator(Mutator):
+    def __init__(self, nameid, with_node):
+        self.nameid = nameid
+        self.with_node = with_node
+        
+    def mutateCName(self, node):
+        if node.id == self.nameid:
+            return copy_node(self.with_node)
+    
+def replace_cname(nodes, nameid, with_node):
+    
+    if not isinstance(nodes, (list, tuple)):
+        nodes = (nodes,)
+        
+    for node in nodes:
+        ReplaceCNameMutator(nameid, with_node).mutate(node)
+    
+class UnrollLoopMutator(Mutator):
+    def mutateFor(self, node):
+        if not isinstance(node.iter.ctype, cList):
+            return
+            
+        body_items = [cast.Comment("UnrollLoopMutator")]
+        for i, item in enumerate(node.iter.elts):
+            body_items.append(cast.Comment("UnrollLoopMutator loop: %i" % i))
+            body = [copy_node(stmnt) for stmnt in node.body] 
+            replace_cname(body, node.target.id, item)
+            body_items.extend(body)
+        
+        body_items.append(cast.Comment("UnrollLoopMutator End"))
+        return cast.CGroup(body_items)
 
 class ForLoopMutator(Mutator):
     def mutateFor(self, node):
@@ -43,5 +77,6 @@ class ForLoopMutator(Mutator):
 
 
 def format_for_loops(mod_ast):
+    UnrollLoopMutator().mutate(mod_ast)
     ForLoopMutator().mutate(mod_ast)
     return 

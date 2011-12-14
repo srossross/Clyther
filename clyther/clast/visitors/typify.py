@@ -7,7 +7,7 @@ from clyther.clast import cast
 from clyther.clast.cast import build_forward_dec, FuncPlaceHolder, n
 from clyther.clast.visitors.returns import returns
 from clyther.pybuiltins import builtin_map
-from clyther.rttt import greatest_common_type, cltype, RuntimeFunction
+from clyther.rttt import greatest_common_type, cltype, RuntimeFunction, cList
 from inspect import isroutine, isclass, ismodule
 from meta.asttools.visitors import Visitor
 from meta.asttools.visitors.print_visitor import print_ast
@@ -23,8 +23,6 @@ import re
 class CException(Exception): pass
 
 var_builtins = set(vars(builtins).values())
-
-
 
 
 def dict2hashable(dct):
@@ -176,7 +174,11 @@ class Typify(Visitor):
             
             if node.id in self.locls:
                 ectype = self.locls[node.id]
-                ctype = greatest_common_type(ctype, ectype)
+                try:
+                    greatest_common_type(ctype, ectype)
+                except: # Raise a custom exception if the types are not compatible
+                    raise
+                ctype = ectype
                 
             self.locls[node.id] = ctype
             
@@ -268,6 +270,7 @@ class Typify(Visitor):
     
     def visitAssign(self, node):
         value = self.visit(node.value)
+        
         tragets = list(self.visit_list(node.targets, value.ctype))
 
         assign = ast.Assign(tragets, value)
@@ -387,6 +390,20 @@ class Typify(Visitor):
     def visitExpr(self, node):
         value = self.visit(node.value)
         return ast.Expr(value) 
+    
+    def visitList(self, node):
+        elts = list(self.visit_list(node.elts))
+        
+        ltypes = [elt.ctype for elt in elts]
+        ctype = greatest_common_type(ltypes)
+        return cast.CList(elts, node.ctx, cList(ctype))
+    
+    
+    
+    
+#    def visitBoolOp(self, node):
+        #('op', 'values') 
+    
         
 def typify_function(argtypes, globls, node):
     typify = Typify(argtypes, globls)

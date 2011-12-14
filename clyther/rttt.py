@@ -23,6 +23,11 @@ from opencl import contextual_memory
 
 cltype.register(contextual_memory)
 
+class cList(cltype):
+    def __init__(self, ctype):
+        self.iter_type = ctype
+        
+
 class RuntimeConstant(object):
     def __init__(self, name, rtt):
         self.name = name

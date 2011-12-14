@@ -11,7 +11,7 @@ def complex_type_format(any_type):
 def type_format(any_type):
     if isclass(any_type):
         if issubclass(any_type, float):
-            return 'd'
+            return 'f'
         elif issubclass(any_type, int):
             return 'i'
         elif issubclass(any_type, _ctypes._SimpleCData):
@@ -90,6 +90,8 @@ struct_type_map = {
                    }
 
 def cdefn(simple_format):
+    if simple_format[0] in '<>!@':
+        return cdefn(simple_format[1:])
     if is_pointer(simple_format):
         return '%s*' % (cdefn(derefrence(simple_format)))
     else:

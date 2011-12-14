@@ -328,6 +328,17 @@ class GenOpenCLSource(GenOpenCLExpr):
         
         self.print('}}\n')
         
+    def visitComment(self, node):
+        
+        commentstr = node.s
+        if '\n' in commentstr:
+            assert False
+        else:
+            self.print('// {0!s}\n',commentstr)
+            
+    def visitCGroup(self, node):
+        for statement in node.body:
+            self.visit(statement)
             
         
         

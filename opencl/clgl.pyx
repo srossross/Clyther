@@ -77,7 +77,9 @@ def get_gl_image_format(image_format):
     raise Exception("opengl does not support this image %r" % (image_format)) 
 
 def get_cl_image_format(match):
+    '''
     
+    '''
     cdef cl_image_format image_format
     for gl_format, (channel_order, channel_data_type) in IMAGE_FORMAT_MAP:
         if gl_format == match:
@@ -96,10 +98,19 @@ def get_current_opengl_sharegroup():
     return < size_t > CGLGetShareGroup(< void *> CGLGetCurrentContext())
 
 def set_opengl_properties(context_properties):
-    context_properties.set_property("gl_sharegroup", < size_t > CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE,
-                                < size_t > get_current_opengl_sharegroup())
+    
+    cdef size_t shgrp = < size_t > get_current_opengl_sharegroup()
+    if shgrp == 0:
+        raise Exception("function `get_current_opengl_sharegroup` returned NULL. Did you create an openGL context yet?")
+    
+    context_properties.set_property("gl_sharegroup", < size_t > CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE, shgrp)
 
 def is_gl_object(memobject):
+    '''
+    is_gl_object(memobject) -> bool
+    
+    Check if `memobject` was created from an oengl buffer. 
+    '''
     if not CyMemoryObject_Check(memobject):
         raise TypeError("argument must be of type 'cl.MemoryObject'")
     
@@ -115,7 +126,11 @@ def is_gl_object(memobject):
     return True
     
 def get_gl_name(memobject):
+    '''
+    get_gl_name(memobject) -> GLuint
     
+    Get the vertex or texture buffer `memobject` was created with.  
+    '''
     if not CyMemoryObject_Check(memobject):
         raise TypeError("argument must be of type 'cl.MemoryObject'")
     
@@ -130,7 +145,11 @@ def get_gl_name(memobject):
     return gl_object_name
     
 def empty_gl_image(context, shape, image_format):
-
+    '''
+    empty_gl_image(context, shape, image_format) -> cl.Image
+    
+    Create an opencl image that is also a openGL texture. 
+    '''
     if len(shape) not in [2, 3]:
         raise TypeError("image must be 2 or 3 dimentional (got %i)" % (len(shape),))
         
@@ -183,7 +202,11 @@ def empty_gl_image(context, shape, image_format):
     return CyImage_New(image)
     
 def empty_gl(context, shape, ctype='B', gl_buffer=None):
+    '''
+    empty_gl(context, shape, ctype='B', gl_buffer=None) -> cl.DeviceMemoryView
     
+    Create an openCL buffer that is also an openGL buffer
+    '''
     if not CyContext_Check(context):
         raise TypeError("argument context must be an opencl.Context object")
     
@@ -362,6 +385,12 @@ def enqueue_release_gl_objects(queue, *mem_objects, wait_on=()):
 
 
 def context(props=None):
+    '''
+    cl.gl.context(props=None) -> cl.Context
+    
+    Create a valid context that can access openGL objects.
+    '''
+    
     if props is None:
         props = cl.ContextProperties()
         

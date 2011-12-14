@@ -1,9 +1,11 @@
 from opencl.errors import OpenCLException
 
-from _cl cimport *
+from _cl cimport * 
 from opencl.copencl cimport clPlatformFromPyPlatform, clPlatformAs_PyPlatform
 from opencl.copencl cimport CyDevice_GetID, DeviceIDAsPyDevice
 from libc.stdlib cimport malloc, free 
+
+from cpython cimport Py_INCREF 
 
 cdef class ContextProperties:
 
@@ -17,15 +19,15 @@ cdef class ContextProperties:
             cdef cl_platform_id platform_id = NULL
             
             if 'platform' in self.properties_dict:
-                plat = <size_t>self.properties_dict['platform'][1]
-                platform_id = <cl_platform_id> plat
-                return clPlatformAs_PyPlatform(<cl_platform_id>plat)
+                plat = < size_t > self.properties_dict['platform'][1]
+                platform_id = < cl_platform_id > plat
+                return clPlatformAs_PyPlatform(< cl_platform_id > plat)
             else:
                 return None
 
         def __set__(self, value):
             cdef cl_platform_id platform_id = clPlatformFromPyPlatform(value)
-            self.properties_dict['platform'] = (< size_t > CL_CONTEXT_PLATFORM, <size_t> platform_id)
+            self.properties_dict['platform'] = (< size_t > CL_CONTEXT_PLATFORM, < size_t > platform_id)
 
     def set_property(self, name, size_t property, size_t value):
         self.properties_dict['name'] = (property, value)
@@ -48,10 +50,10 @@ cdef class ContextProperties:
         cdef size_t value
         cdef int i
         for i, (property, value) in enumerate(self.properties_dict.values()):
-            props[i*2] = <cl_context_properties> property
-            props[i*2+1] = <cl_context_properties> value
+            props[i * 2] = < cl_context_properties > property
+            props[i * 2 + 1] = < cl_context_properties > value
 
-        props[nprops*2] = <cl_context_properties> NULL
+        props[nprops * 2] = < cl_context_properties > NULL
         
         return props
     
@@ -79,13 +81,41 @@ _context_errors = {
                    CL_OUT_OF_HOST_MEMORY :('There is a failure to allocate resources required by the ' 
                                            'OpenCL implementation on the host'),
                    }
+
+cdef void pfn_context_err_notify(char * errinfo, void * private_info, size_t cb, object user_data) with gil:
+
+    cdef str info = errinfo
+    cdef bytes pr_info = (<char*> private_info)[:cb]
+    
+    user_data(info, pr_info)
+
+def print_context_error(info, private_info):
+    print "OpenCL context error: %s" % (info)
+    
 cdef class Context:
+    '''
+    opencl.Context(devices=(), device_type=cl.Device.DEFAULT, ContextProperties properties=None, callback=print_context_error)
+    
+    
+    Creates an OpenCL context. An OpenCL context is created with one or more devices.  Contexts 
+    are used by the OpenCL runtime for managing objects such as command-queues, memory, 
+    program and kernel objects and for executing kernels on one or more devices specified in the 
+    context.
+    
+    :param devices: list of opencl devices
+    :param device_type: type of device to create context from. used only if `devices` is empty.  
+    :param properties: cl.ContextProperties object 
+    :param callback: This callback function 
+        will be used by the OpenCL implementation to report  information on errors that occur in this 
+        context. the function signature must be callback(str, bytes)
+    
+    '''
     cdef cl_context context_id
     
     def __cinit__(self):
         self.context_id = NULL
         
-    def __init__(self, devices=(), device_type=CL_DEVICE_TYPE_DEFAULT, ContextProperties properties=None):
+    def __init__(self, devices=(), device_type=CL_DEVICE_TYPE_DEFAULT, ContextProperties properties=None, callback=print_context_error):
         
         cdef cl_context_properties * props = NULL
         
@@ -96,14 +126,22 @@ cdef class Context:
         cdef cl_int err_code
         cdef cl_uint num_devices
         cdef cl_device_id * _devices = NULL
-
+        
+        cdef void * pfn_notify = NULL
+        cdef void * user_data = NULL
+        
+        if callback is not None:
+            pfn_notify = < void *> &pfn_context_err_notify
+            Py_INCREF(callback) 
+            user_data = < void *> callback  
+            
         if devices:
             num_devices = len(devices)
             _devices = < cl_device_id *> malloc(num_devices * sizeof(cl_device_id))
             for i in range(num_devices): 
                 _devices[i] = CyDevice_GetID(devices[i])
                  
-            self.context_id = clCreateContext(props, num_devices, _devices, NULL, NULL, & err_code)
+            self.context_id = clCreateContext(props, num_devices, _devices, pfn_notify, user_data, & err_code)
             
             if _devices != NULL:
                 free(_devices)
@@ -112,7 +150,7 @@ cdef class Context:
                 raise OpenCLException(err_code, _context_errors)
         else:
             dtype = < cl_device_type > device_type
-            self.context_id = clCreateContextFromType(props, dtype, NULL, NULL, & err_code)
+            self.context_id = clCreateContextFromType(props, dtype, pfn_notify, user_data, & err_code)
     
             if err_code != CL_SUCCESS:
                 raise OpenCLException(err_code, _context_errors)
@@ -141,7 +179,7 @@ cdef class Context:
             
             cdef cl_int err_code
             cdef cl_uint num_devices
-            err_code = clGetContextInfo (self.context_id, CL_CONTEXT_NUM_DEVICES, sizeof(cl_uint), &num_devices, NULL)
+            err_code = clGetContextInfo (self.context_id, CL_CONTEXT_NUM_DEVICES, sizeof(cl_uint), & num_devices, NULL)
             
             if err_code != CL_SUCCESS:
                 raise OpenCLException(err_code)
@@ -157,7 +195,7 @@ cdef class Context:
     
             _devices = < cl_device_id *> malloc(num_devices * sizeof(cl_device_id))
     
-            err_code = clGetContextInfo(self.context_id, CL_CONTEXT_DEVICES, num_devices*sizeof(cl_device_id), _devices, NULL)
+            err_code = clGetContextInfo(self.context_id, CL_CONTEXT_DEVICES, num_devices * sizeof(cl_device_id), _devices, NULL)
     
             if err_code != CL_SUCCESS:
                 free(_devices)
@@ -174,7 +212,7 @@ cdef class Context:
             return devices
     
     def __hash__(self):
-        return <size_t> self.context_id
+        return < size_t > self.context_id
 
     def __richcmp__(Context self, other, op):
         

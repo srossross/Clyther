@@ -15,6 +15,12 @@ class CError(Exception):
 class CTypeCast(ast.expr):
     _fields = 'value', 'ctype'
     
+class Comment(ast.AST):
+    _fields = 's',
+    
+class CGroup(ast.AST):
+    _fields = 'body',
+    
 class CTypeName(ast.AST):
     _fields = 'typename',
 
@@ -74,6 +80,9 @@ class CAssignExpr(ast.expr):
     
 class CAugAssignExpr(ast.expr):
     _fields = 'target', 'op', 'value', 'ctype'
+
+class CList(ast.List):
+    _fields = 'elts', 'ctx', 'ctype'
 
 #===============================================================================
 # 

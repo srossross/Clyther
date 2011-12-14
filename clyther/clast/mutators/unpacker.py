@@ -48,18 +48,24 @@ class Unpacker(Mutator):
                 i += 1
             i += 1
     
+    def _mutate_index_dim(self, gid, ctype, node, axis=0):
+        info = cast.CName('cly_%s_info' % gid, ast.Load(), ctype.array_info)
+        right = cast.CAttribute(info, 's%s' %hex(axis+4)[2:], ast.Load(), derefrence(ctype.array_info))
+        index = cast.CBinOp(node.value, ast.Mult(), right, node.value.ctype) #FIXME: cast type
+        return index
+    
     def _mutate_index(self, gid, ctype, node):
-        
-        if isinstance(node.value, cast.CName):
-            
-            info = cast.CName('cly_%s_info' % gid, ast.Load(), ctype.array_info)
-            right = cast.CAttribute(info, 's4', ast.Load(), derefrence(ctype.array_info))
-            index = cast.CBinOp(node.value, ast.Mult(), right, node.value.ctype) #FIXME: cast type
-        else:
-            raise cast.CError(node, NotImplementedError, "I will get to nd indexing later")
         
         info = cast.CName('cly_%s_info' % gid, ast.Load(), ctype.array_info)
         left = cast.CAttribute(info, 's7', ast.Load(), derefrence(ctype.array_info))
+        
+        if isinstance(node.value, ast.Tuple):
+            for elt in node.value.elts:
+                index = self._mutate_index_dim(gid, ctype, elt, 0)
+                left = cast.CBinOp(left, ast.Add(), index, node.value.ctype) #FIXME: cast type
+        else:
+            index = self._mutate_index_dim(gid, ctype, node, 0)
+        
         offset = cast.CBinOp(left, ast.Add(), index, node.value.ctype) #FIXME: cast type
         return offset
     

@@ -393,9 +393,9 @@ cdef extern from "OpenCL/cl.h":
 
     cl_int clGetDeviceInfo(cl_device_id, cl_device_info, size_t, void *, size_t *)
 
-    cl_context clCreateContext(cl_context_properties *, cl_uint, cl_device_id *, void (*pfn_notify)(char *, void *, size_t, void *), void *, cl_int *)
+    cl_context clCreateContext(cl_context_properties *, cl_uint, cl_device_id *, void*, void *, cl_int *)
 
-    cl_context clCreateContextFromType(cl_context_properties *, cl_device_type, void (*pfn_notify)(char *, void *, size_t, void *), void *, cl_int *)
+    cl_context clCreateContextFromType(cl_context_properties *, cl_device_type, void *, void *, cl_int *)
 
     cl_int clRetainContext(cl_context)
 

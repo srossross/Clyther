@@ -6,7 +6,7 @@ from opencl.type_formats import type_format, size_from_format, ctype_from_format
 from opencl.errors import OpenCLException
 
 from libc.stdlib cimport malloc, free 
-from libc.string cimport strcpy 
+from libc.string cimport strcpy, memcpy
  
 from cpython cimport PyObject, Py_DECREF, Py_INCREF, PyBuffer_IsContiguous, PyBuffer_FillContiguousStrides
 from cpython cimport Py_buffer, PyBUF_SIMPLE, PyBUF_STRIDES, PyBUF_ND, PyBUF_FORMAT, PyBUF_INDIRECT, PyBUF_WRITABLE
@@ -262,6 +262,11 @@ cdef class DeviceMemoryView(MemoryObject):
         if not CyContext_Check(context):
             raise TypeError("argument 'context' must be a valid opencl.Context object")
         
+        if isinstance(host, int):
+            host = ctypes.c_int(host)
+        elif isinstance(host, float):
+            host = ctypes.c_float(host)
+            
         cdef cl_context ctx = CyContext_GetID(context)
          
         cdef Py_buffer view
@@ -282,15 +287,15 @@ cdef class DeviceMemoryView(MemoryObject):
         elif writeable:
             mem_flags |= CL_MEM_WRITE_ONLY
         else:
-            raise Exception("at least one of arguments 'readable' or 'writeable' must be true")
+            raise Exception("at least one of arguments 'readable' or 'writable' must be true")
         
         cdef cl_int err_code
         cdef char * tmp
         if not PyObject_CheckBuffer(host):
-            raise Exception("argument host must support the buffer protocal (got %r)" % host)
+            raise Exception("argument host must support the buffer protocol (got %r)" % host)
         
         if PyObject_GetBuffer(host, & view, py_flags) < 0:
-            raise Exception("argument host must support the buffer protocal (got %r)" % host)
+            raise Exception("argument host must support the buffer protocol (got %r)" % host)
             
         if PyBuffer_IsContiguous(& view, 'C'):
             
@@ -468,14 +473,73 @@ cdef class DeviceMemoryView(MemoryObject):
         
         return dest
     
+    def __float__(self):
+        ctype = self.item()
+        return float(ctype.value)
+    
+    def __int__(self):
+        ctype = self.item()
+        return int(ctype.value)
+     
+    def item(self, queue=None):
+        
+        if self.size != 1:
+            raise ValueError('can only convert an array  of size 1 to a Python scalar')
+        if queue is None:
+            import opencl
+            queue = opencl.Queue(self.context)
+        
+        out = self.ctype()
+        self.read(queue, out, blocking=True)
+        
+        return out
+    
+    property ctype:
+        def __get__(self):
+            return ctype_from_format(self.format)
+        
+        
     def read(self, queue, out, wait_on=(), blocking=False):
         queue.enqueue_read_buffer(self, out, 0, self.nbytes, wait_on, blocking_read=blocking)
 
     def write(self, queue, buf, wait_on=(), blocking=False):
+        '''
+        view.write(queue, buf, wait_on=(), blocking=False)
+        
+        Write data to the device.
+        '''
         queue.enqueue_write_buffer(self, buf, 0, self.nbytes, wait_on, blocking_read=blocking)
-            
+           
     def __releasebuffer__(self, Py_buffer * view):
         pass
+    
+    @classmethod
+    def _view_as_this(cls, obj):
+        if not isinstance(obj, DeviceMemoryView):
+            raise TypeError('can not create a new memory view from obj %r' % obj)
+            
+        cdef Py_buffer orig_buffer
+        CyView_GetBuffer(obj, & orig_buffer)
+        cdef Py_buffer * buffer = < Py_buffer *> malloc(sizeof(Py_buffer))
+        memcpy(buffer, & orig_buffer, sizeof(Py_buffer))
+        
+        cdef cl_mem buffer_id = CyMemoryObject_GetID(obj)
+        
+        cdef char * format = buffer.format
+        cdef Py_ssize_t * shape = buffer.shape
+        cdef Py_ssize_t * strides = buffer.strides
+        
+        buffer.shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
+        buffer.strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * buffer.ndim)
+        buffer.suboffsets = NULL
+        
+        strcpy(buffer.format, format)
+        
+        for i in range(buffer.ndim):
+            buffer.shape[i] = shape[i]
+            buffer.strides[i] = strides[i]
+        
+        return CyView_CreateSubclass(cls, buffer_id, buffer, 1) 
 
 def empty(context, shape, ctype='B'):
     
@@ -973,6 +1037,53 @@ cdef class ImageMap:
     def __releasebuffer__(self, Py_buffer * view):
         pass
 
+def broadcast(DeviceMemoryView view, shape):
+    if not isinstance(view, DeviceMemoryView):
+        raise TypeError("argument 'view' must be a valid opencl.DeviceMemoryView object")
+    
+    cdef DeviceMemoryView clview = < DeviceMemoryView > view
+    
+    cdef Py_buffer * result_buffer = < Py_buffer *> malloc(sizeof(Py_buffer))
+    cdef Py_buffer buffer
+    
+    CyView_GetBuffer(clview, & buffer)
+    cdef cl_mem memobj = CyMemoryObject_GetID(clview)
+    
+    cdef size_t ndim = len(shape)
+    
+    if ndim < buffer.ndim:
+        raise TypeError("ndim of arguement shape must be >= view.ndim")
+    
+    cdef size_t noff = ndim - buffer.ndim
+    
+    for i in range(buffer.ndim):
+        if  buffer.shape[i] > 1:
+            if shape[noff + i] != buffer.shape[i]:
+                raise TypeError("Can not broadcast dim %i from %i to %i" % (i, buffer.shape[i], shape[noff + i]))
+                
+    
+    result_buffer.ndim = ndim
+    result_buffer.itemsize = buffer.itemsize
+    
+    result_buffer.format = < char *> malloc(len(buffer.format) + 1)
+    strcpy(result_buffer.format, buffer.format)
+    
+    result_buffer.shape = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * ndim)
+    result_buffer.strides = < Py_ssize_t *> malloc(sizeof(Py_ssize_t) * ndim)
+    
+    result_buffer.internal = NULL
+    result_buffer.suboffsets = NULL
+    
+    for i in range(ndim):
+        result_buffer.shape[i] = shape[i]
+        result_buffer.strides[i] = 0
+    
+    for i in range(buffer.ndim):
+        if  buffer.shape[i] > 1:
+            result_buffer.strides[noff + i] = buffer.strides[i] 
+        
+    return CyView_Create(memobj, result_buffer, 1)
+    
 def empty_image(context, shape, image_format):
     
     if not CyContext_Check(context):
@@ -1049,6 +1160,16 @@ cdef api int CyView_GetBuffer(object view, Py_buffer * buffer):
     
 cdef api object CyView_Create(cl_mem buffer_id, Py_buffer * buffer, int incref):
     cdef DeviceMemoryView dview = < DeviceMemoryView > DeviceMemoryView.__new__(DeviceMemoryView)
+    if incref:
+        clRetainMemObject(buffer_id)
+        
+    dview.buffer_id = buffer_id
+    dview.buffer = buffer
+    
+    return dview
+
+cdef api object CyView_CreateSubclass(object cls, cl_mem buffer_id, Py_buffer * buffer, int incref):
+    cdef DeviceMemoryView dview = < DeviceMemoryView > cls.__new__(cls)
     if incref:
         clRetainMemObject(buffer_id)
         
@@ -1135,4 +1256,5 @@ cdef api object CyImage_New(cl_mem buffer_id):
     
     image.buffer = buffer
     return image
+
 

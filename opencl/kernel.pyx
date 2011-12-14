@@ -13,6 +13,7 @@ from opencl.cl_mem cimport CyMemoryObject_GetID, CyMemoryObject_Check
 from opencl.cl_mem import mem_layout
 from opencl.copencl cimport CyProgram_Create
 
+from cpython cimport PyBuffer_FillContiguousStrides
 CData = _ctypes._SimpleCData.__base__
 
 class contextual_memory(object):
@@ -109,20 +110,24 @@ class local_memory(contextual_memory):
     @property
     def local_info(self):
         ai = self.array_info(0, 0, 0, 0, 0, 0, 0, 0,)
-        ndim = len(self.shape)
-        ai[:ndim] = self.shape
+        
+        cdef size_t ndim = len(self.shape)
+        
+        cdef Py_ssize_t shape[4]
+        cdef Py_ssize_t strides[4]
         
         ai[3] = 1
-        for item in self.shape:
-            ai[3] *= item
+        for i, item in enumerate(self.shape):
+            shape[i] = item
+            ai[i] = item
+            ai[3] = ai[3] * item
         
-        strides = [0, 0, 0, 0]
+        PyBuffer_FillContiguousStrides(ndim, shape, strides, 1, 'C')        
         
-        strides[ndim] = 1
-        for i, j in enumerate(self.shape[1::-1]):
-            strides[ndim - 1 - i] = strides[ndim - i] * j 
         
-        ai[4:] = strides
+        for i in range(ndim):
+            ai[4 + i] = strides[i]
+            
         return ai
     
 set_kerne_arg_errors = {
@@ -297,6 +302,7 @@ cdef class Kernel:
             if isinstance(arg, local_memory):
                 arg_size = arg.nbytes
                 arg_value = NULL
+                
             else:
                 carg = argtype.from_param(arg)
                 
@@ -309,7 +315,6 @@ cdef class Kernel:
                 
             err_code = clSetKernelArg(self.kernel_id, arg_index, arg_size, arg_value)
             if err_code != CL_SUCCESS:
-                print arg_index, arg_size, arg
                 raise OpenCLException(err_code, set_kerne_arg_errors)
             
         return arglist
@@ -337,7 +342,7 @@ cdef class Kernel:
                 local_work_size = call_with_used_args(self.local_work_size, self.argnames, arglist)
             else:
                 local_work_size = self.local_work_size
-        
+
         return queue.enqueue_nd_range_kernel(self, len(global_work_size), global_work_size, global_work_offset, local_work_size, wait_on)
     
 #===============================================================================

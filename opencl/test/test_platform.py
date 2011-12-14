@@ -11,6 +11,7 @@ import opencl as cl
 
 import unittest
 import ctypes
+from ctypes import c_int, c_float, sizeof
 import numpy as np
 import gc
 import time
@@ -365,6 +366,15 @@ class TestBuffer(unittest.TestCase):
         self.assertEqual(layout[:4], [4, 0, 0, 4]) #shape
         self.assertEqual(layout[4:], [1, 0, 0, 0]) #strides
         
+    def test_local_memory(self):
+        a = np.array([[1, 2], [3, 4]])
+        view_a = memoryview(a)
+        clmem = DeviceMemoryView.from_host(ctx, a)
+        
+        self.assertEqual(clmem.format, view_a.format)
+        self.assertEqual(clmem.shape, view_a.shape)
+        self.assertEqual(clmem.strides, view_a.strides)
+        
     def test_from_host(self):
         a = np.array([[1, 2], [3, 4]])
         view_a = memoryview(a)
@@ -694,7 +704,45 @@ class TestBuffer(unittest.TestCase):
                 expected = a[idx0, idx1]
                 self.assertTrue(np.all(expected == b))
 
+    def test_broadcast_0D(self):
         
+        with self.assertRaises(TypeError):
+            cl.broadcast(None, [1])
+            
+        one = cl.from_host(ctx, c_int(1))
+        
+        a = cl.broadcast(one, [10, 10])
+        self.assertEqual(a.shape, (10, 10))
+        self.assertEqual(a.strides, (0, 0))
+        
+        queue = cl.Queue(ctx)
+        with a.map(queue) as view:
+            b = np.asarray(view)
+            self.assertEqual(b.shape, (10, 10))
+            self.assertEqual(b.strides, (0, 0))
+
+    def test_broadcast_2D(self):
+        
+        with self.assertRaises(TypeError):
+            cl.broadcast(None, [1])
+            
+        npa = np.arange(10, dtype=c_float)
+        z = np.zeros([10, 1])
+        
+        ten = cl.from_host(ctx, npa)
+        
+        a = cl.broadcast(ten, [10, 10])
+        self.assertEqual(a.shape, (10, 10))
+        self.assertEqual(a.strides, (0, sizeof(c_float)))
+        
+        queue = cl.Queue(ctx)
+        with a.map(queue) as view:
+            b = np.asarray(view)
+            self.assertEqual(b.shape, (10, 10))
+            self.assertEqual(b.strides, (0, sizeof(c_float)))
+            self.assertTrue(np.all(b == z + npa))
+            
+            
 class TestImage(unittest.TestCase):
     def test_supported_formats(self):
         image_format = cl.ImageFormat.supported_formats(ctx)[0]
