@@ -26,6 +26,7 @@ from clyther.clast.mutators.printf import make_printf
 import ast
 from inspect import isfunction
 import ctypes
+from tempfile import mktemp
 
 class ClytherKernel(object):
     pass
@@ -96,16 +97,7 @@ class kernel(object):
         cache_key = tuple(sorted(kwarg_types.viewitems(), key=lambda item:item[0]))
         
         if cache_key not in cache or self._no_cache:
-            try:
-                cl_kernel = self.compile(queue.context, **kwarg_types)
-            except cast.CError as error:
-                if self._development_mode: raise
-                
-                redirect = ast.parse('raise error.exc(error.msg)')
-                redirect.body[0].lineno = error.node.lineno
-                filename = self.func.func_code.co_filename
-                redirect_error_to_function = compile(redirect, filename, 'exec')
-                eval(redirect_error_to_function) #use the @cly.developer function decorator to turn this off and see stack trace ...
+            cl_kernel = self.compile(queue.context, **kwarg_types)
             
             cache[cache_key] = cl_kernel
 
@@ -132,12 +124,24 @@ class kernel(object):
         return event
     
     def compile(self, ctx, source_only=False, **kwargs):
-        args, defaults, source, kernel_name = create_kernel_source(self.func, kwargs)
+        
+        try:
+            args, defaults, source, kernel_name = create_kernel_source(self.func, kwargs)
+        except cast.CError as error:
+            if self._development_mode: raise
+            
+            redirect = ast.parse('raise error.exc(error.msg)')
+            redirect.body[0].lineno = error.node.lineno
+            filename = self.func.func_code.co_filename
+            redirect_error_to_function = compile(redirect, filename, 'exec')
+            eval(redirect_error_to_function) #use the @cly.developer function decorator to turn this off and see stack trace ...
         
         if source_only:
             return source
         
-        program = cl.Program(ctx, source)
+
+        tmpfile = mktemp('.cl', 'clyther_')
+        program = cl.Program(ctx, ('#line 1 "%s"\n' % (tmpfile)) + source)
         
         try:
             program.build()
@@ -146,6 +150,9 @@ class kernel(object):
             for device, log in program.logs.items():
                 log_lines.append(repr(device))
                 log_lines.append(log)
+            
+            with open(tmpfile, 'w') as fp:
+                fp.write(source)
                 
             raise CLComileError('\n'.join(log_lines))
         

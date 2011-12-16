@@ -115,7 +115,7 @@ cdef class Context:
     def __cinit__(self):
         self.context_id = NULL
         
-    def __init__(self, devices=(), device_type=CL_DEVICE_TYPE_DEFAULT, ContextProperties properties=None, callback=print_context_error):
+    def __init__(self, devices=(), device_type=CL_DEVICE_TYPE_DEFAULT, ContextProperties properties=None, callback=None):
         
         cdef cl_context_properties * props = NULL
         

@@ -4,13 +4,12 @@ Created on Dec 12, 2011
 @author: sean
 '''
 import clyther as cly
-from clyther.array.ufuncs import binary_ufunc, ufunc_kernel 
-from clyther.array.blitz import blitz 
+import  clyther.array as ca 
 import opencl as cl
 from ctypes import c_float
 import numpy as np
 
-@binary_ufunc
+@ca.binary_ufunc
 def add(a, b): 
     return a + b
 
@@ -20,41 +19,39 @@ def main():
     queue = cl.Queue(ctx)
     
     npa = np.arange(1.0 * 12.0, dtype=c_float)
+    a = ca.arange(ctx, 12, ctype=c_float)
     
-    a = cl.from_host(ctx, npa)
+    out = ca.empty_like(a[:])
+    output = cl.broadcast(out, a[:].shape)
     
-    l = lambda: a[1:] + a[:-1] + 1
-    
-    out = cly.empty_like(a[:-1])
-    blitz(queue, lambda: a[1:] + a[:-1] + 1, out=out)
+    ca.blitz(queue, lambda: a[:] + a[:] + 1, out=output)
     
     print npa[1:] + npa[:-1]
     
-    with out.map(queue) as view:
-        print np.asarray(view)
-    #Broadcasting rules
-    
-    
+    with out.map() as view:
+        print view
     
 def main_ufunc():
     
     ctx = cl.Context(device_type=cl.Device.GPU)
     queue = cl.Queue(ctx)
     
-    npa = np.arange(1.0 * 12.0, dtype=c_float)
-    
-    a = cl.from_host(ctx, npa)
+    a = ca.arange(ctx, 12, ctype=c_float)
+#    npa = np.arange(1.0 * 12.0, dtype=c_float)
+#    
+#    a = cl.from_host(ctx, npa)
     
     #Broadcasting rules
-    o1 = add(queue, a[::2], 3)
+    o1 = add(a[::2], 3)
     
-    with o1.map(queue) as view:
-        print np.asarray(view)
+    with o1.map() as view:
+        print view
 
-    result = add.reduce(queue, a)
+    result = add.reduce(a)
+    
     queue.finish()
     
     print float(result)
     
 if __name__ == '__main__':
-    main_ufunc()
+    main()

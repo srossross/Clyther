@@ -12,7 +12,7 @@ import clyther as cly
 import clyther.runtime as clrt
 import opencl as cl
 
-from clyther.array.ufuncs import broadcast_shapes
+from clyther.array.utils import broadcast_shapes
 
 n = lambda node: {'lineno':node.lineno, 'col_offset': node.col_offset}
 
@@ -111,7 +111,8 @@ def blitz(queue, func, out=None):
     
     for key, var in args.items():
         args[key] = cl.broadcast(var, shape)
-
+        
+    print "out, **args", out, args
     blitz_kernel(queue, blitzed_func, out, **args)
     
 #    print blitzed_func()

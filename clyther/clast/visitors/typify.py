@@ -7,7 +7,8 @@ from clyther.clast import cast
 from clyther.clast.cast import build_forward_dec, FuncPlaceHolder, n
 from clyther.clast.visitors.returns import returns
 from clyther.pybuiltins import builtin_map
-from clyther.rttt import greatest_common_type, cltype, RuntimeFunction, cList
+from clyther.rttt import greatest_common_type, cltype, RuntimeFunction, cList, \
+    is_vetor_type, derefrence
 from inspect import isroutine, isclass, ismodule
 from meta.asttools.visitors import Visitor
 from meta.asttools.visitors.print_visitor import print_ast
@@ -24,6 +25,8 @@ class CException(Exception): pass
 
 var_builtins = set(vars(builtins).values())
 
+class CLAttributeError(AttributeError):
+    pass
 
 def dict2hashable(dct):
     return tuple(sorted(dct.items(), key=lambda item:item[0]))
@@ -33,11 +36,6 @@ def is_slice(slice):
         return False
     else:
         raise NotImplementedError(slice)
-
-vector_len = re.compile('^\((\d)\)([f|i|d|l|L])$')
-
-def is_vetor_type(ctype):
-    return vector_len.match(type_format(ctype)) is not None
 
 def getattrtype(ctype, attr):
     if isclass(ctype) and issubclass(ctype, _ctypes.Structure):
@@ -50,18 +48,8 @@ def getattrtype(ctype, attr):
         return derefrence(ctype)
 #        raise NotImplementedError("is_vetor_type", ctype, attr, derefrence(ctype))
     else:
-        raise NotImplementedError("getattrtype", ctype, attr)
+        raise CLAttributeError("type %r has no attribute %r" % (ctype, attr))
     
-def derefrence(ctype):
-    
-    if isinstance(ctype, cltype):
-        return ctype.derefrence()
-    elif is_vetor_type(ctype):
-        return ctype._type_
-    elif isclass(ctype) and issubclass(ctype, _ctypes._Pointer):
-        return ctype._type_
-    else:
-        raise NotImplementedError(slice)
 
 class Typify(Visitor):
     def __init__(self, argtypes, globls):
@@ -257,7 +245,8 @@ class Typify(Visitor):
             
             if isinstance(func_name.ctype, RuntimeFunction):
                 rt = func_name.ctype
-                func = rt.return_type
+                argtypes = [arg.ctype for arg in args]
+                func = rt.return_type(argtypes)
                 func_name = cast.CName(rt.name, ast.Load(), rt)
             else:
                 pass
@@ -310,7 +299,10 @@ class Typify(Visitor):
         
         value = self.visit(node.value)
         
-        attr_type = getattrtype(value.ctype, node.attr)
+        try:
+            attr_type = getattrtype(value.ctype, node.attr)
+        except CLAttributeError as err:
+            raise cast.CError(node, CLAttributeError, err.args[0])
         
         if isinstance(node.ctx, ast.Store):
             pass

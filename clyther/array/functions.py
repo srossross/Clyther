@@ -10,7 +10,24 @@ import opencl as cl
 from opencl.type_formats import ctype_from_format
 from ctypes import c_int, c_float
 
-from clyther.array import CLArray
+from clyther.array.clarray import CLArray
+from clyther.array.utils import broadcast_shape
+
+@cly.global_work_size(lambda arr, *_: [arr.size])
+@cly.kernel
+def setslice_kernel(arr, value):
+    i = clrt.get_global_id(0)
+    arr[i] = value[i]
+
+
+def setslice(arr, value):
+    
+    if not isinstance(value, cl.DeviceMemoryView):
+        value = cl.from_host(arr.context, value)
+        
+    value = cl.broadcast(value, arr.shape)
+    
+    return setslice_kernel(arr.queue, arr, value)
 
 def asarray(other, ctx, queue=None, copy=True):
     
@@ -22,11 +39,16 @@ def asarray(other, ctx, queue=None, copy=True):
     
     return array
 
-def empty(context, shape, ctype):
-    out = cl.empty(context, shape, 'f')
-    array = CLArray._view_as_this(out)
-    array.__array_init__()
+def empty(context, shape, ctype='f', cls=CLArray, queue=None):
+    out = cl.empty(context, shape, ctype)
+    array = cls._view_as_this(out)
+    array.__array_init__(queue)
     return array
+
+def empty_like(A):
+    return empty(A.context, A.shape, A.format, cls=type(A), queue=A.queue)
+    
+
 
 @cly.global_work_size(lambda a, *_: [a.size])
 @cly.kernel
@@ -56,43 +78,36 @@ def arange(ctx, *args, **kwargs):
     size = int(math.ceil((stop - start) / float(step)))
     
     ctype = kwargs.get('ctype', 'f')
-    empty = cl.empty(ctx, [size], ctype=ctype)
-    print empty.ctype
     
     queue = kwargs.get('queue', None)
     if queue is None:
         queue = cl.Queue(ctx) 
 
-    print "start, step", start, step
-    _arange(queue, empty, start, step)
+    arr = empty(ctx, [size], ctype=ctype, queue=queue)
     
-    print _arange._cache.values()[0].values()[0].program.source
+    _arange(queue, arr, start, step)
     
-    queue.finish()
-    
-    return empty
-    
-    
+    return arr
+
 @cly.global_work_size(lambda a, *_: [a.size])
 @cly.kernel
-def _ones(a):
+def _linspace(a, start, stop):
     i = clrt.get_global_id(0)
-    a[i] = 1 
-
-def ones(ctx, shape, ctype='f', queue=None):
-    empty = cl.empty(ctx, shape, ctype)
-    _ones_kernel = _ones.compile(ctx, a=cl.global_memory(empty.format))
+    gsize = clrt.get_global_size(0)
+    a[i] = i * (stop - start) / gsize 
+ 
+def linspace(ctx, start, stop, num=50, ctype='f', queue=None):
+    '''
     
-    if queue is None: queue = cl.Queue(ctx) 
-
-    _ones_kernel(queue, empty, empty.array_info)
+    '''
     
-    queue.barrier()
-    
-    return empty
+    if queue is None:
+        queue = cl.Queue(ctx) 
 
-def empty_like(A):
-    return cl.empty(A.context, A.shape, A.format)
+    arr = empty(ctx, [num], ctype=ctype, queue=queue)
+    _linspace(queue, arr, float(start), float(stop))
+    
+    return arr
     
     
     
@@ -100,7 +115,7 @@ def main():
     
     import opencl as cl
     ctx = cl.Context(device_type=cl.Device.GPU)
-    a = cly.arange(ctx, 10.0)
+    a = arange(ctx, 10.0)
 
 if __name__ == '__main__':
     main()

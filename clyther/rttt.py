@@ -9,12 +9,13 @@ Created on Nov 29, 2011
 import ctypes
 from meta.asttools.visitors import Visitor, visit_children, Mutator
 import ast
-from inspect import isroutine, isclass
+from inspect import isroutine, isclass, isfunction
 from meta.asttools.visitors.print_visitor import print_ast
 from clast import cast
 import _ctypes
 import abc
 from opencl.type_formats import type_format, cdefn
+import re
 
 class cltype(object):
     __metaclass__ = abc.ABCMeta
@@ -47,12 +48,22 @@ class RuntimeType(cltype):
     def ctype_string(self):
         return self.name
     
+class gentype(object):
+    def __init__(self, *types):
+        self.types = types
+        
 class RuntimeFunction(cltype):
     def __init__(self, name, return_type, *argtypes):
         self.name = name
-        self.return_type = return_type
+        self._return_type = return_type
         self.argtypes = argtypes
         
+    def return_type(self, argtypes):
+        if isfunction(self._return_type):
+            return self._return_type(*argtypes)
+        else:
+            return self._return_type
+            
     def ctype_string(self):
         return None
 
@@ -90,20 +101,50 @@ def greatest_common_type(*args):
         return args[0]
     else:
         return reduce(_greatest_common_type, args)
+  
+vector_len = re.compile('^\((\d)\)([f|i|d|l|L])$')
+
+def is_vetor_type(ctype):
+    return vector_len.match(type_format(ctype)) is not None
+
+def derefrence(ctype):
     
+    if isinstance(ctype, cltype):
+        return ctype.derefrence()
+    elif is_vetor_type(ctype):
+        return ctype._type_
+    elif isclass(ctype) and issubclass(ctype, _ctypes._Pointer):
+        return ctype._type_
+    else:
+        raise NotImplementedError(slice)
+
+
 def _greatest_common_type(left, right):
     
     if left == int:
-        left = ctypes.c_long
+        left = ctypes.c_int32
     elif left == float:
-        left = ctypes.c_double
+        left = ctypes.c_float
     if right == int:
-        right = ctypes.c_long
+        right = ctypes.c_int32
     elif right == float:
-        right = ctypes.c_double
-        
+        right = ctypes.c_float
+    
     if left == right:
         return left
+    
+    if issubclass(left, _ctypes.Array):
+        if not isinstance(right, _ctypes.Array):
+            return left
+        else:
+            raise TypeError("type conversion for vector logic is not implemented yet")
+    elif issubclass(right, _ctypes.Array):
+        if not isinstance(left, _ctypes.Array):
+            return right
+        else:
+            raise TypeError("type conversion for vector logic is not implemented yet")
+        
+    
     elif same_group(left, right):
         return max(left, right, key=lambda ctype:ctypes.sizeof(ctype))
     else:

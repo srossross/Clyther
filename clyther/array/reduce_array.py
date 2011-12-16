@@ -1,5 +1,5 @@
 '''
-Created on Dec 11, 2011
+Created on Dec 15, 2011
 
 @author: sean
 '''
@@ -54,41 +54,26 @@ def cl_reduce(function, output, input, shared, group_size, initial=0.0):
             
     if lid == 0:
         output[gid] = shared[0]
-        
+
 def reduce(queue, function, input, initial=0.0):
+    '''
+    reduce(queue, function, sequence[, initial]) -> value
     
+    Apply a function of two arguments cumulatively to the items of a sequence,
+    from left to right, so as to reduce the sequence to a single value.
+    For example, reduce(lambda x, y: x+y, [1, 2, 3, 4, 5]) calculates
+    ((((1+2)+3)+4)+5).  If initial is present, it is placed before the items
+    of the sequence in the calculation, and serves as a default when the
+    sequence is empty.
+
+    '''
+
     size = input.size
     shared = cl.local_memory(input.format, [size])
     output = cl.empty(queue.context, [1], input.format)
     
     group_size = size // 2
     
-    cl_reduce(queue, function, output, input , shared, group_size=group_size)
+    cl_reduce(queue, function, output, input , shared, group_size, initial)
     
     return output
-    
-def main():
-    
-    ctx = cl.Context(device_type=cl.Device.GPU)
-    
-    queue = cl.Queue(ctx)
-    
-    size = 8
-    
-    host_init = np.arange(size, dtype=c_float)
-    device_input = cl.DeviceMemoryView.from_host(ctx, host_init)
-    
-    shared = cl.local_memory(c_float, [size])
-    
-    output = reduce(queue, lambda a, b: a + b, device_input)
-    
-    print "host_init", host_init
-    
-    print "host sum",host_init.sum()
-    
-    with output.map(queue) as view:
-        print "device sum", np.asarray(view).item()
-
-
-if __name__ == '__main__':
-    main()
