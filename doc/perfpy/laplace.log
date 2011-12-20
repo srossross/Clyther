@@ -1,0 +1,11 @@
+Doing 100 iterations on a 1000x1000 grid
+numeric took 6.11 seconds
+blitz took 4.73 seconds
+inline took 4.03 seconds
+fastinline took 3.55 seconds
+fortran77 took 3.55 seconds
+fortran90-arrays took 1.64 seconds
+fortran95-forall took 1.66 seconds
+slow (1 iteration) took 9.18 seconds
+100 iterations should take about 918.000000 seconds
+You don't have Psyco installed!

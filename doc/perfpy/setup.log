@@ -1,0 +1,229 @@
+running build
+running config_cc
+unifing config_cc, config, build_clib, build_ext, build commands --compiler options
+running config_fc
+unifing config_fc, config, build_clib, build_ext, build commands --fcompiler options
+running build_src
+building extension "flaplace" sources
+f2py options: []
+f2py:> /tmp/tmpKurbwz/src.linux-x86_64-2.6/flaplacemodule.c
+creating /tmp/tmpKurbwz
+creating /tmp/tmpKurbwz/src.linux-x86_64-2.6
+Reading fortran codes...
+	Reading file 'src/flaplace.f' (format:fix,strict)
+Post-processing...
+	Block: flaplace
+			Block: timestep
+Post-processing (stage 2)...
+Building modules...
+	Building module "flaplace"...
+		Constructing wrapper function "timestep"...
+		  u,error = timestep(u,dx,dy)
+	Wrote C/API module "flaplace" to file "/tmp/tmpKurbwz/src.linux-x86_64-2.6/flaplacemodule.c"
+  adding '/tmp/tmpKurbwz/src.linux-x86_64-2.6/fortranobject.c' to sources.
+  adding '/tmp/tmpKurbwz/src.linux-x86_64-2.6' to include_dirs.
+copying /usr/lib64/python2.6/site-packages/numpy/f2py/src/fortranobject.c -> /tmp/tmpKurbwz/src.linux-x86_64-2.6
+copying /usr/lib64/python2.6/site-packages/numpy/f2py/src/fortranobject.h -> /tmp/tmpKurbwz/src.linux-x86_64-2.6
+running build_ext
+customize UnixCCompiler
+customize UnixCCompiler using build_ext
+customize GnuFCompiler
+Could not locate executable g77
+Could not locate executable f77
+customize IntelFCompiler
+Could not locate executable ifort
+Could not locate executable ifc
+customize LaheyFCompiler
+Could not locate executable lf95
+customize PGroupFCompiler
+Could not locate executable pgf90
+Could not locate executable pgf77
+customize AbsoftFCompiler
+Could not locate executable f90
+customize NAGFCompiler
+Could not locate executable f95
+customize VastFCompiler
+customize GnuFCompiler
+customize CompaqFCompiler
+Could not locate executable fort
+customize IntelItaniumFCompiler
+Could not locate executable efort
+Could not locate executable efc
+customize IntelEM64TFCompiler
+customize Gnu95FCompiler
+Found executable /usr/bin/gfortran
+customize Gnu95FCompiler
+customize Gnu95FCompiler using build_ext
+building 'flaplace' extension
+compiling C sources
+C compiler: gcc -pthread -fno-strict-aliasing -DNDEBUG -fmessage-length=0 -O2 -Wall -D_FORTIFY_SOURCE=2 -fstack-protector -funwind-tables -fasynchronous-unwind-tables -g -fwrapv -fPIC
+
+creating /tmp/tmpKurbwz/tmp
+creating /tmp/tmpKurbwz/tmp/tmpKurbwz
+creating /tmp/tmpKurbwz/tmp/tmpKurbwz/src.linux-x86_64-2.6
+compile options: '-I/tmp/tmpKurbwz/src.linux-x86_64-2.6 -I/usr/lib64/python2.6/site-packages/numpy/core/include -I/usr/include/python2.6 -c'
+gcc: /tmp/tmpKurbwz/src.linux-x86_64-2.6/fortranobject.c
+gcc: /tmp/tmpKurbwz/src.linux-x86_64-2.6/flaplacemodule.c
+compiling Fortran sources
+Fortran f77 compiler: /usr/bin/gfortran -Wall -ffixed-form -fno-second-underscore -fPIC -O3 -funroll-loops
+Fortran f90 compiler: /usr/bin/gfortran -Wall -fno-second-underscore -fPIC -O3 -funroll-loops
+Fortran fix compiler: /usr/bin/gfortran -Wall -ffixed-form -fno-second-underscore -Wall -fno-second-underscore -fPIC -O3 -funroll-loops
+creating /tmp/tmpKurbwz/src
+compile options: '-I/tmp/tmpKurbwz/src.linux-x86_64-2.6 -I/usr/lib64/python2.6/site-packages/numpy/core/include -I/usr/include/python2.6 -c'
+gfortran:f77: src/flaplace.f
+/usr/bin/gfortran -Wall -Wall -shared /tmp/tmpKurbwz/tmp/tmpKurbwz/src.linux-x86_64-2.6/flaplacemodule.o /tmp/tmpKurbwz/tmp/tmpKurbwz/src.linux-x86_64-2.6/fortranobject.o /tmp/tmpKurbwz/src/flaplace.o -L/usr/lib64 -lpython2.6 -lgfortran -o ./flaplace.so
+running scons
+Removing build directory /tmp/tmpKurbwz
+running build
+running config_cc
+unifing config_cc, config, build_clib, build_ext, build commands --compiler options
+running config_fc
+unifing config_fc, config, build_clib, build_ext, build commands --fcompiler options
+running build_src
+building extension "flaplace90_arrays" sources
+f2py options: []
+f2py:> /tmp/tmpdxKfB1/src.linux-x86_64-2.6/flaplace90_arraysmodule.c
+creating /tmp/tmpdxKfB1
+creating /tmp/tmpdxKfB1/src.linux-x86_64-2.6
+Reading fortran codes...
+	Reading file 'src/flaplace90_arrays.f90' (format:free)
+Post-processing...
+	Block: flaplace90_arrays
+			Block: timestep
+Post-processing (stage 2)...
+Building modules...
+	Building module "flaplace90_arrays"...
+		Constructing wrapper function "timestep"...
+		  u,error = timestep(u,dx,dy)
+	Wrote C/API module "flaplace90_arrays" to file "/tmp/tmpdxKfB1/src.linux-x86_64-2.6/flaplace90_arraysmodule.c"
+  adding '/tmp/tmpdxKfB1/src.linux-x86_64-2.6/fortranobject.c' to sources.
+  adding '/tmp/tmpdxKfB1/src.linux-x86_64-2.6' to include_dirs.
+copying /usr/lib64/python2.6/site-packages/numpy/f2py/src/fortranobject.c -> /tmp/tmpdxKfB1/src.linux-x86_64-2.6
+copying /usr/lib64/python2.6/site-packages/numpy/f2py/src/fortranobject.h -> /tmp/tmpdxKfB1/src.linux-x86_64-2.6
+running build_ext
+customize UnixCCompiler
+customize UnixCCompiler using build_ext
+customize GnuFCompiler
+Could not locate executable g77
+Could not locate executable f77
+customize IntelFCompiler
+Could not locate executable ifort
+Could not locate executable ifc
+customize LaheyFCompiler
+Could not locate executable lf95
+customize PGroupFCompiler
+Could not locate executable pgf90
+Could not locate executable pgf77
+customize AbsoftFCompiler
+Could not locate executable f90
+customize NAGFCompiler
+Could not locate executable f95
+customize VastFCompiler
+customize GnuFCompiler
+customize CompaqFCompiler
+Could not locate executable fort
+customize IntelItaniumFCompiler
+Could not locate executable efort
+Could not locate executable efc
+customize IntelEM64TFCompiler
+customize Gnu95FCompiler
+Found executable /usr/bin/gfortran
+customize Gnu95FCompiler
+customize Gnu95FCompiler using build_ext
+building 'flaplace90_arrays' extension
+compiling C sources
+C compiler: gcc -pthread -fno-strict-aliasing -DNDEBUG -fmessage-length=0 -O2 -Wall -D_FORTIFY_SOURCE=2 -fstack-protector -funwind-tables -fasynchronous-unwind-tables -g -fwrapv -fPIC
+
+creating /tmp/tmpdxKfB1/tmp
+creating /tmp/tmpdxKfB1/tmp/tmpdxKfB1
+creating /tmp/tmpdxKfB1/tmp/tmpdxKfB1/src.linux-x86_64-2.6
+compile options: '-I/tmp/tmpdxKfB1/src.linux-x86_64-2.6 -I/usr/lib64/python2.6/site-packages/numpy/core/include -I/usr/include/python2.6 -c'
+gcc: /tmp/tmpdxKfB1/src.linux-x86_64-2.6/fortranobject.c
+gcc: /tmp/tmpdxKfB1/src.linux-x86_64-2.6/flaplace90_arraysmodule.c
+compiling Fortran sources
+Fortran f77 compiler: /usr/bin/gfortran -Wall -ffixed-form -fno-second-underscore -fPIC -O3 -funroll-loops
+Fortran f90 compiler: /usr/bin/gfortran -Wall -fno-second-underscore -fPIC -O3 -funroll-loops
+Fortran fix compiler: /usr/bin/gfortran -Wall -ffixed-form -fno-second-underscore -Wall -fno-second-underscore -fPIC -O3 -funroll-loops
+creating /tmp/tmpdxKfB1/src
+compile options: '-I/tmp/tmpdxKfB1/src.linux-x86_64-2.6 -I/usr/lib64/python2.6/site-packages/numpy/core/include -I/usr/include/python2.6 -c'
+gfortran:f90: src/flaplace90_arrays.f90
+/usr/bin/gfortran -Wall -Wall -shared /tmp/tmpdxKfB1/tmp/tmpdxKfB1/src.linux-x86_64-2.6/flaplace90_arraysmodule.o /tmp/tmpdxKfB1/tmp/tmpdxKfB1/src.linux-x86_64-2.6/fortranobject.o /tmp/tmpdxKfB1/src/flaplace90_arrays.o -L/usr/lib64 -lpython2.6 -lgfortran -o ./flaplace90_arrays.so
+running scons
+Removing build directory /tmp/tmpdxKfB1
+running build
+running config_cc
+unifing config_cc, config, build_clib, build_ext, build commands --compiler options
+running config_fc
+unifing config_fc, config, build_clib, build_ext, build commands --fcompiler options
+running build_src
+building extension "flaplace95_forall" sources
+f2py options: []
+f2py:> /tmp/tmpLcFpVt/src.linux-x86_64-2.6/flaplace95_forallmodule.c
+creating /tmp/tmpLcFpVt
+creating /tmp/tmpLcFpVt/src.linux-x86_64-2.6
+Reading fortran codes...
+	Reading file 'src/flaplace95_forall.f95' (format:free)
+Post-processing...
+	Block: flaplace95_forall
+			Block: timestep
+Post-processing (stage 2)...
+Building modules...
+	Building module "flaplace95_forall"...
+		Constructing wrapper function "timestep"...
+		  u,error = timestep(u,dx,dy)
+	Wrote C/API module "flaplace95_forall" to file "/tmp/tmpLcFpVt/src.linux-x86_64-2.6/flaplace95_forallmodule.c"
+  adding '/tmp/tmpLcFpVt/src.linux-x86_64-2.6/fortranobject.c' to sources.
+  adding '/tmp/tmpLcFpVt/src.linux-x86_64-2.6' to include_dirs.
+copying /usr/lib64/python2.6/site-packages/numpy/f2py/src/fortranobject.c -> /tmp/tmpLcFpVt/src.linux-x86_64-2.6
+copying /usr/lib64/python2.6/site-packages/numpy/f2py/src/fortranobject.h -> /tmp/tmpLcFpVt/src.linux-x86_64-2.6
+running build_ext
+customize UnixCCompiler
+customize UnixCCompiler using build_ext
+customize GnuFCompiler
+Could not locate executable g77
+Could not locate executable f77
+customize IntelFCompiler
+Could not locate executable ifort
+Could not locate executable ifc
+customize LaheyFCompiler
+Could not locate executable lf95
+customize PGroupFCompiler
+Could not locate executable pgf90
+Could not locate executable pgf77
+customize AbsoftFCompiler
+Could not locate executable f90
+customize NAGFCompiler
+Could not locate executable f95
+customize VastFCompiler
+customize GnuFCompiler
+customize CompaqFCompiler
+Could not locate executable fort
+customize IntelItaniumFCompiler
+Could not locate executable efort
+Could not locate executable efc
+customize IntelEM64TFCompiler
+customize Gnu95FCompiler
+Found executable /usr/bin/gfortran
+customize Gnu95FCompiler
+customize Gnu95FCompiler using build_ext
+building 'flaplace95_forall' extension
+compiling C sources
+C compiler: gcc -pthread -fno-strict-aliasing -DNDEBUG -fmessage-length=0 -O2 -Wall -D_FORTIFY_SOURCE=2 -fstack-protector -funwind-tables -fasynchronous-unwind-tables -g -fwrapv -fPIC
+
+creating /tmp/tmpLcFpVt/tmp
+creating /tmp/tmpLcFpVt/tmp/tmpLcFpVt
+creating /tmp/tmpLcFpVt/tmp/tmpLcFpVt/src.linux-x86_64-2.6
+compile options: '-I/tmp/tmpLcFpVt/src.linux-x86_64-2.6 -I/usr/lib64/python2.6/site-packages/numpy/core/include -I/usr/include/python2.6 -c'
+gcc: /tmp/tmpLcFpVt/src.linux-x86_64-2.6/fortranobject.c
+gcc: /tmp/tmpLcFpVt/src.linux-x86_64-2.6/flaplace95_forallmodule.c
+compiling Fortran sources
+Fortran f77 compiler: /usr/bin/gfortran -Wall -ffixed-form -fno-second-underscore -fPIC -O3 -funroll-loops
+Fortran f90 compiler: /usr/bin/gfortran -Wall -fno-second-underscore -fPIC -O3 -funroll-loops
+Fortran fix compiler: /usr/bin/gfortran -Wall -ffixed-form -fno-second-underscore -Wall -fno-second-underscore -fPIC -O3 -funroll-loops
+creating /tmp/tmpLcFpVt/src
+compile options: '-I/tmp/tmpLcFpVt/src.linux-x86_64-2.6 -I/usr/lib64/python2.6/site-packages/numpy/core/include -I/usr/include/python2.6 -c'
+gfortran:f90: src/flaplace95_forall.f95
+/usr/bin/gfortran -Wall -Wall -shared /tmp/tmpLcFpVt/tmp/tmpLcFpVt/src.linux-x86_64-2.6/flaplace95_forallmodule.o /tmp/tmpLcFpVt/tmp/tmpLcFpVt/src.linux-x86_64-2.6/fortranobject.o /tmp/tmpLcFpVt/src/flaplace95_forall.o -L/usr/lib64 -lpython2.6 -lgfortran -o ./flaplace95_forall.so
+running scons
+Removing build directory /tmp/tmpLcFpVt
+running build_ext
