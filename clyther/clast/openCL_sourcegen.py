@@ -171,6 +171,19 @@ class GenOpenCLExpr(Visitor):
     def visitCTypeCast(self, node):
         with self.no_indent:
             self.print('(({0:node}) ({1:node}))', node.ctype, node.value)
+            
+    def visitCVectorTypeCast(self, node):
+        with self.no_indent:
+            self.print('(({0:node}) (', node.ctype)
+            
+            
+            self.print('({0:node})', node.values[0])
+            
+            for value in node.values[1:]:
+                self.print(', ({0:node})', value)
+                
+            self.print('))', node.ctype)
+#            self.print('(({0:node}) ({1:node}))', node.ctype)
     
     def visitclkernel(self, node):
         with self.no_indent:
@@ -224,9 +237,21 @@ class GenOpenCLExpr(Visitor):
             self.print('{0:node} {1:node}= {2:node}', node.target, node.op, node.value)
 
     def visitExec(self, node):
-            self.print('// Begin Exec Statement\n')
-            self.print('{0!s}\n', node.body.s)
-            self.print('// End exec Statement\n')
+        self.print('// Begin Exec Statement\n')
+        self.print('{0!s}\n', node.body.s)
+        self.print('// End exec Statement\n')
+            
+    def visitCBoolOp(self, node):
+        with self.no_indent:
+            self.print('(')
+            self.print('{0:node}', node.values[0])
+            for value in node.values[1:]:
+                self.print(' {0:node} {1:node}', node.op, value)
+            self.print(')')
+            
+    visitAnd = simple_string('&&')
+    visitOr = simple_string('||')
+            
         
 class GenOpenCLSource(GenOpenCLExpr):
 
@@ -334,7 +359,7 @@ class GenOpenCLSource(GenOpenCLExpr):
         if '\n' in commentstr:
             assert False
         else:
-            self.print('// {0!s}\n',commentstr)
+            self.print('// {0!s}\n', commentstr)
             
     def visitCGroup(self, node):
         for statement in node.body:

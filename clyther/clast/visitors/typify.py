@@ -20,6 +20,7 @@ import _ctypes
 import ast
 import ctypes
 import re
+from ctypes import c_ubyte
 
 class CException(Exception): pass
 
@@ -70,7 +71,6 @@ class Typify(Visitor):
         return new_node
     
     def make_cfunction(self, node):
-        
         
         if isinstance(node, ast.FunctionDef) and node.decorator_list:
             raise CException()
@@ -148,15 +148,20 @@ class Typify(Visitor):
         elif key in dir(builtins):
             return getattr(builtins, key)
         else:
-            raise KeyError() 
+            raise NameError("name %r is not defined" % (key,)) 
         
     def visitName(self, node, ctype=None):
         if isinstance(node.ctx, ast.Param):
             ctype = self.argtypes[node.id]
             return cast.CName(node.id, ast.Param(), ctype, **n(node))
         elif isinstance(node.ctx, ast.Load):
-            ctype = self.scope(node.id)
+            try:
+                ctype = self.scope(node.id)
+            except NameError as err:
+                raise cast.CError(node, NameError, err.args[0])
+                
             return cast.CName(node.id, ast.Load(), ctype, **n(node))
+        
         elif isinstance(node.ctx, ast.Store):
             assert type is not None
             
@@ -390,11 +395,15 @@ class Typify(Visitor):
         ctype = greatest_common_type(ltypes)
         return cast.CList(elts, node.ctx, cList(ctype))
     
-    
-    
-    
-#    def visitBoolOp(self, node):
-        #('op', 'values') 
+    def visitBoolOp(self, node):
+        #('op', 'values')
+        print node.op, node.values
+        
+        values = list(self.visit_list(node.values))
+        
+        return cast.CBoolOp(node.op, values, c_ubyte) 
+     
+        
     
         
 def typify_function(argtypes, globls, node):

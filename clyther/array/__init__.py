@@ -10,3 +10,5 @@ from clarray import CLArray
 
 from clyther.array.reduce_array import reduce
 
+from clyther.array.array_context import CLArrayContext
+

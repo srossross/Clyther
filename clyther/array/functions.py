@@ -12,6 +12,7 @@ from ctypes import c_int, c_float
 
 from clyther.array.clarray import CLArray
 from clyther.array.utils import broadcast_shape
+from clyther.array.array_context import CLArrayContext as ArrayContext
 
 @cly.global_work_size(lambda arr, *_: [arr.size])
 @cly.kernel
@@ -29,7 +30,8 @@ def setslice(arr, value):
     
     return setslice_kernel(arr.queue, arr, value)
 
-def asarray(other, ctx, queue=None, copy=True):
+@ArrayContext.method
+def asarray(ctx, other, queue=None, copy=True):
     
     if not isinstance(other, cl.DeviceMemoryView):
         other = cl.from_host(ctx, other, copy=copy)
@@ -39,16 +41,17 @@ def asarray(other, ctx, queue=None, copy=True):
     
     return array
 
+@ArrayContext.method
 def empty(context, shape, ctype='f', cls=CLArray, queue=None):
     out = cl.empty(context, shape, ctype)
     array = cls._view_as_this(out)
     array.__array_init__(queue)
     return array
 
+@ArrayContext.func
 def empty_like(A):
     return empty(A.context, A.shape, A.format, cls=type(A), queue=A.queue)
     
-
 
 @cly.global_work_size(lambda a, *_: [a.size])
 @cly.kernel
@@ -56,6 +59,7 @@ def _arange(a, start, step):
     i = clrt.get_global_id(0)
     a[i] = start + step * i 
  
+@ArrayContext.method
 def arange(ctx, *args, **kwargs):
     '''
     
@@ -96,6 +100,7 @@ def _linspace(a, start, stop):
     gsize = clrt.get_global_size(0)
     a[i] = i * (stop - start) / gsize 
  
+@ArrayContext.method
 def linspace(ctx, start, stop, num=50, ctype='f', queue=None):
     '''
     

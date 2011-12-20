@@ -18,9 +18,12 @@ class PrintFMutator(Mutator):
         
         str_formats = []
         for val in node.values:
-            cfmt = type_format(val.ctype)
-            fmt = STR_FORMAT_MAP[cfmt]
-            str_formats.append(fmt)
+            if val.ctype == str:
+                str_formats.append('%s')
+            else:
+                cfmt = type_format(val.ctype)
+                fmt = STR_FORMAT_MAP[cfmt]
+                str_formats.append(fmt)
         if node.nl: 
             str_formats.append('\\n')
             

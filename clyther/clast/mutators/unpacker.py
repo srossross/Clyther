@@ -12,6 +12,7 @@ from clyther.types import ulong4
 import ast
 import ctypes
 from clyther.clast.visitors.typify import derefrence
+import opencl as cl
 
 class Unpacker(Mutator):
     visitDefault = visit_children
@@ -30,8 +31,9 @@ class Unpacker(Mutator):
                 node.args.insert(i + 1, new_arg)
                 i += 1
             i += 1
+            
+        self.visitDefault(node)
 
-    
     def visitarguments(self, node):
 #        for i in range(len(node.args)):
         i = 0
@@ -47,10 +49,21 @@ class Unpacker(Mutator):
                 node.args.insert(i + 1, new_arg)
                 i += 1
             i += 1
+            
+    def visitCSubscript(self, node):
+        if isinstance(node.value.ctype, contextual_memory):
+            if isinstance(node.slice, ast.Index):
+                if not node.value.ctype.flat:
+                    node.slice = self._mutate_index(node.value.id, node.value.ctype, node.slice)
+            else:
+                raise cast.CError(node, NotImplementedError, "I will get to slicing later")
+            
+        self.visitDefault(node)
+
     
     def _mutate_index_dim(self, gid, ctype, node, axis=0):
         info = cast.CName('cly_%s_info' % gid, ast.Load(), ctype.array_info)
-        right = cast.CAttribute(info, 's%s' %hex(axis+4)[2:], ast.Load(), derefrence(ctype.array_info))
+        right = cast.CAttribute(info, 's%s' % hex(axis + 4)[2:], ast.Load(), derefrence(ctype.array_info))
         index = cast.CBinOp(node.value, ast.Mult(), right, node.value.ctype) #FIXME: cast type
         return index
     
@@ -69,13 +82,6 @@ class Unpacker(Mutator):
         offset = cast.CBinOp(left, ast.Add(), index, node.value.ctype) #FIXME: cast type
         return offset
     
-    def visitCSubscript(self, node):
-        if isinstance(node.value.ctype, contextual_memory):
-            if isinstance(node.slice, ast.Index):
-                node.slice = self._mutate_index(node.value.id, node.value.ctype, node.slice)
-            else:
-                raise cast.CError(node, NotImplementedError, "I will get to slicing later")
-        
     def mutateCAttribute(self, node):
         if isinstance(node.value.ctype, contextual_memory):
             if node.attr == 'size':
@@ -86,6 +92,32 @@ class Unpacker(Mutator):
                 ctype = ctypes.c_ulong
                 slc = ast.Index(value=cast.CNum(3, ctypes.c_int))
                 return cast.CSubscript(node.value, slc, ctx, ctype)
+
+            if node.attr == 'offset':
+                array_name = node.value.id
+                node.value.id = 'cly_%s_info' % array_name
+                node.value.ctype = node.value.ctype.array_info
+                ctx = ast.Load()
+                ctype = ctypes.c_ulong
+                slc = ast.Index(value=cast.CNum(7, ctypes.c_int))
+                return cast.CSubscript(node.value, slc, ctx, ctype)
+            
+            elif node.attr == 'strides':
+                array_name = node.value.id
+                node.value.id = 'cly_%s_info' % array_name
+                node.value.ctype = node.value.ctype.array_info
+                
+                ctx = ast.Load()
+                ctype = cl.cl_uint4
+                return cast.CAttribute(node.value, 's4567', ctx, ctype)
+            
+            elif node.attr == 'shape':
+                array_name = node.value.id
+                node.value.id = 'cly_%s_info' % array_name
+                node.value.ctype = node.value.ctype.array_info
+                ctx = ast.Load()
+                ctype = cl.cl_uint4
+                return cast.CAttribute(node.value, 's0123', ctx, ctype)
             else:
                 raise AttributeError(node.attr)
                 

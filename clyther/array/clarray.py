@@ -53,7 +53,11 @@ class CLArray(cl.DeviceMemoryView):
     def map(self):
         with cl.DeviceMemoryView.map(self, self.queue) as view:
             yield np.asarray(view)
-            
+    
+    def item(self):
+        self.queue.finish()
+        return cl.DeviceMemoryView.item(self)
+    
     def __getitem__(self, item):
         view = cl.DeviceMemoryView.__getitem__(self, item)
         array = self._view_as_this(view)
@@ -64,3 +68,12 @@ class CLArray(cl.DeviceMemoryView):
         from clyther.array.functions import setslice
         setslice(self[item], value)
     
+    def reshape(self, shape):
+        
+        view = cl.DeviceMemoryView.reshape(self, shape)
+
+        array = self._view_as_this(view)
+        array.__array_init__(self.queue)
+        return array
+        
+        

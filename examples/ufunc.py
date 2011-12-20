@@ -31,27 +31,47 @@ def main():
     with out.map() as view:
         print view
     
+def main_reduce():
+    ctx = cl.Context(device_type=cl.Device.GPU)
+    
+    sum = add.reduce
+    
+#    for size in range(250, 258):
+    size = 1027
+        
+    a = ca.arange(ctx, size, ctype=c_float)
+    
+    result = sum(a)
+    
+    with a.map() as view:
+        print size, view.sum(), result.item()
+    
+    
 def main_ufunc():
     
     ctx = cl.Context(device_type=cl.Device.GPU)
-    queue = cl.Queue(ctx)
     
-    a = ca.arange(ctx, 12, ctype=c_float)
-#    npa = np.arange(1.0 * 12.0, dtype=c_float)
-#    
-#    a = cl.from_host(ctx, npa)
-    
-    #Broadcasting rules
-    o1 = add(a[::2], 3)
+    size = 10
+    a = ca.arange(ctx, size, ctype=c_float)
+    b = ca.arange(ctx, size, ctype=c_float).reshape([size, 1])
+
+    o1 = add(a, b)
     
     with o1.map() as view:
         print view
 
+    with a.map() as view:
+        print np.sum(view)
+
     result = add.reduce(a)
     
-    queue.finish()
+    result.queue.finish()
     
-    print float(result)
+    with a.map() as view:
+        print view
+        print view.sum()
+        
+    print result.item()
     
 if __name__ == '__main__':
-    main()
+    main_reduce()

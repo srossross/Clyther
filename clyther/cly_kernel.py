@@ -86,22 +86,19 @@ class kernel(object):
     
     def __call__(self, queue, *args, **kwargs):
         
-        cache = self._cache.setdefault(queue.context, {})
-        
         argnames = self.func.func_code.co_varnames[:self.func.func_code.co_argcount]
         defaults = self.func.func_defaults
-        arglist = cl.kernel.parse_args(self.func.__name__, args, kwargs, argnames, defaults)
+        
+        kwargs_ = kwargs.copy()
+        kwargs_.pop('global_work_size', None)
+        kwargs_.pop('global_work_offset', None)
+        kwargs_.pop('local_work_size', None)
+        
+        arglist = cl.kernel.parse_args(self.func.__name__, args, kwargs_, argnames, defaults)
         
         kwarg_types = {argnames[i]:typeof(arglist[i]) for i in range(len(argnames))}
         
-        cache_key = tuple(sorted(kwarg_types.viewitems(), key=lambda item:item[0]))
-        
-        if cache_key not in cache or self._no_cache:
-            cl_kernel = self.compile(queue.context, **kwarg_types)
-            
-            cache[cache_key] = cl_kernel
-
-        cl_kernel = cache[cache_key] 
+        cl_kernel = self.compile(queue.context, **kwarg_types)
         
         kernel_args = {}
         for name, arg  in zip(argnames, arglist):
@@ -124,6 +121,19 @@ class kernel(object):
         return event
     
     def compile(self, ctx, source_only=False, **kwargs):
+        cache = self._cache.setdefault(ctx, {})
+        
+        cache_key = tuple(sorted(kwargs.viewitems(), key=lambda item:item[0]))
+        
+        if cache_key not in cache or self._no_cache:
+            cl_kernel = self._compile(ctx, source_only=source_only, **kwargs)
+            
+            cache[cache_key] = cl_kernel
+
+        return cache[cache_key] 
+
+    
+    def _compile(self, ctx, source_only=False, **kwargs):
         
         try:
             args, defaults, source, kernel_name = create_kernel_source(self.func, kwargs)
@@ -138,7 +148,6 @@ class kernel(object):
         
         if source_only:
             return source
-        
 
         tmpfile = mktemp('.cl', 'clyther_')
         program = cl.Program(ctx, ('#line 1 "%s"\n' % (tmpfile)) + source)

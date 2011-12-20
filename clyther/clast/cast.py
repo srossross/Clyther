@@ -15,6 +15,9 @@ class CError(Exception):
 class CTypeCast(ast.expr):
     _fields = 'value', 'ctype'
     
+class CVectorTypeCast(ast.expr):
+    _fields = 'values', 'ctype'
+    
 class Comment(ast.AST):
     _fields = 's',
     
@@ -84,6 +87,10 @@ class CAugAssignExpr(ast.expr):
 class CList(ast.List):
     _fields = 'elts', 'ctx', 'ctype'
 
+
+class CBoolOp(ast.BoolOp):
+    _fields = 'op', 'values', 'ctype'
+
 #===============================================================================
 # 
 #===============================================================================
@@ -106,5 +113,6 @@ def build_forward_dec(func_def):
 
 
     
+
 
 
