@@ -24,9 +24,12 @@ from clyther.clast.mutators.for_loops import format_for_loops
 from clyther.queue_record import QueueRecord, EventRecord
 from clyther.clast.mutators.printf import make_printf
 import ast
-from inspect import isfunction
+from inspect import isfunction, isclass
 import ctypes
 from tempfile import mktemp
+import pickle
+import h5py
+import _ctypes
 
 class ClytherKernel(object):
     pass
@@ -60,6 +63,22 @@ def developer(func):
     func._no_cache = True
 
     return func
+
+def create_key(kwarg_types):
+    
+    arlist = []
+    for key, value in sorted(kwarg_types.viewitems(), key=lambda item:item[0]):
+        CData = _ctypes._SimpleCData.mro()[1]
+        if isfunction(value):
+            value = (value.func_name, hash(value.func_code.co_code))
+        elif isclass(value) and issubclass(value, CData):
+            value = hash(pickle.dumps(value))
+        else:
+            value = hash(value)
+            
+        arlist.append((key, value))
+    
+    return hash(tuple(arlist))
 
 class kernel(object):
     
@@ -120,23 +139,72 @@ class kernel(object):
             
         return event
     
-    def compile(self, ctx, source_only=False, **kwargs):
+    def compile(self, ctx, source_only=False, cly_meta=None, **kwargs):
         cache = self._cache.setdefault(ctx, {})
         
         cache_key = tuple(sorted(kwargs.viewitems(), key=lambda item:item[0]))
         
         if cache_key not in cache or self._no_cache:
-            cl_kernel = self.compile_or_cly(ctx, source_only=source_only, **kwargs)
+            cl_kernel = self.compile_or_cly(ctx, source_only=source_only, cly_meta=cly_meta, **kwargs)
             
             cache[cache_key] = cl_kernel
 
         return cache[cache_key] 
 
-    
-    def compile_or_cly(self, ctx, source_only=False, **kwargs):
+    @property
+    def db_filename(self):
+        from os.path import splitext
+        base = splitext(self.func.func_code.co_filename)[0]
+        return base + '.h5.cly'
+     
+    def compile_or_cly(self, ctx, source_only=False, cly_meta=None, **kwargs):
         
-#        h5_file = 
-        cl_kernel = self._compile(ctx, source_only=source_only, **kwargs)
+        cache_key = create_key(kwargs) 
+        # file://ff.h5.cly:/function_name/<hash of code obj>/<hash of arguments>/<device binary>
+
+        hf = h5py.File(self.db_filename)
+        kgroup = hf.require_group(self.func.func_name)
+        cgroup = kgroup.require_group(hex(hash(self.func.func_code)))
+        tgroup = cgroup.require_group(hex(hash(cache_key)))
+        
+        have_compiled_version = all([device.name in tgroup.keys() for device in ctx.devices])
+        
+        if not have_compiled_version:
+            args, defaults, program, kernel_name, source = self._compile(ctx, source_only=source_only, **kwargs)
+#            tgroup.attrs['source'] = source
+            tgroup.attrs['args'] = pickle.dumps(args)
+            tgroup.attrs['defaults'] = pickle.dumps(defaults)
+            tgroup.attrs['kernel_name'] = kernel_name
+            tgroup.attrs['meta'] = str(cly_meta)
+            cgroup.attrs['source'] = source
+            
+            for device, binary in program.binaries.items():
+                if device.name not in tgroup.keys():
+                    tgroup.create_dataset(device.name, data=binary)
+                    
+        else:
+            #args, defaults, program, kernel_name, source = self._compile(ctx, source_only=source_only, **kwargs)
+            source = cgroup.attrs['source']
+            args = pickle.loads(tgroup.attrs['args'])
+            defaults = pickle.loads(tgroup.attrs['defaults'])
+            kernel_name = tgroup.attrs['kernel_name']
+            
+            devices = {device.name:device for device in ctx.devices}
+            binaries = {}
+            for device_name, binary in tgroup.items():
+                binaries[devices[device_name]] = binary.value
+                
+            program = cl.Program(ctx, binaries=binaries)
+            program.build()
+            
+        cl_kernel = program.kernel(kernel_name)
+        
+        cl_kernel.global_work_size = self.global_work_size
+        cl_kernel.local_work_size = self.local_work_size
+        cl_kernel.global_work_offset = self.global_work_offset
+        cl_kernel.argtypes = [arg[1] for arg in args]
+        cl_kernel.argnames = [arg[0] for arg in args]
+        cl_kernel.__defaults__ = defaults
         
         return cl_kernel
     
@@ -175,16 +243,17 @@ class kernel(object):
         for device, log in program.logs.items():
             if log: print log
             
-        kernel = program.kernel(kernel_name)
+#        kernel = program.kernel(kernel_name)
+#        
+#        kernel.global_work_size = self.global_work_size
+#        kernel.local_work_size = self.local_work_size
+#        kernel.global_work_offset = self.global_work_offset
+#        kernel.argtypes = [arg[1] for arg in args]
+#        kernel.argnames = [arg[0] for arg in args]
+#        kernel.__defaults__ = defaults
         
-        kernel.global_work_size = self.global_work_size
-        kernel.local_work_size = self.local_work_size
-        kernel.global_work_offset = self.global_work_offset
-        kernel.argtypes = [arg[1] for arg in args]
-        kernel.argnames = [arg[0] for arg in args]
-        kernel.__defaults__ = defaults
-        
-        return kernel
+        return args, defaults, program, kernel_name, source
+#        return kernel
 
 class task(kernel):
     def run_kernel(self, cl_kernel, queue, kernel_args, kwargs):

@@ -39,7 +39,7 @@ def main_reduce():
 #    for size in range(250, 258):
     size = 1027
         
-    a = ca.arange(ctx, size, ctype=c_float)
+    a = ca.arange(ctx, size, ctype=cl.cl_int)
     
     result = sum(a)
     

@@ -129,7 +129,8 @@ class BinaryUfunc(object):
         kernel = ufunc_kernel.compile(queue.context, function=self.device_func,
                                       a=cl.global_memory(a.format, flat=True),
                                       b=cl.global_memory(b.format, flat=True),
-                                      out=cl.global_memory(out.format, flat=True))
+                                      out=cl.global_memory(out.format, flat=True), 
+                                      cly_meta=self.device_func.func_name)
         
 
         kernel(queue, a, a.array_info, b, b.array_info, out, out.array_info)
@@ -166,7 +167,8 @@ class BinaryUfunc(object):
                                        output=cl.global_memory(out.format, flat=False),
                                        array=cl.global_memory(x.format, flat=False),
                                        shared=shared,
-                                       group_size=cl.cl_uint)
+                                       group_size=cl.cl_uint,
+                                       cly_meta=self.device_func.func_name)
         
         max_wgsize = kernel.work_group_size(queue.device)
         
