@@ -126,12 +126,19 @@ class kernel(object):
         cache_key = tuple(sorted(kwargs.viewitems(), key=lambda item:item[0]))
         
         if cache_key not in cache or self._no_cache:
-            cl_kernel = self._compile(ctx, source_only=source_only, **kwargs)
+            cl_kernel = self.compile_or_cly(ctx, source_only=source_only, **kwargs)
             
             cache[cache_key] = cl_kernel
 
         return cache[cache_key] 
 
+    
+    def compile_or_cly(self, ctx, source_only=False, **kwargs):
+        
+#        h5_file = 
+        cl_kernel = self._compile(ctx, source_only=source_only, **kwargs)
+        
+        return cl_kernel
     
     def _compile(self, ctx, source_only=False, **kwargs):
         
