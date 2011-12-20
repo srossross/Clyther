@@ -10,7 +10,11 @@ Contents:
 
 .. toctree::
    :maxdepth: 2
-
+   
+   for_numpy_users
+   api
+   
+   
 Indices and tables
 ==================
 
