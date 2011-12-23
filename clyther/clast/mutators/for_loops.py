@@ -49,8 +49,13 @@ class ForLoopMutator(Mutator):
         
         if not isinstance(node.iter.ctype, cl_range):
             orelse = None
-            body = node.body
-            
+            body = []
+            for stmnt in node.body:
+                new_stmnt = self.mutate(stmnt)
+                if new_stmnt is not None:
+                    stmnt = new_stmnt
+                body.append(stmnt)
+                
             if len(node.iter.args) == 1:
                 start = cast.CNum(0, ctypes.c_long)
                 stop = node.iter.args[0]

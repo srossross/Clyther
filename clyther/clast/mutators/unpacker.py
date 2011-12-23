@@ -23,7 +23,8 @@ class Unpacker(Mutator):
             arg = node.args[i]
             if isinstance(arg.ctype, contextual_memory):
                 new_id = 'cly_%s_info' % arg.id
-                if (i + 1) < len(node.args) and node.args[i + 1].id == new_id:
+                
+                if (i + 1) < len(node.args) and isinstance(node.args[i + 1], cast.CName) and node.args[i + 1].id == new_id:
                     i += 1
                     continue
                 
@@ -64,7 +65,7 @@ class Unpacker(Mutator):
     def _mutate_index_dim(self, gid, ctype, node, axis=0):
         info = cast.CName('cly_%s_info' % gid, ast.Load(), ctype.array_info)
         right = cast.CAttribute(info, 's%s' % hex(axis + 4)[2:], ast.Load(), derefrence(ctype.array_info))
-        index = cast.CBinOp(node.value, ast.Mult(), right, node.value.ctype) #FIXME: cast type
+        index = cast.CBinOp(node, ast.Mult(), right, node.ctype) #FIXME: cast type
         return index
     
     def _mutate_index(self, gid, ctype, node):
@@ -72,15 +73,23 @@ class Unpacker(Mutator):
         info = cast.CName('cly_%s_info' % gid, ast.Load(), ctype.array_info)
         left = cast.CAttribute(info, 's7', ast.Load(), derefrence(ctype.array_info))
         
-        if isinstance(node.value, ast.Tuple):
-            for elt in node.value.elts:
-                index = self._mutate_index_dim(gid, ctype, elt, 0)
+        if isinstance(node.value, cast.CList):
+            if len(node.value.elts) > ctype.ndim:
+                raise cast.CError(node, IndexError, "invalid index. Array is an %i dimentional array (got %i indices)" % (ctype.ndim, len(node.value.elts)))
+            elif len(node.value.elts) < ctype.ndim:
+                raise cast.CError(node, NotImplementedError, "Slicing not supported yet. Array is an %i dimentional array (got %i indices)" % (ctype.ndim, len(node.value.elts)))
+                
+            for axis, elt in enumerate(node.value.elts):
+                index = self._mutate_index_dim(gid, ctype, elt, axis)
                 left = cast.CBinOp(left, ast.Add(), index, node.value.ctype) #FIXME: cast type
         else:
-            index = self._mutate_index_dim(gid, ctype, node, 0)
+            if ctype.ndim != 1:
+                raise cast.CError(node, NotImplementedError, "Slicing not supported yet. Array is an %i dimentional array (got 1 index)" % (ctype.ndim,))
+            
+            index = self._mutate_index_dim(gid, ctype, node.value, 0)
+            left = cast.CBinOp(left, ast.Add(), index, node.value.ctype) #FIXME: cast type
         
-        offset = cast.CBinOp(left, ast.Add(), index, node.value.ctype) #FIXME: cast type
-        return offset
+        return left
     
     def mutateCAttribute(self, node):
         if isinstance(node.value.ctype, contextual_memory):

@@ -139,12 +139,17 @@ class GenOpenCLExpr(Visitor):
                 raise Exception()
              
     def visitCBinOp(self, node):
-        self.print('({left:node} {op:node} {right:node})', left=node.left, op=node.op, right=node.right)
+        
+        if isinstance(node.op, ast.Pow):
+            self.print('pow({left:node}, {right:node})', left=node.left, op=node.op, right=node.right)
+        else:
+            self.print('({left:node} {op:node} {right:node})', left=node.left, op=node.op, right=node.right)
     
     visitMult = simple_string('*')
     visitAdd = simple_string('+')
     visitSub = simple_string('-')
     visitDiv = simple_string('/')
+    visitMod = simple_string('%')
 
     def visitCStr(self, node):
         with self.no_indent:

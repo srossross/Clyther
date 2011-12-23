@@ -1,4 +1,7 @@
-
+'''
+clyther.array
+---------------
+'''
 from blitz import blitz
 from ufuncs import add, multiply, sin
 from ufunc_framework import binary_ufunc

@@ -53,15 +53,20 @@ class gentype(object):
         self.types = types
         
 class RuntimeFunction(cltype):
-    def __init__(self, name, return_type, *argtypes):
+    def __init__(self, name, return_type, *argtypes, **kwargs):
         self.name = name
         self._return_type = return_type
         self.argtypes = argtypes
+        self.kwargs = kwargs
+        self.__doc__ = kwargs.get('doc', None)
         
     def return_type(self, argtypes):
         if isfunction(self._return_type):
             return self._return_type(*argtypes)
         else:
+            if len(argtypes) != len(self.argtypes):
+                raise TypeError('openCL builtin function %r expected %i argument(s) (got %i)' % (self.name, len(self.argtypes), len(argtypes)))
+            
             return self._return_type
             
     def ctype_string(self):

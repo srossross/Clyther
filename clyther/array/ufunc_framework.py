@@ -98,19 +98,26 @@ class BinaryUfunc(object):
     def __init__(self, device_func):
         self.device_func = device_func
         
-    def __call__(self, x, y, out=None, queue=None):
+    def __call__(self, context, x, y, out=None, queue=None):
         
         if queue is None:
-            queue = x.queue
+            if hasattr(x,'queue'):
+                queue = x.queue
+            elif hasattr(y,'queue'):
+                queue = y.queue
+            else:
+                queue = context.queue
             
             
         if not isinstance(x, cl.DeviceMemoryView):
-            x = cl.from_host(queue.context, x)
-        
+            x = context.asarray(x)
         if not isinstance(y, cl.DeviceMemoryView):
-            y = cl.from_host(queue.context, y)
-        else:
+            y = context.asarray(y)
+        
+        if y.queue != queue:
             queue.enqueue_wait_for_events(y.queue.marker())
+        if x.queue != queue:
+            queue.enqueue_wait_for_events(x.queue.marker())
         
         new_shape = broadcast_shape(x.shape, y.shape)
         
@@ -118,15 +125,14 @@ class BinaryUfunc(object):
         b = cl.broadcast(y, new_shape)
         
         if out is None:
-            out = cl.empty(queue.context, new_shape, x.format)
-        
+            out = context.empty(shape=new_shape, ctype=x.format, queue=queue)
         
 #        kernel_source = ufunc_kernel._compile(queue.context, function=self.device_func,
 #                                      a=cl.global_memory(a.format, flat=True),
 #                                      b=cl.global_memory(b.format, flat=True),
 #                                      out=cl.global_memory(out.format, flat=True), source_only=True)
 
-        kernel = ufunc_kernel.compile(queue.context, function=self.device_func,
+        kernel = ufunc_kernel.compile(context, function=self.device_func,
                                       a=cl.global_memory(a.format, flat=True),
                                       b=cl.global_memory(b.format, flat=True),
                                       out=cl.global_memory(out.format, flat=True), 
@@ -136,10 +142,10 @@ class BinaryUfunc(object):
         kernel(queue, a, a.array_info, b, b.array_info, out, out.array_info)
         
         array = CLArray._view_as_this(out)
-        array.__array_init__(queue)
+        array.__array_init__(context, queue)
         return array
     
-    def reduce(self, x, out=None, initial=0.0, queue=None):
+    def reduce(self, context, x, out=None, initial=0.0, queue=None):
         
         if queue is None:
             queue = x.queue

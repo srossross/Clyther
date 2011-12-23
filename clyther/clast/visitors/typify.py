@@ -1,8 +1,12 @@
 '''
-Created on Dec 2, 2011
+clyther.clast.visitors.typify
+-----------------------------------
 
-@author: sean
+Generate a typed ast from a python ast.
+
+This is the first step in the Python -> OpenCL pipeline.
 '''
+
 from clyther.clast import cast
 from clyther.clast.cast import build_forward_dec, FuncPlaceHolder, n
 from clyther.clast.visitors.returns import returns
@@ -39,6 +43,9 @@ def is_slice(slice):
         raise NotImplementedError(slice)
 
 def getattrtype(ctype, attr):
+    '''
+    Get the ctype of an attribute on a ctype 
+    '''
     if isclass(ctype) and issubclass(ctype, _ctypes.Structure):
         return dict(ctype._fields_)[attr]
     elif ismodule(ctype):
@@ -53,6 +60,9 @@ def getattrtype(ctype, attr):
     
 
 class Typify(Visitor):
+    '''
+    Makes a copy of an ast
+    '''
     def __init__(self, argtypes, globls):
         self.globls = globls
         self.argtypes = argtypes
@@ -69,6 +79,9 @@ class Typify(Visitor):
                 new_node.col_offset = node.col_offset
                 
         return new_node
+    
+    def visitDefault(self, node):
+        raise cast.CError(node, NotImplementedError, 'python ast node %r is not yet supported by clyther' % type(node).__name__)
     
     def make_cfunction(self, node):
         
@@ -229,7 +242,7 @@ class Typify(Visitor):
     def visitCall(self, node):
         #('func', 'args', 'keywords', 'starargs', 'kwargs')
         if node.starargs or node.kwargs:
-            raise CException()
+            raise cast.CError(node, NotImplementedError, '* and ** args ar not supported yet')
         
         expr = ast.Expression(node.func, lineno=node.func.lineno, col_offset=node.func.col_offset)
         code = compile(expr, '<nofile>', 'eval')
@@ -237,7 +250,6 @@ class Typify(Visitor):
         
         args = list(self.visit_list(node.args))
         keywords = list(self.visit_list(node.keywords))
-        
         
         
         if func in var_builtins:
@@ -251,7 +263,10 @@ class Typify(Visitor):
             if isinstance(func_name.ctype, RuntimeFunction):
                 rt = func_name.ctype
                 argtypes = [arg.ctype for arg in args]
-                func = rt.return_type(argtypes)
+                try:
+                    func = rt.return_type(argtypes)
+                except TypeError as exc:
+                    raise cast.CError(node, type(exc), exc.args[0])
                 func_name = cast.CName(rt.name, ast.Load(), rt)
             else:
                 pass
@@ -403,6 +418,13 @@ class Typify(Visitor):
         
         return cast.CBoolOp(node.op, values, c_ubyte) 
      
+    def visitTuple(self, node):
+        
+        elts = list(self.visit_list(node.elts))
+        
+        ltypes = [elt.ctype for elt in elts]
+        ctype = greatest_common_type(ltypes)
+        return cast.CList(elts, node.ctx, cList(ctype))
         
     
         

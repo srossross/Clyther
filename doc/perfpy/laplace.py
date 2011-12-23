@@ -26,171 +26,105 @@ Last modified: Sep. 18, 2004
 
 import numpy
 from scipy import weave
-from scipy.weave import converters
 import sys, time
+from argparse import ArgumentParser, FileType
 
-msg = """**************************************************
-Please build the fortran and Pyrex modules like so:
+from core import TimeSteper, available, timestep_methods
 
-  python setup.py build_ext --inplace
-
-You will require f2py and Pyrex.
-**************************************************
-"""
-build = 0
 try:
     import flaplace
     import flaplace90_arrays
     import flaplace95_forall
 except ImportError:
-    build = 1
+    flaplace = None
+    flaplace90_arrays = None
+    flaplace95_forall = None
 try:
     import pyx_lap
 except ImportError:
-    build = 1
-if build:
-    print msg
+    pyx_lap = None
 
-
-class Grid:
-    
-    """A simple grid class that stores the details and solution of the
-    computational grid."""
-    
-    def __init__(self, nx=10, ny=10, xmin=0.0, xmax=1.0,
-                 ymin=0.0, ymax=1.0):
-        self.xmin, self.xmax, self.ymin, self.ymax = xmin, xmax, ymin, ymax
-        self.dx = float(xmax-xmin)/(nx-1)
-        self.dy = float(ymax-ymin)/(ny-1)
-        self.u = numpy.zeros((nx, ny), 'f')
-        # used to compute the change in solution in some of the methods.
-        self.old_u = self.u.copy()        
-
-    def setBC(self, l, r, b, t):        
-        """Sets the boundary condition given the left, right, bottom
-        and top values (or arrays)"""        
-        self.u[0, :] = l
-        self.u[-1, :] = r
-        self.u[:, 0] = b
-        self.u[:,-1] = t
-        self.old_u = self.u.copy()
-
-    def setBCFunc(self, func):
-        """Sets the BC given a function of two variables."""
-        xmin, ymin = self.xmin, self.ymin
-        xmax, ymax = self.xmax, self.ymax
-        x = numpy.arange(xmin, xmax + self.dx*0.5, self.dx)
-        y = numpy.arange(ymin, ymax + self.dy*0.5, self.dy)
-        self.u[0 ,:] = func(xmin,y)
-        self.u[-1,:] = func(xmax,y)
-        self.u[:, 0] = func(x,ymin)
-        self.u[:,-1] = func(x,ymax)
-
-    def computeError(self):        
-        """Computes absolute error using an L2 norm for the solution.
-        This requires that self.u and self.old_u must be appropriately
-        setup."""        
-        v = (self.u - self.old_u).flat
-        return numpy.sqrt(numpy.dot(v,v))
-    
-
-class LaplaceSolver:
-    
-    """A simple Laplacian solver that can use different schemes to
-    solve the problem."""
-    
-    def __init__(self, grid, stepper='numeric'):
-        self.grid = grid
-        self.setTimeStepper(stepper)
-
-    def slowTimeStep(self, dt=0.0):
-        """Takes a time step using straight forward Python loops."""
-        g = self.grid
+@available(True)
+class slow(TimeSteper):
+    'slow'
+    @classmethod
+    def time_step(cls, grid, dt=0.0):
+        """pure-python
+        Takes a time step using straight forward Python loops.
+        """
+        g = grid
         nx, ny = g.u.shape        
-        dx2, dy2 = g.dx**2, g.dy**2
-        dnr_inv = 0.5/(dx2 + dy2)
+        dx2, dy2 = g.dx ** 2, g.dy ** 2
+        dnr_inv = 0.5 / (dx2 + dy2)
         u = g.u
-
+    
         err = 0.0
-        for i in range(1, nx-1):
-            for j in range(1, ny-1):
-                tmp = u[i,j]
-                u[i,j] = ((u[i-1, j] + u[i+1, j])*dy2 +
-                          (u[i, j-1] + u[i, j+1])*dx2)*dnr_inv
-                diff = u[i,j] - tmp
-                err += diff*diff
-
+        for i in range(1, nx - 1):
+            for j in range(1, ny - 1):
+                tmp = u[i, j]
+                u[i, j] = ((u[i - 1, j] + u[i + 1, j]) * dy2 + 
+                          (u[i, j - 1] + u[i, j + 1]) * dx2) * dnr_inv
+                diff = u[i, j] - tmp
+                err += diff * diff
+    
         return numpy.sqrt(err)
         
-    def numericTimeStep(self, dt=0.0):
-        """Takes a time step using a numeric expressions."""
-        g = self.grid
-        dx2, dy2 = g.dx**2, g.dy**2
-        dnr_inv = 0.5/(dx2 + dy2)
+@available(True)
+class numeric(TimeSteper):
+    'numpy'
+    @classmethod
+    def time_step(cls, grid, dt=0.0):
+        """
+        Takes a time step using a numeric expressions."""
+        g = grid
+        dx2, dy2 = g.dx ** 2, g.dy ** 2
+        dnr_inv = 0.5 / (dx2 + dy2)
         u = g.u
         g.old_u = u.copy()
-
+    
         # The actual iteration
-        u[1:-1, 1:-1] = ((u[0:-2, 1:-1] + u[2:, 1:-1])*dy2 + 
-                         (u[1:-1,0:-2] + u[1:-1, 2:])*dx2)*dnr_inv
+        u[1:-1, 1:-1] = ((u[0:-2, 1:-1] + u[2:, 1:-1]) * dy2 + 
+                         (u[1:-1, 0:-2] + u[1:-1, 2:]) * dx2) * dnr_inv
         
         return g.computeError()
 
-    def blitzTimeStep(self, dt=0.0):        
-        """Takes a time step using a numeric expression that has been
+
+@available(True)
+class weave_blitz(TimeSteper):
+    'weave-blitz'
+    
+    @classmethod
+    def time_step(cls, grid, dt=0.0):
+        """weave-blitz
+        Takes a time step using a numeric expression that has been
         blitzed using weave."""        
-        g = self.grid
-        dx2, dy2 = g.dx**2, g.dy**2
-        dnr_inv = 0.5/(dx2 + dy2)
+        g = grid
+        dx2, dy2 = g.dx ** 2, g.dy ** 2
+        dnr_inv = 0.5 / (dx2 + dy2)
         u = g.u
         g.old_u = u.copy()
-
+    
         # The actual iteration
         expr = "u[1:-1, 1:-1] = ((u[0:-2, 1:-1] + u[2:, 1:-1])*dy2 + "\
                "(u[1:-1,0:-2] + u[1:-1, 2:])*dx2)*dnr_inv"
         weave.blitz(expr, check_size=0)
-
+    
         return g.computeError()
-
-    def inlineTimeStep(self, dt=0.0):        
-        """Takes a time step using inlined C code -- this version uses
-        blitz arrays."""        
-        g = self.grid
-        nx, ny = g.u.shape
-        dx2, dy2 = g.dx**2, g.dy**2
-        dnr_inv = 0.5/(dx2 + dy2)
-        u = g.u
-        
-        code = """
-               #line 120 "laplace.py"
-               float tmp, err, diff;
-               err = 0.0;
-               for (int i=1; i<nx-1; ++i) {
-                   for (int j=1; j<ny-1; ++j) {
-                       tmp = u(i,j);
-                       u(i,j) = ((u(i-1,j) + u(i+1,j))*dy2 +
-                                 (u(i,j-1) + u(i,j+1))*dx2)*dnr_inv;
-                       diff = u(i,j) - tmp;
-                       err += diff*diff;
-                   }
-               }
-               return_val = sqrt(err);
-               """
-        # compiler keyword only needed on windows with MSVC installed
-        err = weave.inline(code,
-                           ['u', 'dx2', 'dy2', 'dnr_inv', 'nx','ny'],
-                           type_converters = converters.blitz,
-                           compiler = 'gcc')
-        return err
-
-    def fastInlineTimeStep(self, dt=0.0):
-        """Takes a time step using inlined C code -- this version is
+    
+@available(True)
+class weave_fast_inline(TimeSteper):
+    'weave-fast-inline'
+    
+    @classmethod
+    def time_step(cls, grid, dt=0.0):
+        """weave-fast-inline
+        Takes a time step using inlined C code -- this version is
         faster, dirtier and manipulates the numeric array in C.  This
         code was contributed by Eric Jones.  """
-        g = self.grid
+        g = grid
         nx, ny = g.u.shape
-        dx2, dy2 = g.dx**2, g.dy**2
-        dnr_inv = 0.5/(dx2 + dy2)
+        dx2, dy2 = g.dx ** 2, g.dy ** 2
+        dnr_inv = 0.5 / (dx2 + dy2)
         u = g.u
         
         code = """
@@ -215,162 +149,175 @@ class LaplaceSolver:
                """
         # compiler keyword only needed on windows with MSVC installed
         err = weave.inline(code,
-                           ['u', 'dx2', 'dy2', 'dnr_inv', 'nx','ny'],
+                           ['u', 'dx2', 'dy2', 'dnr_inv', 'nx', 'ny'],
                            compiler='gcc')
         return err
-
-    def fortran77TimeStep(self, dt=0.0):
-        """Takes a time step using a simple fortran module that
+    
+@available(flaplace is not None)
+class fortran77(TimeSteper):
+    'fortran77'
+    
+    @classmethod
+    def time_step(cls, grid, dt=0.0):
+        """fortran77
+        Takes a time step using a simple fortran module that
         implements the loop in fortran90 arrays.  Use f2py to compile
         flaplace.f like so: f2py -c flaplace.f -m flaplace.  You need
         the latest f2py version for this to work.  This Fortran
         example was contributed by Pearu Peterson. """
-        g = self.grid
+        g = grid
         g.u, err = flaplace.timestep(g.u, g.dx, g.dy)
         return err
-
-    def fortran90TimeStep(self, dt=0.0):
-        """Takes a time step using a simple fortran module that
+    
+@available(flaplace90_arrays is not None)
+class fortran90(TimeSteper):
+    'fortran90'
+    
+    @classmethod
+    def time_step(cls, grid, dt=0.0):
+        """fortran90
+        Takes a time step using a simple fortran module that
         implements the loop in fortran90 arrays.  Use
         f2py to compile flaplace_arrays.f90 like so: f2py -c
         flaplace_arrays.f90 -m flaplace90_arrays.  You need
         the latest f2py version for this to work.  This Fortran
         example was contributed by Ramon Crehuet. """
-        g = self.grid
+        g = grid
         g.u, err = flaplace90_arrays.timestep(g.u, g.dx, g.dy)
         return err
-
-    def fortran95TimeStep(self, dt=0.0):
-        """Takes a time step using a simple fortran module that
+    
+@available(flaplace95_forall is not None)
+class fortran95(TimeSteper):
+    'fortran95'
+    
+    @classmethod
+    def time_step(cls, grid, dt=0.0):
+        """fortran95
+        Takes a time step using a simple fortran module that
         implements the loop in fortran95 forall construct.  Use
         f2py to compile flaplace_forall.f95 like so: f2py -c
         flaplace_forall.f95 -m flaplace95_forall.  You need
         the latest f2py version for this to work.  This Fortran
         example was contributed by Ramon Crehuet. """
-        g = self.grid
+        g = grid
         g.u, err = flaplace95_forall.timestep(g.u, g.dx, g.dy)
         return err
-
-    def pyrexTimeStep(self, dt=0.0):
-        """Takes a time step using a function written in Pyrex.  Use
+    
+@available(pyx_lap is not None)
+class pyrex(TimeSteper):
+    'pyrex'
+    
+    @classmethod
+    def time_step(cls, grid, dt=0.0):
+        """pyrex
+        Takes a time step using a function written in Pyrex.  Use
         the given setup.py to build the extension using the command
         python setup.py build_ext --inplace.  You will need Pyrex
         installed to run this."""        
-        g = self.grid
+        g = grid
         err = pyx_lap.pyrexTimeStep(g.u, g.dx, g.dy)
         return err
+            
+def solve(grid, timeStep, n_iter=0, eps=1.0e-16):        
+    """Solves the equation given an error precision -- eps.  If
+    n_iter=0 the solving is stopped only on the eps condition.  If
+    n_iter is finite then solution stops in that many iterations
+    or when the error is less than eps whichever is earlier.
+    Returns the error if the loop breaks on the n_iter condition
+    and returns the iterations if the loop breaks on the error
+    condition."""        
+    err = timeStep(grid)
+    count = 1
 
-    def setTimeStepper(self, stepper='numeric'):        
-        """Sets the time step scheme to be used while solving given a
-        string which should be one of ['slow', 'numeric', 'blitz',
-        'inline', 'fastinline', 'fortran']."""        
-        if stepper == 'slow':
-            self.timeStep = self.slowTimeStep
-        elif stepper == 'numeric':
-            self.timeStep = self.numericTimeStep
-        elif stepper == 'blitz':
-            self.timeStep = self.blitzTimeStep
-        elif stepper == 'inline':
-            self.timeStep = self.inlineTimeStep
-        elif stepper.lower() == 'fastinline':
-            self.timeStep = self.fastInlineTimeStep
-        elif stepper == 'fortran77':
-            self.timeStep = self.fortran77TimeStep
-        elif stepper == 'fortran90-arrays':
-            self.timeStep = self.fortran90TimeStep
-        elif stepper == 'fortran95-forall':
-            self.timeStep = self.fortran95TimeStep        
-        elif stepper == 'pyrex':
-            self.timeStep = self.pyrexTimeStep
-        else:
-            self.timeStep = self.numericTimeStep            
-                
-    def solve(self, n_iter=0, eps=1.0e-16):        
-        """Solves the equation given an error precision -- eps.  If
-        n_iter=0 the solving is stopped only on the eps condition.  If
-        n_iter is finite then solution stops in that many iterations
-        or when the error is less than eps whichever is earlier.
-        Returns the error if the loop breaks on the n_iter condition
-        and returns the iterations if the loop breaks on the error
-        condition."""        
-        err = self.timeStep()
-        count = 1
+    while True:
+        if n_iter and count >= n_iter:
+            return err
+        err = timeStep(grid)
+        count = count + 1
 
-        while err > eps:
-            if n_iter and count >= n_iter:
-                return err
-            err = self.timeStep()
-            count = count + 1
-
-        return count
+    return count
 
 
 def BC(x, y):    
     """Used to set the boundary condition for the grid of points.
     Change this as you feel fit."""    
-    return (x**2 - y**2)
+    return (x ** 2 - y ** 2)
 
-
-def test(nmin=5, nmax=30, dn=5, eps=1.0e-16, n_iter=0, stepper='numeric'):
-    iters = []
-    n_grd = numpy.arange(nmin, nmax, dn)
-    times = []
-    for i in n_grd:
-        g = Grid(nx=i, ny=i)
-        g.setBCFunc(BC)
-        s = LaplaceSolver(g, stepper)
-        t1 = time.clock()
-        iters.append(s.solve(n_iter=n_iter, eps=eps))
-        dt = time.clock() - t1
-        times.append(dt)
-        print "Solution for nx = ny = %d, took %f seconds"%(i, dt)
-    return (n_grd**2, iters, times)
-
-
-def time_test(nx=500, ny=500, eps=1.0e-16, n_iter=100, stepper='numeric'):
-    g = Grid(nx, ny)
-    g.setBCFunc(BC)
-    s = LaplaceSolver(g, stepper)
-    t = time.clock()
-    s.solve(n_iter=n_iter, eps=eps)
-    return time.clock() - t
+def create_parser():
+    parser = ArgumentParser(description=__doc__)
     
-
-def main(n=1000, n_iter=500):
-    print "Doing %d iterations on a %dx%d grid"%(n_iter, n, n)
-    # methods = ['numeric',  'blitz', 'inline', 'fastinline', 'pyrex',
-    #      'fortran77', 'fortran90-arrays', 'fortran95-forall']
+    parser.add_argument('-n', '--size', type=int, default=1000)
+    parser.add_argument('-i', '--n_iter', type=int, default=100)
+    parser.add_argument('-l', '--list', action='store_true')
+    parser.add_argument('-m', '--method', dest='methods', action='append', default=[])
+    parser.add_argument('-e', '--exclude', action='append', default=[])
+    parser.add_argument('-a', '--all', action='store_true')
+    parser.add_argument('-o', '--output', type=FileType('w'))
     
-    methods = ['numeric',  'blitz', 'inline', 'fastinline', 'pyrex']
+    return parser
 
-    for i in methods:
-        print i,
-        sys.stdout.flush()
-        print "took", time_test(n, n, stepper=i, n_iter=n_iter), "seconds"
-
-    #print "slow (1 iteration)",
-    #sys.stdout.flush()
-    #s = time_test(n, n, stepper='slow', n_iter=1)
-    #print "took", s, "seconds"
-    #print "%d iterations should take about %f seconds"%(n_iter, s*n_iter)
-
-    '''
-    try:
-        import psyco
-    except ImportError:
-        print "You don't have Psyco installed!"
+def main():
+    
+    parser = create_parser()
+    
+    args = parser.parse_args()
+    
+    available = {title:func for title, func in timestep_methods.items() if func.available}
+    un_available = {title:func for title, func in timestep_methods.items() if not func.available}
+    
+    if args.list:
+        print 
+        print "Available Methods:"
+        for title, func in available.items():
+            print "    +", title
+        print 
+        print "Unavailable Methods:"
+        for title, func in un_available.items():
+            print "    +", title
+        print 
+        return
+    
+    if args.all:
+        methods = set(available.keys())
     else:
-        psyco.bind(LaplaceSolver)
-        psyco.bind(Grid)
-        print "slow with Psyco (1 iteration)",
-        sys.stdout.flush()
-        s = time_test(n, n, stepper='slow', n_iter=1)
-        print "took", s, "seconds"
-        print "%d iterations should take about %f seconds"%\
-              (n_iter, s*n_iter)
-              '''
-              
-
+        methods = set(args.methods)
+        
+    methods = sorted(methods - set(args.exclude))
+        
+    print >> sys.stderr, "args.methods", methods
+    print >> args.output, "method, time"
+    for method in methods:
+        
+        if method == 'slow':
+            n_iter = 1
+            scale = n_iter
+        else:
+            n_iter = args.n_iter
+            scale = 1
+             
+        print >> sys.stderr, "method", method
+        print >> sys.stderr, " + Doing %d iterations on a %dx%d grid" % (n_iter, args.size, args.size)
+        
+        cls = timestep_methods[method]
+        grid = cls.create_grid(args.size, args.size)
+        grid.setBCFunc(BC)
+        
+        try:
+            t0 = time.time()
+            solve(grid, cls.time_step, n_iter, eps=1.0e-16)
+            cls.finish(grid)
+            seconds0 = time.time() - t0
+            if method == 'slow':
+                print >> sys.stderr, " + Took", seconds0 * scale, "seconds (estimate)"
+                print >> args.output, '%s, %r' % (method, seconds0 * scale)
+            else:
+                print >> sys.stderr, " + Took", seconds0, "seconds"
+                print >> args.output, '%s, %r' % (method, seconds0)
+        except Exception as err:
+            print "%s: %s" % (type(err), err)
+    return
+     
 
 if __name__ == "__main__":
     main()
+    print "done!"

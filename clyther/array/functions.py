@@ -14,43 +14,69 @@ from clyther.array.clarray import CLArray
 from clyther.array.utils import broadcast_shape
 from clyther.array.array_context import CLArrayContext as ArrayContext
 
-@cly.global_work_size(lambda arr, *_: [arr.size])
+@cly.global_work_size(lambda arr, *_: arr.shape)
 @cly.kernel
 def setslice_kernel(arr, value):
-    i = clrt.get_global_id(0)
-    arr[i] = value[i]
+    index = cl.cl_uint4(clrt.get_global_id(0), clrt.get_global_id(1), clrt.get_global_id(2), 0)
+    
+    
+    a_strides = index * arr.strides
+    aidx = arr.offset + a_strides.x + a_strides.y + a_strides.z
+    
+    v_strides = index * value.strides
+    vidx = value.offset + v_strides.x + v_strides.y + v_strides.z
+
+    arr[aidx] = value[vidx]
 
 
-def setslice(arr, value):
+@ArrayContext.method('setslice')
+def setslice(context, arr, value):
     
     if not isinstance(value, cl.DeviceMemoryView):
-        value = cl.from_host(arr.context, value)
-        
+        value = context.asarray(value)
+       
+    if value.queue != arr.queue:
+        arr.queue.enqueue_wait_for_events(value.queue.marker())
+         
     value = cl.broadcast(value, arr.shape)
     
-    return setslice_kernel(arr.queue, arr, value)
+    kernel = setslice_kernel.compile(context, arr=cl.global_memory(arr.format, flat=True),
+                                     value=cl.global_memory(value.format, flat=True),
+                                     cly_meta='setslice')
+    
+    return kernel(arr.queue, arr, arr.array_info, value, value.array_info)
 
-@ArrayContext.method
+@ArrayContext.method('asarray')
 def asarray(ctx, other, queue=None, copy=True):
     
     if not isinstance(other, cl.DeviceMemoryView):
         other = cl.from_host(ctx, other, copy=copy)
         
     array = CLArray._view_as_this(other)
-    array.__array_init__(queue)
+    array.__array_init__(ctx, queue)
     
     return array
 
-@ArrayContext.method
+@ArrayContext.method('zeros')
+def zeros(context, shape, ctype='f', cls=CLArray, queue=None):
+    
+    out = context.empty(shape=shape, ctype=ctype, queue=queue)
+    
+    setslice(context, out, 0)
+    
+    return out
+
+@ArrayContext.method('empty')
 def empty(context, shape, ctype='f', cls=CLArray, queue=None):
     out = cl.empty(context, shape, ctype)
+    
     array = cls._view_as_this(out)
-    array.__array_init__(queue)
+    array.__array_init__(context, queue)
     return array
 
-@ArrayContext.func
-def empty_like(A):
-    return empty(A.context, A.shape, A.format, cls=type(A), queue=A.queue)
+@ArrayContext.method('empty_like')
+def empty_like(context, A):
+    return context.empty(A.shape, A.format, cls=type(A), queue=A.queue)
     
 
 @cly.global_work_size(lambda a, *_: [a.size])
@@ -59,7 +85,7 @@ def _arange(a, start, step):
     i = clrt.get_global_id(0)
     a[i] = start + step * i 
  
-@ArrayContext.method
+@ArrayContext.method('arange')
 def arange(ctx, *args, **kwargs):
     '''
     
@@ -100,7 +126,7 @@ def _linspace(a, start, stop):
     gsize = clrt.get_global_size(0)
     a[i] = i * (stop - start) / gsize 
  
-@ArrayContext.method
+@ArrayContext.method('linspace')
 def linspace(ctx, start, stop, num=50, ctype='f', queue=None):
     '''
     

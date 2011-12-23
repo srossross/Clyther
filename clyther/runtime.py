@@ -1,14 +1,13 @@
 '''
-Created on Dec 4, 2011
-
-@author: sean
+clyther.runtime
+----------------
 '''
 
 import ctypes
 from ctypes import c_uint, c_int, c_float
 from clyther.rttt import RuntimeFunction, RuntimeType, gentype
 
-get_global_id = RuntimeFunction('get_global_id', c_uint, c_uint)
+get_global_id = RuntimeFunction('get_global_id', c_uint, c_uint, doc='', emulate=None)
 get_group_id = RuntimeFunction('get_group_id', c_uint, c_uint)
 get_local_id = RuntimeFunction('get_local_id', c_uint, c_uint)
 get_num_groups = RuntimeFunction('get_num_groups', c_uint, c_uint)

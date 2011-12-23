@@ -11,16 +11,24 @@ class CLArrayContext(cl.Context):
     '''
     classdocs
     '''
-
-    def queue(self, *args, **kwargs):
-        return cl.Queue(self, *args, **kwargs)
+    
+    def __init__(self, *args, **kwargs):
+        cl.Context.__init__(self, *args, **kwargs)
+        
+        self._queue = cl.Queue(self)
+    
+    @property
+    def queue(self):
+        return self._queue
     
 
     @classmethod
-    def method(cls, func):
-        meth = new.instancemethod(func, None, cls)
-        setattr(cls, func.func_name, meth)
-        return func
+    def method(cls, name):
+        def decoator(func):
+            meth = new.instancemethod(func, None, cls)
+            setattr(cls, name, meth)
+            return func
+        return decoator
     
     @classmethod
     def func(cls, func):
