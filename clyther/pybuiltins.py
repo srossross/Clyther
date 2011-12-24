@@ -42,3 +42,4 @@ class cl_range(bl_builtin):
     iter_type = ctypes.c_long
 
 builtin_map[range] = cl_range
+

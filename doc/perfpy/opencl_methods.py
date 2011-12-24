@@ -4,15 +4,14 @@ Created on Dec 22, 2011
 @author: sean
 '''
 
-import numpy as np
 import opencl as cl
-
 from clyther.array import CLArrayContext
-import opencl as cl
 import clyther as cly
 import clyther.runtime as clrt
-
 from core import Grid, available 
+import numpy
+
+
 
 class CLTimeSteper(object):
     DEVICE_TYPE = cl.Device.CPU
@@ -134,6 +133,8 @@ class clytherCheckerTimeStep(CLTimeSteper):
         
         event = lp2dstep(grid.queue, grid.u, dx2, dy2, dnr_inv, 2)
         grid.queue.enqueue_wait_for_events(event)
+        
+        
 
 @available(True)
 class clyther_checker_cpu(clytherCheckerTimeStep):
@@ -152,16 +153,22 @@ class clyther_checker_gpu(clytherCheckerTimeStep):
 
 
 @cly.task
-def cly_time_step_task(u, dy2, dx2, dnr_inv):
+def cly_time_step_task(u, dy2, dx2, dnr_inv, error):
     # The actual iteration
     nx = u.shape[0] 
     ny = u.shape[1]
-    
+    err = 0.0
     for i in range(1, nx - 1):
         for j in range(1, ny - 1):
+            tmp = u[i, j]
             u[i, j] = ((u[i - 1, j] + u[i + 1, j]) * dy2 + 
                       (u[i, j - 1] + u[i, j + 1]) * dx2) * dnr_inv
-
+                      
+            diff = u[i, j] - tmp
+            err += diff * diff
+            
+    error[0] = err
+    
 
 @available(cly is not None)
 class clyther_task(CLTimeSteper):
@@ -175,8 +182,9 @@ class clyther_task(CLTimeSteper):
         dx2, dy2 = g.dx ** 2, g.dy ** 2
         dnr_inv = 0.5 / (dx2 + dy2)
         u = g.u
-        g.old_u = u.copy()
         
-        cly_time_step_task(u.queue, u, dy2, dx2, dnr_inv)
-        u.queue.flush()
-        return 0
+        error = g.np.empty([1], ctype='f')
+            
+        cly_time_step_task(u.queue, u, dy2, dx2, dnr_inv, error)
+        
+        return error.item().value

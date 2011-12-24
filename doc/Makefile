@@ -37,6 +37,8 @@ clean:
 	-rm -rf $(BUILDDIR)/*
 
 html:
+	tar czf perfpy_clyther.tgz perfpy
+	@echo
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."

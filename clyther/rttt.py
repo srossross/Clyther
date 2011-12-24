@@ -1,26 +1,28 @@
 '''
+clyther.rttt
+--------------------
+
 Run Time Type Tree (rttt)
 
-Created on Nov 29, 2011
-
-@author: sean
 '''
 
-import ctypes
-from meta.asttools.visitors import Visitor, visit_children, Mutator
-import ast
-from inspect import isroutine, isclass, isfunction
-from meta.asttools.visitors.print_visitor import print_ast
 from clast import cast
+from clyther.pybuiltins import builtin_map
+from inspect import isroutine, isclass, isfunction
+from meta.asttools.visitors import visit_children, Mutator
+from meta.asttools.visitors.print_visitor import print_ast
+from opencl import contextual_memory
+from opencl.type_formats import type_format, cdefn
 import _ctypes
 import abc
-from opencl.type_formats import type_format, cdefn
+import ast
+import ctypes
+import opencl as cl
 import re
 
 class cltype(object):
     __metaclass__ = abc.ABCMeta
     pass
-from opencl import contextual_memory
 
 cltype.register(contextual_memory)
 
@@ -30,6 +32,13 @@ class cList(cltype):
         
 
 class RuntimeConstant(object):
+    '''
+    define a constant value that is defined in the OpenCL runtime.
+    
+    :param name: the name of the constant in OpenCL.
+    :param rtt: the ctype of the constant.
+    
+    '''
     def __init__(self, name, rtt):
         self.name = name
         self.rtt = rtt
@@ -38,6 +47,7 @@ class RuntimeConstant(object):
         return self.name
     
 class RuntimeType(cltype):
+    
     def __init__(self, name):
         self.name = name
     
@@ -49,16 +59,55 @@ class RuntimeType(cltype):
         return self.name
     
 class gentype(object):
+    '''
+    a generic numeric type in OpenCL
+    '''
+    def __init__(self, *types):
+        self.types = types
+        
+class ugentype(object):
+    '''
+    an unsigned generic numeric type in OpenCL
+    '''
+    def __init__(self, *types):
+        self.types = types
+        
+class sgentype(object):
+    '''
+    a signed generic numeric type in OpenCL
+    '''
     def __init__(self, *types):
         self.types = types
         
 class RuntimeFunction(cltype):
+    '''
+    A function that is defined in the openCL runtime.
+    
+    :param name: the name of the function as per the oencl specification.
+    :param return_type: Either a ctype or a function that returns a ctype
+    :param argtypes: Either a ctype or a function that returns a ctype
+    
+    Keyword only parameters:
+        :param doc: Either a ctype or a function that returns a ctype
+        :param builtin: a python builtin function that is equivalent to this function
+        :param emulate: A function that emulates the behavior of this function in python. 
+            This argument is not required if `builtin` is given. 
+    
+    If `return_type` is a function it must have the same signature as the runtime function.
+     
+    '''
+    
     def __init__(self, name, return_type, *argtypes, **kwargs):
         self.name = name
         self._return_type = return_type
         self.argtypes = argtypes
         self.kwargs = kwargs
         self.__doc__ = kwargs.get('doc', None)
+        self.builtin = kwargs.get('builtin', None)
+        self.emulate = kwargs.get('emulate', None)
+        
+        if self.builtin is not None:
+            builtin_map[self.builtin] = self
         
     def return_type(self, argtypes):
         if isfunction(self._return_type):
@@ -71,7 +120,15 @@ class RuntimeFunction(cltype):
             
     def ctype_string(self):
         return None
-
+    
+    def __call__(self, *args):
+        if self.builtin is not None:
+            return self.builtin(*args)
+        elif self.emulate is not None:
+            return self.builtin(*args)
+        else: 
+            raise NotImplementedError("python can not emulate this function yet.")
+         
 
 int_ctypes = {ctypes.c_int, ctypes.c_int32, ctypes.c_int8, ctypes.c_int16, ctypes.c_int64, ctypes.c_long , ctypes.c_longlong,
               ctypes.c_size_t, ctypes.c_ssize_t,
@@ -123,9 +180,37 @@ def derefrence(ctype):
     else:
         raise NotImplementedError(slice)
 
+def typeof(ctx, obj):
+    if isinstance(obj, cl.MemoryObject):
+        return cl.global_memory(obj.ctype, len(obj.shape), obj.shape, context=ctx)
+    elif isinstance(obj, cl.local_memory):
+        return obj
+    elif isfunction(obj):
+        return obj
+    
+    elif isinstance(obj, int):
+        return ctypes.c_int
+    elif isinstance(obj, float):
+        return ctypes.c_float
+    elif isinstance(obj, ctypes.Structure):
+        return cl.constant_memory(type(obj), 0, (), context=ctx)
+#        raise NotImplementedError("ctypes.Structure as parameter")
+    else:
+        try:
+            view = memoryview(obj)
+            return cl.global_memory(view.format, len(view.shape), view.shape, context=ctx)
+        except TypeError:
+            pass
+        
+        return type(obj)
+
 
 def _greatest_common_type(left, right):
-    
+    if not isclass(left):
+        left = type(left)
+    if not isclass(right):
+        right = type(right)
+        
     if left == int:
         left = ctypes.c_int32
     elif left == float:
@@ -216,6 +301,9 @@ def str_type(ctype, defined_types):
         return type_map[ctype]
     elif isroutine(ctype):
         return None
+    elif isinstance(ctype, cl.contextual_memory):
+        base_str = str_type(ctype.ctype, defined_types)
+        return '%s %s*' % (ctype.qualifier, base_str)
     elif isinstance(ctype, cltype):
         return ctype.ctype_string()
     elif isinstance(ctype, str):
@@ -230,6 +318,7 @@ class TypeReplacer(Mutator):
     '''
     def __init__(self, defined_types):
         self.defined_types = defined_types
+        self.new_types = {}
         
     def visitCVarDec(self, node):
         if not isinstance(node.ctype, cast.CTypeName):
@@ -258,11 +347,41 @@ class TypeReplacer(Mutator):
     def visitDefault(self, node):
         if isinstance(node, ast.expr):
             if not isinstance(node.ctype, cast.CTypeName):
-                node.ctype = cast.CTypeName(str_type(node.ctype, self.defined_types))
+                
+                try:
+                    type_repr = str_type(node.ctype, self.defined_types)
+                except KeyError:
+                    if isinstance(node.ctype, cl.contextual_memory):
+                        ctype = node.ctype.ctype
+                    else:
+                        ctype = node.ctype
+                        
+                    base_name = 'cly_%s' % (ctype.__name__) 
+                    type_repr = base_name
+                    i = 0
+                    while type_repr in self.defined_types.viewvalues():
+                        i += 1
+                        type_repr = '%s_%03i' % (base_name, i)
+                        
+                    self.defined_types[ctype] = type_repr
+                    self.new_types[type_repr] = ctype
+                    
+                    if isinstance(node.ctype, cl.contextual_memory):
+                        type_repr = str_type(node.ctype, self.defined_types)
+                    
+                node.ctype = cast.CTypeName(type_repr)
+                
         visit_children(self, node)
         
         
-        
+def create_cstruct(struct_id, ctype, defined_types):
+    decs = []
+    
+    for name, field in ctype._fields_:
+        typename = cast.CTypeName(str_type(field, defined_types))
+        decs.append(cast.CVarDec(name, typename))
+    
+    return cast.CStruct(struct_id, decs)
 
 def replace_types(node):
     defined_types = {None:'void', str:'char*'}
@@ -272,6 +391,10 @@ def replace_types(node):
                 defined_types[statement.ctype] = statement.id
     
     type_replacer = TypeReplacer(defined_types)
+    
     type_replacer.mutate(node)
     type_replacer.visit(node)
     
+    for name, ctype in type_replacer.new_types.items():
+        c_struct = create_cstruct(name, ctype, type_replacer.defined_types)
+        node.body.insert(0, c_struct)

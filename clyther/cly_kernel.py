@@ -16,6 +16,7 @@ import pickle
 import h5py
 import _ctypes
 from clyther.pipeline import create_kernel_source
+from clyther.rttt import typeof
 
 class ClytherKernel(object):
     pass
@@ -31,21 +32,6 @@ def is_const(obj):
         return True
     else:
         return False
-    
-def typeof(obj):
-    if isinstance(obj, cl.MemoryObject):
-        return global_memory(obj.format, len(obj.shape), obj.shape)
-    elif isinstance(obj, cl.local_memory):
-        return obj
-    elif isfunction(obj):
-        return obj
-    
-    elif isinstance(obj, int):
-        return ctypes.c_int
-    elif isinstance(obj, float):
-        return ctypes.c_float
-    else:
-        return type(obj)
     
 def developer(func):
     func._development_mode = True
@@ -90,8 +76,12 @@ class kernel(object):
         
         self._development_mode = False
         self._no_cache = False
-        
+        self._use_cache_file = False
+    
 
+    def clear_cache(self):
+        self._cache.clear()
+        
     def run_kernel(self, cl_kernel, queue, kernel_args, kwargs):
         event = cl_kernel(queue, global_work_size=kwargs.get('global_work_size'),
                                  global_work_offset=kwargs.get('global_work_offset'),
@@ -101,8 +91,27 @@ class kernel(object):
         return event
     
     
-    def __call__(self, queue, *args, **kwargs):
+    def _unpack(self, argnames, arglist, kwarg_types):
+        kernel_args = {}
+        for name, arg  in zip(argnames, arglist):
+            
+            if is_const(arg):
+                continue
+            
+            arg_type = kwarg_types[name]
+            if isinstance(arg_type, cl.contextual_memory):
+                if kwarg_types[name].ndim != 0:
+                    kernel_args['cly_%s_info' % name] = arg_type._get_array_info(arg)
+            kernel_args[name] = arg
+        return kernel_args
+
+    def __call__(self, queue_or_context, *args, **kwargs):
         
+        if isinstance(queue_or_context, cl.Context):
+            queue = cl.Queue(queue_or_context)
+        else:
+            queue = queue_or_context
+             
         argnames = self.func.func_code.co_varnames[:self.func.func_code.co_argcount]
         defaults = self.func.func_defaults
         
@@ -113,28 +122,21 @@ class kernel(object):
         
         arglist = cl.kernel.parse_args(self.func.__name__, args, kwargs_, argnames, defaults)
         
-        kwarg_types = {argnames[i]:typeof(arglist[i]) for i in range(len(argnames))}
+        kwarg_types = {argnames[i]:typeof(queue.context, arglist[i]) for i in range(len(argnames))}
         
         cl_kernel = self.compile(queue.context, **kwarg_types)
         
-        kernel_args = {}
-        for name, arg  in zip(argnames, arglist):
+        kernel_args = self._unpack(argnames, arglist, kwarg_types)
             
-            if is_const(arg):
-                continue
-            
-            kernel_args[name] = arg
-            if isinstance(arg, cl.DeviceMemoryView):
-                kernel_args['cly_%s_info' % name] = arg.array_info
-            if isinstance(arg, cl.local_memory):
-                kernel_args['cly_%s_info' % name] = arg.local_info
-        
         event = self.run_kernel(cl_kernel, queue, kernel_args, kwargs)
         
         #FIXME: I don't like that this breaks encapsulation
         if isinstance(event, EventRecord):
             event.set_kernel_args(kernel_args)
             
+        if isinstance(queue_or_context, cl.Context):
+            queue.finish()
+        
         return event
     
     def compile(self, ctx, source_only=False, cly_meta=None, **kwargs):
@@ -156,7 +158,7 @@ class kernel(object):
         
         arglist = cl.kernel.parse_args(self.func.__name__, args, kwargs, argnames, defaults)
         
-        kwarg_types = {argnames[i]:typeof(arglist[i]) for i in range(len(argnames))}
+        kwarg_types = {argnames[i]:typeof(ctx, arglist[i]) for i in range(len(argnames))}
         
         return self.compile_or_cly(ctx, source_only=True, **kwarg_types)
 
@@ -171,30 +173,36 @@ class kernel(object):
         
         cache_key = create_key(kwargs) 
         # file://ff.h5.cly:/function_name/<hash of code obj>/<hash of arguments>/<device binary>
-
-        hf = h5py.File(self.db_filename)
-        kgroup = hf.require_group(self.func.func_name)
-        cgroup = kgroup.require_group(hex(hash(self.func.func_code)))
-        tgroup = cgroup.require_group(hex(hash(cache_key)))
         
-        have_compiled_version = all([device.name in tgroup.keys() for device in ctx.devices])
+        if self._use_cache_file:
+            hf = h5py.File(self.db_filename)
+            kgroup = hf.require_group(self.func.func_name)
+            cgroup = kgroup.require_group(hex(hash(self.func.func_code)))
+            tgroup = cgroup.require_group(hex(hash(cache_key)))
+            
+            have_compiled_version = all([device.name in tgroup.keys() for device in ctx.devices])
+        else:
+            have_compiled_version = False
         
         if not have_compiled_version:
             args, defaults, kernel_name, source = self.translate(ctx, **kwargs)
-            tgroup.attrs['args'] = pickle.dumps(args)
-            tgroup.attrs['defaults'] = pickle.dumps(defaults)
-            tgroup.attrs['kernel_name'] = kernel_name
-            tgroup.attrs['meta'] = str(cly_meta)
-            cgroup.attrs['source'] = source
+            
+            if self._use_cache_file:
+                tgroup.attrs['args'] = pickle.dumps(args)
+                tgroup.attrs['defaults'] = pickle.dumps(defaults)
+                tgroup.attrs['kernel_name'] = kernel_name
+                tgroup.attrs['meta'] = str(cly_meta)
+                cgroup.attrs['source'] = source
             
             if source_only:
                 return source
             
             program = self._compile(ctx, args, defaults, kernel_name, source)
             
-            for device, binary in program.binaries.items():
-                if device.name not in tgroup.keys():
-                    tgroup.create_dataset(device.name, data=binary)
+            if self._use_cache_file:
+                for device, binary in program.binaries.items():
+                    if device.name not in tgroup.keys():
+                        tgroup.create_dataset(device.name, data=binary)
             
                     
         else:
@@ -279,7 +287,8 @@ class task(kernel):
 
     def run_kernel(self, cl_kernel, queue, kernel_args, kwargs):
         
-        cl_kernel.set_args(**kernel_args)
+        #have to keep args around OpenCL refrence count is not incremented until enqueue_task is called
+        args = cl_kernel.set_args(**kernel_args)
         event = queue.enqueue_task(cl_kernel)
         
 #        event = cl_kernel(queue, global_work_size=kwargs.get('global_work_size'),
@@ -325,3 +334,8 @@ def global_work_offset(arg):
         return func
     return decorator
 
+def cache(test):
+    def decorator(func):
+        func._use_cache_file = test
+        return func
+    return decorator

@@ -31,6 +31,8 @@ from argparse import ArgumentParser, FileType
 
 from core import TimeSteper, available, timestep_methods
 
+import opencl_methods
+
 try:
     import flaplace
     import flaplace90_arrays
@@ -235,7 +237,7 @@ def solve(grid, timeStep, n_iter=0, eps=1.0e-16):
         err = timeStep(grid)
         count = count + 1
 
-    return count
+    return err
 
 
 def BC(x, y):    
@@ -304,7 +306,9 @@ def main():
         
         try:
             t0 = time.time()
-            solve(grid, cls.time_step, n_iter, eps=1.0e-16)
+            err = solve(grid, cls.time_step, n_iter, eps=1.0e-16)
+            
+            print "err: ", err 
             cls.finish(grid)
             seconds0 = time.time() - t0
             if method == 'slow':

@@ -17,6 +17,7 @@ from clyther.clast.visitors.returns import return_nodes
 from clyther.clast.visitors.typify import Typify
 from clyther.rttt import replace_types
 from meta.decompiler import decompile_func
+from clyther.clast.mutators.replace_constants import replace_constants
 
 
 
@@ -30,8 +31,8 @@ def make_kernel(cfunc_def):
     cfunc_def.return_type = None
     
     
-def typify_function(argtypes, globls, node):
-    typify = Typify(argtypes, globls)
+def typify_function(name, argtypes, globls, node):
+    typify = Typify(name, argtypes, globls)
     func_ast = typify.make_cfunction(node)
     make_kernel(func_ast)
     return typify.make_module(func_ast), func_ast
@@ -46,7 +47,9 @@ def create_kernel_source(function, argtypes):
     
     globls = function.func_globals
     
-    mod_ast, func_ast = typify_function(argtypes, globls, func_ast)
+    mod_ast, func_ast = typify_function(function.func_name, argtypes, globls, func_ast)
+    
+    mod_ast = replace_constants(mod_ast)
     
     unpack_mem_args(mod_ast, argtypes)
     # convert type calls to casts 

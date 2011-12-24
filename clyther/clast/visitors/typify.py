@@ -11,22 +11,32 @@ from clyther.clast import cast
 from clyther.clast.cast import build_forward_dec, FuncPlaceHolder, n
 from clyther.clast.visitors.returns import returns
 from clyther.pybuiltins import builtin_map
-from clyther.rttt import greatest_common_type, cltype, RuntimeFunction, cList, \
+from clyther.rttt import greatest_common_type, RuntimeFunction, cList, \
     is_vetor_type, derefrence
-from inspect import isroutine, isclass, ismodule
+from ctypes import c_ubyte
+from inspect import isroutine, isclass, ismodule, isfunction, ismethod
 from meta.asttools.visitors import Visitor
 from meta.asttools.visitors.print_visitor import print_ast
 from meta.decompiler import decompile_func
-from opencl import contextual_memory, global_memory
-from opencl.type_formats import type_format
 import __builtin__ as builtins
 import _ctypes
 import ast
 import ctypes
 import re
-from ctypes import c_ubyte
+import opencl as cl
 
 class CException(Exception): pass
+class CTypeError(TypeError): pass
+
+CData = _ctypes._SimpleCData.mro()[1]
+
+def is_type(func_call):
+    if isinstance(func_call, cl.contextual_memory):
+        return True
+    elif isclass(func_call) and issubclass(func_call, CData):
+        return True
+    else:
+        return False
 
 var_builtins = set(vars(builtins).values())
 
@@ -42,19 +52,35 @@ def is_slice(slice):
     else:
         raise NotImplementedError(slice)
 
+
+def get_struct_attr(ctype, attr):
+    fields = dict(ctype._fields_)
+    if attr in fields:
+        return fields[attr]
+    elif hasattr(ctype, attr):
+        return getattr(ctype, attr)
+    else:
+        raise CLAttributeError("type %r has no attribute %s" % (ctype, attr))
+
 def getattrtype(ctype, attr):
     '''
     Get the ctype of an attribute on a ctype 
     '''
     if isclass(ctype) and issubclass(ctype, _ctypes.Structure):
-        return dict(ctype._fields_)[attr]
+        return get_struct_attr(ctype, attr)
+        
     elif ismodule(ctype):
         return getattr(ctype, attr)
-    elif isinstance(ctype, contextual_memory):
-        return getattr(ctype, attr)
+    elif isinstance(ctype, cl.contextual_memory):
+        if ctype.ndim == 0:
+            return getattrtype(ctype.ctype, attr)
+        else:
+            return getattr(ctype, attr)
     elif is_vetor_type(ctype):
         return derefrence(ctype)
 #        raise NotImplementedError("is_vetor_type", ctype, attr, derefrence(ctype))
+    elif hasattr(ctype, attr):
+        return getattr(ctype, attr)
     else:
         raise CLAttributeError("type %r has no attribute %r" % (ctype, attr))
     
@@ -63,11 +89,11 @@ class Typify(Visitor):
     '''
     Makes a copy of an ast
     '''
-    def __init__(self, argtypes, globls):
+    def __init__(self, name, argtypes, globls):
         self.globls = globls
         self.argtypes = argtypes
         self.locls = argtypes.copy()
-        
+        self.func_name = name
         self.function_calls = {}
     
     def visit(self, node, *args, **kwargs):
@@ -76,7 +102,7 @@ class Typify(Visitor):
             if not hasattr(new_node, 'lineno'): 
                 new_node.lineno = node.lineno
             if not hasattr(new_node, 'col_offset'): 
-                new_node.col_offset = node.col_offset
+                new_node.col_offset = getattr(node, 'col_offset', 0)
                 
         return new_node
     
@@ -142,7 +168,7 @@ class Typify(Visitor):
         #'args', 'vararg', 'kwarg', 'defaults'
         
         if node.kwarg or node.vararg:
-            raise CException()
+            raise cast.CError(node, NotImplementedError, 'star args or kwargs')
         
         args = list(self.visit_list(node.args))
         defaults = list(self.visit_list(node.defaults))
@@ -165,6 +191,8 @@ class Typify(Visitor):
         
     def visitName(self, node, ctype=None):
         if isinstance(node.ctx, ast.Param):
+            if node.id not in self.argtypes:
+                raise CTypeError(node.id, 'function %s() requires argument %r' % (self.func_name, node.id))
             ctype = self.argtypes[node.id]
             return cast.CName(node.id, ast.Param(), ctype, **n(node))
         elif isinstance(node.ctx, ast.Load):
@@ -210,9 +238,6 @@ class Typify(Visitor):
         return cast.CNum(node.n, type_map[num_type], **n(node))
     
     def call_python_function(self, node, func, args, keywords):
-        
-        args = list(self.visit_list(node.args))
-        keywords = list(self.visit_list(node.keywords))
 
         func_ast = decompile_func(func)
         
@@ -228,7 +253,18 @@ class Typify(Visitor):
         hsh = dict2hashable(argtypes)
         
         if hsh not in func_dict:
-            typed_ast = Typify(argtypes, func.func_globals).make_cfunction(func_ast)
+            try:
+                typed_ast = Typify(func.func_name, argtypes, func.func_globals).make_cfunction(func_ast)
+            except CTypeError as err:
+                argid = err.args[0]
+                ids = [arg.id for arg in func_ast.args.args]
+                if argid in ids:
+                    pos = ids.index(argid)
+                else:
+                    pos = '?'
+                    
+                raise cast.CError(node, TypeError, err.args[1] + ' at position %s' % (pos))
+                
             key = (func, hsh)
             plchldr = FuncPlaceHolder(func.func_name, key, typed_ast)
             typed_ast.name = plchldr 
@@ -246,17 +282,34 @@ class Typify(Visitor):
         
         expr = ast.Expression(node.func, lineno=node.func.lineno, col_offset=node.func.col_offset)
         code = compile(expr, '<nofile>', 'eval')
-        func = eval(code, self.globls, self.locls) 
+        try:
+            func = eval(code, self.globls, self.locls)
+        except AttributeError as err:
+            raise cast.CError(node, AttributeError, err.args[0])   
         
         args = list(self.visit_list(node.args))
         keywords = list(self.visit_list(node.keywords))
-        
-        
-        if func in var_builtins:
+        if func in builtin_map:
             cl_func = builtin_map[func]
-            return cast.CCall(node.func, args, keywords, cl_func)
-        if isroutine(func):
+            if isinstance(cl_func, RuntimeFunction):
+                argtypes = [arg.ctype for arg in args]
+                try:
+                    return_type = cl_func.return_type(argtypes)
+                except TypeError as exc:
+                    raise cast.CError(node, type(exc), exc.args[0])
+                
+                func_name = cast.CName(cl_func.name, ast.Load(), cl_func)
+                return cast.CCall(func_name, args, keywords, return_type)
+            else:
+                func = self.visit(node.func)
+                return cast.CCall(func, args, keywords, cl_func)
+        
+        
+        elif isfunction(func):
             return self.call_python_function(node, func, args, keywords)
+        elif ismethod(func):
+            value = self.visit(node.func.value)
+            return self.call_python_function(node, func.im_func, [value] + args, keywords)
         else:
             func_name = self.visit(node.func)
             
@@ -268,10 +321,15 @@ class Typify(Visitor):
                 except TypeError as exc:
                     raise cast.CError(node, type(exc), exc.args[0])
                 func_name = cast.CName(rt.name, ast.Load(), rt)
-            else:
-                pass
+            elif is_type(func):
                 # possibly a type cast
-                #raise Exception()
+                pass
+            else:
+                msg = ('This function is not one that CLyther understands. '
+                       'A function may be a) A native python function. '
+                       'A python built-in function registered with clyther.pybuiltins '
+                       'or a ctype (got %r)' % (func))
+                raise cast.CError(node, TypeError, msg)
                 
             return cast.CCall(func_name, args, keywords, func) 
             
@@ -327,7 +385,10 @@ class Typify(Visitor):
         if isinstance(node.ctx, ast.Store):
             pass
         
-        attr = cast.CAttribute(value, node.attr, node.ctx, attr_type)
+        if isinstance(value.ctype, cl.contextual_memory) and value.ctype.ndim == 0:
+            attr = cast.CPointerAttribute(value, node.attr, node.ctx, attr_type)
+        else:
+            attr = cast.CAttribute(value, node.attr, node.ctx, attr_type)
         
         return attr
     
@@ -426,9 +487,19 @@ class Typify(Visitor):
         ctype = greatest_common_type(ltypes)
         return cast.CList(elts, node.ctx, cList(ctype))
         
+    def visitBreak(self, node):
+        return ast.copy_location(ast.Break(), node)
     
-        
-def typify_function(argtypes, globls, node):
-    typify = Typify(argtypes, globls)
+    def visitContinue(self, node):
+        return ast.copy_location(ast.Continue(), node)
+    
+    def visitUnaryOp(self, node):
+        #('op', 'operand')
+        operand = self.visit(node.operand)
+        new_node = cast.CUnaryOp(node.op, operand, operand.ctype)
+        return ast.copy_location(new_node, node)
+            
+def typify_function(name, argtypes, globls, node):
+    typify = Typify(name, argtypes, globls)
     func_ast = typify.make_cfunction(node)
     return typify.make_module(func_ast)

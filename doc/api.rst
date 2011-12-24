@@ -19,4 +19,15 @@ API
    :members:
    :undoc-members:
 
-    
+   .. autoclass:: CLArrayContext
+       :members:
+       :undoc-members:
+
+.. automodule:: clyther.runtime
+   :members:
+   :undoc-members:
+   
+.. automodule:: clyther.rttt
+   :members:
+   
+   

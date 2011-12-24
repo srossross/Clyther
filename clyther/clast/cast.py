@@ -54,6 +54,9 @@ class CName(ast.Name):
 class CBinOp(ast.AST):
     _fields = 'left', 'op', 'right', 'ctype'
 
+class CUnaryOp(ast.AST):
+    _fields = 'op', 'operand', 'ctype'
+
 class ckeyword(ast.AST):
     _fields = 'arg', 'value', 'ctype'
     
@@ -64,6 +67,9 @@ class CSubscript(ast.Subscript):
     _fields = 'value', 'slice', 'ctx', 'ctype'
     
 class CAttribute(ast.Attribute):
+    _fields = 'value', 'attr', 'ctx', 'ctype'
+    
+class CPointerAttribute(ast.Attribute):
     _fields = 'value', 'attr', 'ctx', 'ctype'
 
 class CIfExp(ast.IfExp):

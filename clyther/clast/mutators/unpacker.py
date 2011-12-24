@@ -28,9 +28,10 @@ class Unpacker(Mutator):
                     i += 1
                     continue
                 
-                new_arg = cast.CName(new_id, ast.Load(), arg.ctype.array_info)
-                node.args.insert(i + 1, new_arg)
-                i += 1
+                if arg.ctype.ndim > 0:
+                    new_arg = cast.CName(new_id, ast.Load(), arg.ctype.array_info)
+                    node.args.insert(i + 1, new_arg)
+                    i += 1
             i += 1
             
         self.visitDefault(node)
@@ -46,9 +47,10 @@ class Unpacker(Mutator):
                 if (i + 1) < len(node.args) and node.args[i + 1].id == new_id:
                     i += 1
                     continue  
-                new_arg = cast.CName(new_id, ast.Param(), arg.ctype.array_info)
-                node.args.insert(i + 1, new_arg)
-                i += 1
+                if arg.ctype.ndim > 0:
+                    new_arg = cast.CName(new_id, ast.Param(), arg.ctype.array_info)
+                    node.args.insert(i + 1, new_arg)
+                    i += 1
             i += 1
             
     def visitCSubscript(self, node):

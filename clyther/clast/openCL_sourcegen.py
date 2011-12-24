@@ -138,6 +138,8 @@ class GenOpenCLExpr(Visitor):
             else:
                 raise Exception()
              
+    def visitCUnaryOp(self, node):
+        self.print('({op:node}{operand:node})', op=node.op, operand=node.operand)
     def visitCBinOp(self, node):
         
         if isinstance(node.op, ast.Pow):
@@ -147,10 +149,21 @@ class GenOpenCLExpr(Visitor):
     
     visitMult = simple_string('*')
     visitAdd = simple_string('+')
+    visitUAdd = simple_string('+')
     visitSub = simple_string('-')
+    visitUSub = simple_string('-')
     visitDiv = simple_string('/')
     visitMod = simple_string('%')
+    
+    visitNot = simple_string('!')
 
+    visitBitOr = simple_string('|')
+    visitBitAnd = simple_string('&')
+    visitBitXor = simple_string('^')
+    
+    visitLShift = simple_string('<<')
+    visitRShift = simple_string('>>')
+    
     def visitCStr(self, node):
         with self.no_indent:
             self.print('"{!s}"', node.s)
@@ -205,6 +218,10 @@ class GenOpenCLExpr(Visitor):
     def visitCAttribute(self, node):
         with self.no_indent:
             self.print('{0:node}.{1}', node.value, node.attr)
+
+    def visitCPointerAttribute(self, node):
+        with self.no_indent:
+            self.print('{0:node}->{1}', node.value, node.attr)
         
     def visitCIfExp(self, node):
         with self.no_indent:
@@ -370,8 +387,13 @@ class GenOpenCLSource(GenOpenCLExpr):
         for statement in node.body:
             self.visit(statement)
             
-        
-        
+    def visitBreak(self, node):
+        self.print('break;\n')
+
+    def visitContinue(self, node):
+        self.print('continue;\n')
+            
+    
 def opencl_source(node):
     source_gen = GenOpenCLSource()
     source_gen.visit(node)
