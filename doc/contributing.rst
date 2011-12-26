@@ -2,6 +2,8 @@
 Contributing
 ==============
 
+What can you do to help?
+
 * Author Email: srossross@enthought.com
 * Enthought Email: info@enthought.com
 * `Git development Model <nvie.com/posts/a-successful-git-branching-model/>`_
@@ -35,7 +37,7 @@ To add this to CLyther you can define clamp like so::
                             emulate=lambda x, minval, maxval : min(max(x, minval), maxval # Pure python function for emulation mode.
                             )
  
-Once you get this working you can put it in the python clyther.runtime module following the 
+Once you get this working you can put it in the Python clyther.runtime module following the 
 `Nice Git development Model <nvie.com/posts/a-successful-git-branching-model/>`_ and send me a pull request. 
 Or send me a patch file via email srossross@enthought.com.
 
@@ -45,7 +47,7 @@ If the function has an existing python equivalent. i.e. `acos` then you could sp
     acos = RuntimeFunction('acos', # Name of the function 
                             lambda argtype: argtype, # Return type. 
                             gentype() # Argument types 
-                            doc='Returns acos(value)',  # Docstrng
+                            doc='Returns acos(value)',  # Docstring
                             builtin=math.acos # Alternate function
                             )
                             
@@ -68,6 +70,18 @@ Transformation Pipeline
 CLyther transforms a Python ast into an OpecnCL ast and then compiles it using `OpenCL for Python <https://github.com/srossross/oclpb>`_.
 The ast transformation pipline can be found at :module:`clyther.pipeline`.  
 
+
+CLyther.array
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+I would like to get a chunk of the core numpy functionality reproduced. 
+
+
+Documentation
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+I have just whipped up the documentation and I am notorious for my spelling typos. Please let me know! 
+All documentation and other input is most welcome.    
 
 
 
