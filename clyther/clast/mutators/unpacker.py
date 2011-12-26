@@ -28,7 +28,7 @@ class Unpacker(Mutator):
                     i += 1
                     continue
                 
-                if arg.ctype.ndim > 0:
+                if arg.ctype.ndim > 0 or arg.ctype.flat:
                     new_arg = cast.CName(new_id, ast.Load(), arg.ctype.array_info)
                     node.args.insert(i + 1, new_arg)
                     i += 1
@@ -47,7 +47,7 @@ class Unpacker(Mutator):
                 if (i + 1) < len(node.args) and node.args[i + 1].id == new_id:
                     i += 1
                     continue  
-                if arg.ctype.ndim > 0:
+                if arg.ctype.ndim > 0 or arg.ctype.flat:
                     new_arg = cast.CName(new_id, ast.Param(), arg.ctype.array_info)
                     node.args.insert(i + 1, new_arg)
                     i += 1
@@ -85,7 +85,9 @@ class Unpacker(Mutator):
                 index = self._mutate_index_dim(gid, ctype, elt, axis)
                 left = cast.CBinOp(left, ast.Add(), index, node.value.ctype) #FIXME: cast type
         else:
-            if ctype.ndim != 1:
+            if ctype.ndim not in [1, None]:
+                if ctype.ndim is None:
+                    raise cast.CError(node, NotImplementedError, "Can not slice a flat array") 
                 raise cast.CError(node, NotImplementedError, "Slicing not supported yet. Array is an %i dimentional array (got 1 index)" % (ctype.ndim,))
             
             index = self._mutate_index_dim(gid, ctype, node.value, 0)

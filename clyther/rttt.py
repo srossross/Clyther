@@ -182,7 +182,7 @@ def derefrence(ctype):
 
 def typeof(ctx, obj):
     if isinstance(obj, cl.MemoryObject):
-        return cl.global_memory(obj.ctype, len(obj.shape), obj.shape, context=ctx)
+        return cl.global_memory(obj.ctype, ndim=len(obj.shape), shape=obj.shape, context=ctx)
     elif isinstance(obj, cl.local_memory):
         return obj
     elif isfunction(obj):
@@ -198,7 +198,7 @@ def typeof(ctx, obj):
     else:
         try:
             view = memoryview(obj)
-            return cl.global_memory(view.format, len(view.shape), view.shape, context=ctx)
+            return cl.global_memory(view.format, ndim=len(view.shape), shape=view.shape, context=ctx)
         except TypeError:
             pass
         

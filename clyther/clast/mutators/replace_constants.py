@@ -9,7 +9,6 @@ from inspect import isclass
 import _ctypes
 from clyther.clast import cast
 from clyther.rttt import typeof
-from clyther.pybuiltins import builtin_map
 
 def is_constant(ctype):
     if not isclass(ctype) and not isinstance(ctype, cl.contextual_memory):
@@ -23,17 +22,11 @@ def isnumber(data):
 
 class ConstantTransformer(ast.NodeTransformer):
     
-    
     def generic_visit(self, node):
         if isinstance(node, ast.expr):
             if is_constant(node.ctype):
                 if isnumber(node.ctype):
                     return cast.CNum(node.ctype, typeof(None, node.ctype))
-                elif node.ctype in builtin_map:
-                    pass
-                else:
-                    raise cast.CError(node, TypeError, "Can't handle constant value %r" % (node.ctype))
-            
             
         return ast.NodeTransformer.generic_visit(self, node)
 

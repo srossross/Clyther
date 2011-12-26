@@ -5,18 +5,15 @@ Created on Dec 15, 2011
 '''
 
 import opencl as cl
-import clyther as cly
-import clyther.array as ca
-from ctypes import c_float
-import numpy as np
+from clyther.array import CLArrayContext
 #Always have to create a context.
-ctx = cl.Context()
+ca = CLArrayContext()
 
 #can print the current devices
-print ctx.devices
+print ca.devices
 
 #Create an array
-a = ca.arange(ctx, 12)
+a = ca.arange(12)
 
 print a
 

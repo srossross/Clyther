@@ -73,6 +73,7 @@ Contents:
    :maxdepth: 2
    
    getting_started
+   examples
    performance_python
    for_numpy_users
    api

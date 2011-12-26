@@ -155,7 +155,7 @@ class BinaryUfunc(object):
             
         #output, input, shared, group_size, initial=0.0
         size = x.size
-        shared = cl.local_memory(x.format, [size])
+        shared = cl.local_memory(x.ctype, ndim=1, shape=[size])
         
         group_size = size // 2
         for item in [2, 4, 8, 16, 32, 64, 128, 256, 512]:
@@ -170,8 +170,8 @@ class BinaryUfunc(object):
         
         kernel = reduce_kernel.compile(queue.context,
                                        function=self.device_func,
-                                       output=cl.global_memory(out.format, flat=False),
-                                       array=cl.global_memory(x.format, flat=False),
+                                       output=cl.global_memory(out.ctype, flat=True),
+                                       array=cl.global_memory(x.ctype, flat=True),
                                        shared=shared,
                                        group_size=cl.cl_uint,
                                        cly_meta=self.device_func.func_name)
@@ -185,7 +185,7 @@ class BinaryUfunc(object):
 #        reduce_kernel(queue, self.device_func, out, x, shared, group_size)
         
         array = CLArray._view_as_this(out)
-        array.__array_init__(queue)
+        array.__array_init__(context, queue)
         return array
 
 

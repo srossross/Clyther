@@ -5,18 +5,16 @@ Created on Dec 4, 2011
 '''
 
 from clyther.clast import cast
-import opencl as cl
-from opencl import global_memory
-from clyther.queue_record import  EventRecord
-import ast
-from inspect import isfunction, isclass
-import ctypes
-from tempfile import mktemp
-import pickle
-import h5py
-import _ctypes
 from clyther.pipeline import create_kernel_source
+from clyther.queue_record import EventRecord
 from clyther.rttt import typeof
+from inspect import isfunction, isclass
+from tempfile import mktemp
+import _ctypes
+import ast
+import h5py
+import opencl as cl
+import pickle
 
 class ClytherKernel(object):
     pass
@@ -285,6 +283,9 @@ class task(kernel):
             ...
     '''
 
+    def emulate(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
+    
     def run_kernel(self, cl_kernel, queue, kernel_args, kwargs):
         
         #have to keep args around OpenCL refrence count is not incremented until enqueue_task is called
@@ -335,6 +336,11 @@ def global_work_offset(arg):
     return decorator
 
 def cache(test):
+    '''
+    Toggle caching binaries to file. (default is off)
+    
+    :param test: boolean value
+    '''
     def decorator(func):
         func._use_cache_file = test
         return func

@@ -5,12 +5,17 @@ API
 .. automodule:: clyther
    :members:
    :undoc-members:
-
-.. automodule:: clyther.cly_kernel
-   :members:
-   :undoc-members:
     
-    
+   .. autoclass:: kernel
+      
+   .. autofunction:: global_work_size
+   
+   .. autofunction:: local_work_size
+      
+   .. autofunction:: cache
+   
+   .. autoclass:: task
+        
 .. automodule:: clyther.runtime
    :members:
    :undoc-members:
