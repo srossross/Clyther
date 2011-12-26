@@ -36,3 +36,5 @@ API
    :members:
    
    
+.. automodule:: clyther.pipeline
+   :members: create_kernel_source

@@ -98,7 +98,32 @@ Kernels
         event.wait()
 
 
+        
+Exec 
+--------
 
+    An non-portable way to generate the exact OpenCL code you want is to use the exec statement::
+    
+        @cly.global_work_size(lambda a: a.shape)
+        @cly.kernel
+        def generate_sin(a):
+            exec '''
+            int gid = clrt.get_global_id(0);
+            int n = clrt.get_global_size(0);
+            
+            float r = (float)gid / (float)n;
+            
+            // sin wave with 8 oscillations
+            float y = r * 16.0f * 3.1415f;
+            
+            // x is a range from -1 to 1
+            a[gid].x = r * 2.0 - 1.0;
+            
+            # y is sin wave
+            a[gid].y = sin(y);
+
+            '''
+            
 .. seealso:: 
     
     * :func:`clyther.global_work_size`

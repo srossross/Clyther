@@ -6,7 +6,24 @@
 Welcome to Clyther's documentation!
 ===================================
 
+CLyther is a Python tool similar to Cython and PyPy. CLyther is a just-in-time specialization engine for OpenCL. 
+The main entry points for CLyther are its :class:`clyther.task` and :class:`clyther.kernel` decorators.
+Once a function is decorated with one of these the function will be compiled to OpenCL when called. 
 
+CLyther is a Python language extension that makes writing OpenCL code as easy as Python itself. 
+CLyther currently only supports a subset of the Python language definition but adds many new features to OpenCL. 
+
+CLyther exposes both the OpenCL C library as well as the OpenCL language to python.
+
+Objectives:
+    * Make it easy for developers to take advantage of OpenCL
+    * Take advantage existing Python numerical algorithms
+    * Accelerate my code!
+
+
+Philosophy:
+    * Enable users to have 100% control via Python. Access one to one mapping from Python to OpenCL.
+    * Endorse native Python abstractions for convenience. e.g. Slice an array, pass a function as an argument.
 
 Links:
 +++++++++++
@@ -21,50 +38,7 @@ Links:
 
 * Also please check out `OpenCL for Python <http://srossross.github.com/oclpb>`_ 
 
-Contributing
-++++++++++++++++
 
-* Author Email: srossross@enthought.com
-* Enthought Email: info@enthought.com
-* `Git development Model <nvie.com/posts/a-successful-git-branching-model/>`_
-
-OpenCL built-ins
-^^^^^^^^^^^^^^^^^^^^
-
-I have intentionally put off filling out all of the OpenCL built-in functions. 
-
-
-If you see an error like::
-    
-      File "/Users/sean/indigo_workspace/Clyther/clyther/cly_kernel.py", line 249, in translate
-        eval(redirect_error_to_function) #use the @cly.developer function decorator to turn this off and see stack trace ...
-      File "examples/tst.py", line 16, in <module>
-        a[0] = clrt.clamp(x, 0, 1)
-    AttributeError: 'module' object has no attribute 'clamp'
-
-Then I have not yet added this function definition to the CLyther runtime module. Fortunately this is easy for you!
-
-To add this to CLyther you can define clamp like so::
-
-    import opencl as cl
-    from clyther.rttt import RuntimeFunction, RuntimeType, gentype, sgentype, ugentype
-    
-    clamp = RuntimeFunction('clamp', lambda argtype, *args: 
-                            argtype, 
-                            gentype(), sgentype(), sgentype(), 
-                            doc='Returns min(max(x, minval), maxval)')
- 
-Once you get this working you can put it in the python clyther.runtime module following the 
-`Nice Git development Model <nvie.com/posts/a-successful-git-branching-model/>`_ and send me a pull request. 
-Or send me a patch file via email srossross@enthought.com.
-
-.. seealso::
-
-    * :class:`clyther.rttt.RuntimeFunction`
-    * `Git development Model <nvie.com/posts/a-successful-git-branching-model/>`_
-
-Python built-ins
-^^^^^^^^^^^^^^^^^
 
 Contents:
 ++++++++++++++++
@@ -77,6 +51,8 @@ Contents:
    performance_python
    for_numpy_users
    api
+   contributing
+   status
    
    
 Indices and tables

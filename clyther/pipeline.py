@@ -1,7 +1,8 @@
 '''
-Created on Dec 22, 2011
+clyther.pipeline
+----------------------
 
-@author: sean
+
 '''
 
 from clyther.clast import cast
@@ -40,7 +41,35 @@ def typify_function(name, argtypes, globls, node):
 
 def create_kernel_source(function, argtypes):
     '''
+    Create OpenCL source code from a Python function.
     
+    :param function: A pure python function
+    :param argtypes: A dict of name:type for the compiler to use in optimizing the function.
+    
+    Steps:
+        
+        * Decompile to AST.:
+            Get AST from python bytecode
+        * Typify AST: 
+            This transforms the AST in to a partially typed OpenCL AST.
+            It will recursively dive into pure Python functions and add thoes to the OpenCL module.
+            Function names will be replace with placeholders for the namespace conflict resolution stage.
+        * Replace Constants:
+            Replace Python constants with values. e.g. `math.e` -> `2.7182`
+        * Unpack memobjects:
+            To support multi-dimensional indexing and non contiguous memory arrays. 
+            CLyther adds a uint8 to the function signature to store this information.
+        * Replace calls of types to type casts e.g. int(i) -> ((int)(i))
+        * Format for loops:
+            only `range` or a explicit Python list is currently supported as the iterator in a for loop.
+        * Remove arguments to functions that are constant. e.g. python functions. 
+        * Move keyword arguments in function calls to positional arguments.
+        * Resolve function place-holders
+        * Make printf statements from print
+        * Replace Types:
+            Replace python ctype objects with OpenCL type names.
+            This will also define structs in the module if required. 
+        * Generate Source
     '''
     
     func_ast = decompile_func(function)
