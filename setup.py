@@ -11,7 +11,7 @@ include_dirs = numpy.get_include()
 
 setup(
     name='Clyther',
-    version='0.1',
+    version='0.2-beta',
     author='Enthought, Inc.',
     author_email='srossross@enthought.com',
     url='https://github.com/srossross/Magenta-Kangaroo',
@@ -36,4 +36,7 @@ setup(
     license='BSD',
     packages=find_packages(),
     platforms=["Windows", "Linux", "Mac OS-X", "Unix", "Solaris"],
+    
+    install_requires=['meta', 'oclpb']
 )
+

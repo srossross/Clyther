@@ -18,8 +18,8 @@ Prerequisites
 Download
 --------------------
 
-* `Download from stable version from PyPi <http://pypi.python.org/pypi/clyther>_`
-* `Or Download the latest from GitHub <https://github.com/srossross/clyther/tags>_`
+* `Stable version from PyPi <http://pypi.python.org/pypi/clyther>`_
+* `The latest from GitHub <https://github.com/srossross/clyther/tags>`_
 
 Build
 --------
