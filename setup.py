@@ -11,10 +11,10 @@ include_dirs = numpy.get_include()
 
 setup(
     name='Clyther',
-    version='0.2-beta',
+    version='0.2-alpha',
     author='Enthought, Inc.',
     author_email='srossross@enthought.com',
-    url='https://github.com/srossross/Magenta-Kangaroo',
+    url='srossross.github.com/CLyther',
     classifiers=[c.strip() for c in """\
         Development Status :: 5 - Production/Stable
         Intended Audience :: Developers
@@ -31,12 +31,12 @@ setup(
         Topic :: Software Development
         Topic :: Software Development :: Libraries
         """.splitlines() if len(c.strip()) > 0],
-    description='Open CL Python integration',
+    description='OpenCL Python integration',
     long_description=open('README.rst').read(),
     license='BSD',
     packages=find_packages(),
     platforms=["Windows", "Linux", "Mac OS-X", "Unix", "Solaris"],
     
-    install_requires=['meta', 'oclpb']
+    install_requires=['meta', 'OpenCL']
 )
 
