@@ -1,0 +1,184 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Contributing &mdash; Clyther v1.0.0 documentation</title>
+    <link rel="stylesheet" href="static/default.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <link rel="top" title="Clyther v1.0.0 documentation" href="index.html" />
+    <link rel="prev" title="API" href="api.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="api.html" title="API"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Clyther v1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="contributing">
+<h1>Contributing<a class="headerlink" href="#contributing" title="Permalink to this headline">¶</a></h1>
+<p>What can you do to help?</p>
+<ul class="simple">
+<li>Author Email: <a class="reference external" href="mailto:srossross&#37;&#52;&#48;enthought&#46;com">srossross<span>&#64;</span>enthought<span>&#46;</span>com</a></li>
+<li>Enthought Email: <a class="reference external" href="mailto:info&#37;&#52;&#48;enthought&#46;com">info<span>&#64;</span>enthought<span>&#46;</span>com</a></li>
+<li><a class="reference external" href="nvie.com/posts/a-successful-git-branching-model/">Git development Model</a></li>
+</ul>
+<div class="section" id="opencl-built-ins">
+<h2>OpenCL built-ins<a class="headerlink" href="#opencl-built-ins" title="Permalink to this headline">¶</a></h2>
+<p>I have intentionally put off filling out all of the OpenCL built-in functions.</p>
+<p>If you see an error like:</p>
+<div class="highlight-python"><pre>  File "/Users/sean/indigo_workspace/Clyther/clyther/cly_kernel.py", line 249, in translate
+    eval(redirect_error_to_function) #use the @cly.developer function decorator to turn this off and see stack trace ...
+  File "examples/tst.py", line 16, in &lt;module&gt;
+    a[0] = clrt.clamp(x, 0, 1)
+AttributeError: 'module' object has no attribute 'clamp'</pre>
+</div>
+<p>Then I have not yet added this function definition to the CLyther runtime module. Fortunately this is easy for you!</p>
+<p>To add this to CLyther you can define clamp like so:</p>
+<div class="highlight-python"><pre>import opencl as cl
+from clyther.rttt import RuntimeFunction, RuntimeType, gentype, sgentype, ugentype
+
+clamp = RuntimeFunction('clamp', # Name of the function
+                        lambda argtype, *args: argtype, # Return type.
+                        gentype(), sgentype(), sgentype(), # Argument types
+                        doc='Returns min(max(x, minval), maxval)',  # Docstrng
+                        emulate=lambda x, minval, maxval : min(max(x, minval), maxval # Pure python function for emulation mode.
+                        )</pre>
+</div>
+<p>Once you get this working you can put it in the Python clyther.runtime module following the
+<a class="reference external" href="nvie.com/posts/a-successful-git-branching-model/">Nice Git development Model</a> and send me a pull request.
+Or send me a patch file via email <a class="reference external" href="mailto:srossross&#37;&#52;&#48;enthought&#46;com">srossross<span>&#64;</span>enthought<span>&#46;</span>com</a>.</p>
+<p>If the function has an existing python equivalent. i.e. <cite>acos</cite> then you could specify the <cite>builtin</cite> argument:</p>
+<div class="highlight-python"><pre>acos = RuntimeFunction('acos', # Name of the function
+                        lambda argtype: argtype, # Return type.
+                        gentype() # Argument types
+                        doc='Returns acos(value)',  # Docstring
+                        builtin=math.acos # Alternate function
+                        )</pre>
+</div>
+<p>This will allow <tt class="xref py py-func docutils literal"><span class="pre">clyther.runtime.acos()</span></tt> and <tt class="xref py py-func docutils literal"><span class="pre">math.acos()</span></tt> to be used interchangeably.</p>
+<div class="admonition-see-also admonition seealso">
+<p class="first admonition-title">See also</p>
+<ul class="last simple">
+<li><a class="reference internal" href="api.html#clyther.rttt.RuntimeFunction" title="clyther.rttt.RuntimeFunction"><tt class="xref py py-class docutils literal"><span class="pre">clyther.rttt.RuntimeFunction</span></tt></a></li>
+<li><a class="reference external" href="nvie.com/posts/a-successful-git-branching-model/">Git development Model</a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="errors">
+<h2>Errors<a class="headerlink" href="#errors" title="Permalink to this headline">¶</a></h2>
+<p>My goal is to make OpenCL as easy and friendly to use as possible.
+If you get an error that is not intuitive please post an issue on the <a class="reference external" href="https://github.com/srossross/clyther/issues">GitHub issue tracker</a>.</p>
+</div>
+<div class="section" id="transformation-pipeline">
+<h2>Transformation Pipeline<a class="headerlink" href="#transformation-pipeline" title="Permalink to this headline">¶</a></h2>
+<p>CLyther transforms a Python ast into an OpecnCL ast and then compiles it using <a class="reference external" href="https://github.com/srossross/oclpb">OpenCL for Python</a>.
+The ast transformation pipline can be found at <a href="#id2"><span class="problematic" id="id3">:module:`clyther.pipeline`</span></a>.</p>
+</div>
+<div class="section" id="clyther-array">
+<h2>CLyther.array<a class="headerlink" href="#clyther-array" title="Permalink to this headline">¶</a></h2>
+<p>I would like to get a chunk of the core numpy functionality reproduced.</p>
+</div>
+<div class="section" id="documentation">
+<h2>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h2>
+<p>I have just whipped up the documentation and I am notorious for my spelling typos. Please let me know!
+All documentation and other input is most welcome.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Contributing</a><ul>
+<li><a class="reference internal" href="#opencl-built-ins">OpenCL built-ins</a></li>
+<li><a class="reference internal" href="#errors">Errors</a></li>
+<li><a class="reference internal" href="#transformation-pipeline">Transformation Pipeline</a></li>
+<li><a class="reference internal" href="#clyther-array">CLyther.array</a></li>
+<li><a class="reference internal" href="#documentation">Documentation</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="api.html"
+                        title="previous chapter">API</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/contributing.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="api.html" title="API"
+             >previous</a> |</li>
+        <li><a href="index.html">Clyther v1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Sean Ross-Ross.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>

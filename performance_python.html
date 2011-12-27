@@ -1,0 +1,331 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Performance Python &mdash; Clyther v1.0.0 documentation</title>
+    <link rel="stylesheet" href="static/default.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <link rel="top" title="Clyther v1.0.0 documentation" href="index.html" />
+    <link rel="next" title="CLyther for NumPy Users" href="for_numpy_users.html" />
+    <link rel="prev" title="Examples" href="examples.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="for_numpy_users.html" title="CLyther for NumPy Users"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="examples.html" title="Examples"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Clyther v1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="performance-python">
+<h1>Performance Python<a class="headerlink" href="#performance-python" title="Permalink to this headline">¶</a></h1>
+<p>This is an extension of the original article written by Prabhu Ramachandran. The original article can be found <a class="reference external" href="http://www.scipy.org/PerformancePython">here</a>.
+An addition to this article written by Travis Oliphant can be found at
+<a class="reference external" href="http://technicaldiscovery.blogspot.com/2011/06/speeding-up-python-numpy-cython-and.html">blogspot.com</a>.</p>
+<div class="section" id="a-beginners-guide-to-using-python-for-performance-computing">
+<h2>A beginners guide to using Python for performance computing<a class="headerlink" href="#a-beginners-guide-to-using-python-for-performance-computing" title="Permalink to this headline">¶</a></h2>
+<p>A comparison of weave with NumPy, Cython, opencl, and CLyther for solving Laplace&#8217;s equation.
+laplace.py is The complete Python code discussed below. The source tarball ( <a class="reference download internal" href="downloads/perfpy_clyther.tgz"><tt class="xref download docutils literal"><span class="pre">perfpy_clyther.tgz</span></tt></a>. ) contains in addition the
+Fortran code, the pure C++ code, the Pyrex sources and clyther functions.
+and a setup.py script to build the f2py and Pyrex module.</p>
+</div>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This is a simple introductory document to using Python for performance computing. We&#8217;ll use NumPy, SciPy&#8217;s weave (using both weave.blitz and weave.inline) and Pyrex.
+We will also show how to use f2py to wrap a Fortran subroutine and call it from within Python.
+We will also use this opportunity to benchmark the various ways to solve a particular numerical problem in Python and compare them to an
+implementation of the algorithm in C++.</p>
+</div>
+<div class="section" id="problem-description">
+<h2>Problem description<a class="headerlink" href="#problem-description" title="Permalink to this headline">¶</a></h2>
+<p>The example we will consider is a very simple (read, trivial) case of solving the 2D Laplace equation using an iterative finite difference
+scheme (four point averaging, Gauss-Seidel or Gauss-Jordan). The formal specification of the problem is as follows. We are required to solve
+for some unknown function u(x,y) such that 2u = 0 with a boundary condition specified. For convenience the domain of interest is considered
+to be a rectangle and the boundary values at the sides of this rectangle are given.</p>
+<p>It can be shown that this problem can be solved using a simple four point averaging scheme as follows. Discretise the domain into an (nx x ny) grid of points.
+Then the function u can be represented as a 2 dimensional array - u(nx, ny). The values of u along the sides of the rectangle are given. The solution can be
+obtained by iterating in the following manner:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">time_step</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dy</span><span class="p">):</span>
+
+    <span class="n">nx</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">ny</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">nx</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ny</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">j</span><span class="p">])</span><span class="o">*</span><span class="n">dy</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span>
+                      <span class="p">(</span><span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span><span class="o">*</span><span class="n">dx</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mf">2.0</span><span class="o">*</span><span class="p">(</span><span class="n">dx</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dy</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="section" id="opencl">
+<h3>OpenCL<a class="headerlink" href="#opencl" title="Permalink to this headline">¶</a></h3>
+<p>OpenCL has two different models for parallelization, task and data parallel programming models.</p>
+<dl class="docutils">
+<dt>Task Parallel Programming Model:</dt>
+<dd>A programming model in which computations are expressed in terms of multiple concurrent tasks where a task is a kernel
+executing in a single  work-group of size one.  The concurrent tasks can be running different kernels</dd>
+<dt>Data Parallel Programming Model:</dt>
+<dd>Traditionally, this term refers to a programming model
+where concurrency is expressed as instructions from a single program applied to multiple
+elements within a set of data structures.  The term has been generalized in OpenCL to refer to a
+model wherein a set of  instructions from a single program are applied concurrently to each point
+within an abstract domain of indices.</dd>
+</dl>
+<p>In this article I will explore both.</p>
+</div>
+<div class="section" id="clyther">
+<h3>CLyther<a class="headerlink" href="#clyther" title="Permalink to this headline">¶</a></h3>
+<p>See the <a class="reference internal" href="api.html#clyther.array.CLArrayContext" title="clyther.array.CLArrayContext"><tt class="xref py py-class docutils literal"><span class="pre">clyther.array.CLArrayContext</span></tt></a> for a complete overview. Since OpenCL has the idea of a Context</p>
+<blockquote>
+<div>The environment within which the kernels execute and the domain in which
+synchronization and memory management is defined.  The context includes a set of devices, the
+memory accessible to those devices, the corresponding memory properties and one or more
+command-queues used to schedule execution of a kernel(s) or operations on memory objects.</div></blockquote>
+<p>CLyther takes this concept of a context as an environment and uses it to mock the numpy module namespace.</p>
+<p>In numpy to create an array you may do:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arrange</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s">&#39;f&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In CLyther</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">clyther.array</span> <span class="kn">import</span> <span class="n">CLArrayContext</span>
+<span class="kn">import</span> <span class="nn">opencl</span> <span class="kn">as</span> <span class="nn">cl</span>
+<span class="n">ca</span> <span class="o">=</span> <span class="n">CLArrayContext</span><span class="p">(</span><span class="n">device_type</span><span class="o">=</span><span class="n">cl</span><span class="o">.</span><span class="n">Device</span><span class="o">.</span><span class="n">GPU</span><span class="p">)</span>
+
+<span class="n">a</span> <span class="o">=</span> <span class="n">ca</span><span class="o">.</span><span class="n">arrange</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">ctype</span><span class="o">=</span><span class="s">&#39;f&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You will notice that the preamble is longer but this is because with OpenCL we are allowed to choose which device(s) we want to run on.
+In this case a is a buffer of 100 floats allocated on the GPU.</p>
+</div>
+</div>
+<div class="section" id="task-parallel-solution">
+<h2>Task Parallel Solution<a class="headerlink" href="#task-parallel-solution" title="Permalink to this headline">¶</a></h2>
+<p>Task Parallel:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="nd">@cly.task</span>
+<span class="k">def</span> <span class="nf">cly_time_step_task</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">dy2</span><span class="p">,</span> <span class="n">dx2</span><span class="p">,</span> <span class="n">dnr_inv</span><span class="p">):</span>
+
+    <span class="n">nx</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">ny</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">nx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ny</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="n">u</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">j</span><span class="p">])</span> <span class="o">*</span> <span class="n">dy2</span> <span class="o">+</span>
+                      <span class="p">(</span><span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">dx2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dnr_inv</span>
+</pre></div>
+</div>
+<p>The <a class="reference internal" href="api.html#clyther.task" title="clyther.task"><tt class="xref py py-class docutils literal"><span class="pre">clyther.task</span></tt></a> decorator adds an arguement to the function signature <cite>cly_time_step_task(queue, u, dy2, dx2, dnr_inv)</cite>.
+In this case <cite>queue</cite> can be the attribute <cite>ca.queue</cite>.</p>
+<p>This solution is different than cython for two reasons:</p>
+<ol class="arabic simple">
+<li>This function is created inline in python with pure python code.</li>
+<li>The typing is <em>dynamic</em> just like python. This function can and will be specialized for the types of arguments passed to it.</li>
+</ol>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>The argument <cite>u</cite> can also be a numpy array.</p>
+<p class="last">For any device in <cite>ca.devices</cite> if <cite>device.host_unified_memory == True</cite> (i.e <cite>device_type=CPU</cite>) then this will not come at any added cost.</p>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>If you take a look at the results, this runs only slightly slower than the <cite>weave-fast-inline</cite> example.</p>
+<p>In the next version I would also like to test out some optimization decorators like:</p>
+<div class="last highlight-python"><pre>@cly.constants(['dy2', 'dx2', 'dnr_inv', ('shape', 'u')])
+@cly.compile_flags(['-cl-mad-enable', ..., etc])</pre>
+</div>
+</div>
+</div>
+<div class="section" id="data-parallel-solution">
+<h2>Data Parallel Solution<a class="headerlink" href="#data-parallel-solution" title="Permalink to this headline">¶</a></h2>
+<p>Data Parallel:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="nd">@cly.global_work_size</span><span class="p">(</span><span class="k">lambda</span> <span class="n">u</span><span class="p">:</span> <span class="p">[</span><span class="n">u</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">2</span><span class="p">])</span>
+<span class="nd">@cly.kernel</span>
+<span class="k">def</span> <span class="nf">lp2dstep</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">dx2</span><span class="p">,</span> <span class="n">dy2</span><span class="p">,</span> <span class="n">dnr_inv</span><span class="p">,</span> <span class="n">stidx</span><span class="p">):</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="n">clrt</span><span class="o">.</span><span class="n">get_global_id</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="n">ny</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="p">((</span><span class="n">i</span> <span class="o">+</span> <span class="n">stidx</span><span class="p">)</span> <span class="o">%</span> <span class="mi">2</span><span class="p">),</span> <span class="n">ny</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+        <span class="n">u</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="n">u</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">])</span> <span class="o">*</span> <span class="n">dy2</span> <span class="o">+</span>
+                   <span class="p">(</span><span class="n">u</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">dx2</span><span class="p">)</span> <span class="o">*</span> <span class="n">dnr_inv</span>
+</pre></div>
+</div>
+<p>In the this solution you will notice the following changes.</p>
+<dl class="docutils">
+<dt>The <a class="reference internal" href="api.html#clyther.kernel" title="clyther.kernel"><tt class="xref py py-class docutils literal"><span class="pre">clyther.kernel</span></tt></a> is now <a class="reference internal" href="api.html#clyther.kernel" title="clyther.kernel"><tt class="xref py py-class docutils literal"><span class="pre">clyther.kernel</span></tt></a>:</dt>
+<dd>This tells CLyther that the <cite>lp2dstep</cite> function will now run in data-parallel mode.</dd>
+<dt>The outer loop has been removed:</dt>
+<dd>You will noticed that the outer loop has been replaced by the decorator <cite>&#64;cly.global_work_size(lambda u: [u.shape[0] - 2])</cite> and the index <cite>i = clrt.get_global_id(0) + 1</cite>.
+This is telling OpenCL to run the <cite>lp2dstep</cite> in parallel for each point on an <cite>[u.shape[0] - 2]</cite> shaped grid. The indexing call <cite>clrt.get_global_id</cite> retrieves the
+grid-point simulating the loop index <cite>i</cite>.</dd>
+<dt>The inner loop has been changed:</dt>
+<dd><p class="first">The algorithm now uses a checker-board pattern for parallel data-access.
+I have added the argument stidx which may be 1 or 2 to compute odd or even columns respectively.
+this function must be called twice:</p>
+<div class="last highlight-python"><div class="highlight"><pre><span class="n">lp2dstep</span><span class="p">(</span><span class="n">ca</span><span class="o">.</span><span class="n">queue</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">dx2</span><span class="p">,</span> <span class="n">dy2</span><span class="p">,</span> <span class="n">dnr_inv</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">lp2dstep</span><span class="p">(</span><span class="n">ca</span><span class="o">.</span><span class="n">queue</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">dx2</span><span class="p">,</span> <span class="n">dy2</span><span class="p">,</span> <span class="n">dnr_inv</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</div>
+<div class="section" id="performance-results">
+<h2>Performance Results<a class="headerlink" href="#performance-results" title="Permalink to this headline">¶</a></h2>
+<div class="align-center figure align-center">
+<a class="reference internal image-reference" href="images/graph.png"><img alt="Performance results" src="images/graph.png" style="width: 808.0px; height: 485.6px;" /></a>
+<p class="caption">Here are the performance results.</p>
+<div class="legend">
+<table border="1" class="docutils">
+<colgroup>
+<col width="61%" />
+<col width="39%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">method</th>
+<th class="head">time</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>clyther-checker-gpu</td>
+<td>1.03</td>
+</tr>
+<tr><td>opencl-gpu</td>
+<td>1.10</td>
+</tr>
+<tr><td>clyther-checker-cpu</td>
+<td>7.36</td>
+</tr>
+<tr><td>opencl-cpu</td>
+<td>7.76</td>
+</tr>
+<tr><td>clyther-task</td>
+<td>10.49</td>
+</tr>
+<tr><td>pyrex</td>
+<td>9.42</td>
+</tr>
+<tr><td>weave-fast-inline</td>
+<td>9.46</td>
+</tr>
+<tr><td>weave-blitz</td>
+<td>13.22</td>
+</tr>
+<tr><td>numpy</td>
+<td>21.90</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Performance Python</a><ul>
+<li><a class="reference internal" href="#a-beginners-guide-to-using-python-for-performance-computing">A beginners guide to using Python for performance computing</a></li>
+<li><a class="reference internal" href="#introduction">Introduction</a></li>
+<li><a class="reference internal" href="#problem-description">Problem description</a><ul>
+<li><a class="reference internal" href="#opencl">OpenCL</a></li>
+<li><a class="reference internal" href="#clyther">CLyther</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#task-parallel-solution">Task Parallel Solution</a></li>
+<li><a class="reference internal" href="#data-parallel-solution">Data Parallel Solution</a></li>
+<li><a class="reference internal" href="#performance-results">Performance Results</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="examples.html"
+                        title="previous chapter">Examples</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="for_numpy_users.html"
+                        title="next chapter">CLyther for NumPy Users</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/performance_python.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="for_numpy_users.html" title="CLyther for NumPy Users"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="examples.html" title="Examples"
+             >previous</a> |</li>
+        <li><a href="index.html">Clyther v1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Sean Ross-Ross.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>
