@@ -37,7 +37,7 @@ class Test(unittest.TestCase):
         nu = np.empty([1], 'f')
          
         do_sin(cy.queue, cy, math.pi / 2)
-        do_sin.emulate(nu, math.pi / 2)
+        do_sin.emulate(cy.queue, nu, math.pi / 2)
         
         with cy.map() as arr:
             self.assertTrue(np.allclose(arr, nu))
@@ -52,7 +52,7 @@ class Test(unittest.TestCase):
         nu = np.empty([1], 'f')
          
         do_sin(cy.queue, cy, math.pi / 2)
-        do_sin.emulate(nu, math.pi / 2)
+        do_sin.emulate(cy.queue, nu, math.pi / 2)
         
         with cy.map() as arr:
             self.assertTrue(np.allclose(arr, nu))
