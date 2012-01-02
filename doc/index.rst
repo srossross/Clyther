@@ -35,18 +35,18 @@ Philosophy:
     This is a brand new version of CLyther. I have not released this yet. 
     
     * If you do decide to use it then please think about :ref:`contribute`.
-    * The best place to add your input to the `Issue Tracker <https://github.com/srossross/clyther/issues/>`_.
+    * The best place to add your input to the `Issue Tracker <https://github.com/srossross/Clyther/issues/>`_.
     
      
 Links:
 +++++++++++
 
-* `Homepage <http://srossross.github.com/clyther/develop/>`_
-* `Issue Tracker <https://github.com/srossross/clyther/issues/>`_
+* `Homepage <http://srossross.github.com/Clyther/develop/>`_
+* `Issue Tracker <https://github.com/srossross/Clyther/issues/>`_
 
-* `Development documentation <http://srossross.github.com/clyther/develop/>`_
-* `PyPi <http://pypi.python.org/pypi/clyther/>`_
-* `Github <https://github.com/srossross/clyther/>`_
+* `Development documentation <http://srossross.github.com/Clyther/develop/>`_
+* `PyPi <http://pypi.python.org/pypi/Clyther/>`_
+* `Github <https://github.com/srossross/Clyther/>`_
 * `OpenCL 1.1 spec <http://www.khronos.org/registry/cl/specs/opencl-1.0.29.pdf>`_
 
 * Also please check out `OpenCL for Python <http://srossross.github.com/oclpb>`_ 

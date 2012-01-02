@@ -14,7 +14,7 @@ setup(
     version='0.2.1-beta',
     author='Enthought, Inc.',
     author_email='srossross@enthought.com',
-    url='srossross.github.com/CLyther',
+    url='http://srossross.github.com/Clyther/',
     classifiers=[c.strip() for c in """\
         Development Status :: 4 - Beta
         Intended Audience :: Developers
