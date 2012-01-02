@@ -6,6 +6,11 @@
 Welcome to Clyther's documentation!
 ===================================
 
+.. image:: _static/logo.png
+   :scale: 40 %
+   :align: center
+
+
 CLyther is a Python tool similar to Cython and PyPy. CLyther is a just-in-time specialization engine for OpenCL. 
 The main entry points for CLyther are its :class:`clyther.task` and :class:`clyther.kernel` decorators.
 Once a function is decorated with one of these the function will be compiled to OpenCL when called. 
@@ -25,6 +30,14 @@ Philosophy:
     * Enable users to have 100% control via Python. Access one to one mapping from Python to OpenCL.
     * Endorse native Python abstractions for convenience. e.g. Slice an array, pass a function as an argument.
 
+.. warning::
+    
+    This is a brand new version of CLyther. I have not released this yet. 
+    
+    * If you do decide to use it then please think about :ref:`contribute`.
+    * The best place to add your input to the `Issue Tracker <https://github.com/srossross/clyther/issues/>`_.
+    
+     
 Links:
 +++++++++++
 
@@ -52,7 +65,7 @@ Contents:
    for_numpy_users
    api
    contributing
-   status
+   roadmap
    
    
 Indices and tables
