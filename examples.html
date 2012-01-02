@@ -7,13 +7,13 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Examples &mdash; Clyther v1.0.0 documentation</title>
+    <title>Examples &mdash; Clyther v0.2.0-beta documentation</title>
     <link rel="stylesheet" href="static/default.css" type="text/css" />
     <link rel="stylesheet" href="static/pygments.css" type="text/css" />
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '1.0.0',
+        VERSION:     '0.2.0-beta',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -22,7 +22,8 @@
     <script type="text/javascript" src="static/jquery.js"></script>
     <script type="text/javascript" src="static/underscore.js"></script>
     <script type="text/javascript" src="static/doctools.js"></script>
-    <link rel="top" title="Clyther v1.0.0 documentation" href="index.html" />
+    <link rel="shortcut icon" href="static/clyther.ico"/>
+    <link rel="top" title="Clyther v0.2.0-beta documentation" href="index.html" />
     <link rel="next" title="Performance Python" href="performance_python.html" />
     <link rel="prev" title="Getting Started" href="getting_started.html" /> 
   </head>
@@ -42,7 +43,7 @@
         <li class="right" >
           <a href="getting_started.html" title="Getting Started"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">Clyther v1.0.0 documentation</a> &raquo;</li> 
+        <li><a href="index.html">Clyther v0.2.0-beta documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -89,7 +90,8 @@
 </div>
 <div class="section" id="ufuncs">
 <h2>UFuncs<a class="headerlink" href="#ufuncs" title="Permalink to this headline">¶</a></h2>
-<p>Ufuncs are also supported:</p>
+<blockquote>
+<div><p>Ufuncs are also supported:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="c">#Create an array</span>
 <span class="n">a</span> <span class="o">=</span> <span class="n">ca</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="mi">12</span><span class="p">)</span>
 
@@ -110,6 +112,13 @@
     <span class="k">print</span> <span class="n">arr</span>
 </pre></div>
 </div>
+<div class="admonition-see-also admonition seealso">
+<p class="first admonition-title">See also</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://docs.scipy.org/doc/numpy/reference/ufuncs.html">NumPy Ufuncs</a></li>
+</ul>
+</div>
+</div></blockquote>
 </div>
 <div class="section" id="kernels">
 <h2>Kernels<a class="headerlink" href="#kernels" title="Permalink to this headline">¶</a></h2>
@@ -172,6 +181,80 @@
 </pre></div>
 </div>
 </div></blockquote>
+</div>
+<div class="section" id="compile-to-opencl-source">
+<h2>Compile to OpenCL source<a class="headerlink" href="#compile-to-opencl-source" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><p>In this demo we define a kernel but instead of running it we can call the <cite>compile</cite> method with <cite>source_only=True</cite> to get the source:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">opencl</span> <span class="kn">as</span> <span class="nn">cl</span>
+<span class="kn">import</span> <span class="nn">clyther</span> <span class="kn">as</span> <span class="nn">cly</span>
+
+<span class="kn">import</span> <span class="nn">clyther.runtime</span> <span class="kn">as</span> <span class="nn">clrt</span>
+
+<span class="c">#Always have to create a context.</span>
+<span class="n">ctx</span> <span class="o">=</span> <span class="n">cl</span><span class="o">.</span><span class="n">Context</span><span class="p">()</span>
+
+<span class="nd">@cly.global_work_size</span><span class="p">(</span><span class="k">lambda</span> <span class="n">a</span><span class="p">:</span> <span class="p">[</span><span class="n">a</span><span class="o">.</span><span class="n">size</span><span class="p">])</span>
+<span class="nd">@cly.kernel</span>
+<span class="k">def</span> <span class="nf">generate_sin</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+
+    <span class="n">gid</span> <span class="o">=</span> <span class="n">clrt</span><span class="o">.</span><span class="n">get_global_id</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">clrt</span><span class="o">.</span><span class="n">get_global_size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">cl</span><span class="o">.</span><span class="n">cl_float</span><span class="p">(</span><span class="n">gid</span><span class="p">)</span> <span class="o">/</span> <span class="n">cl</span><span class="o">.</span><span class="n">cl_float</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+
+    <span class="c"># sin wave with 8 peaks</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">r</span> <span class="o">*</span> <span class="n">cl</span><span class="o">.</span><span class="n">cl_float</span><span class="p">(</span><span class="mf">16.0</span> <span class="o">*</span> <span class="mf">3.1415</span><span class="p">)</span>
+
+    <span class="c"># x is a range from -1 to 1</span>
+    <span class="n">a</span><span class="p">[</span><span class="n">gid</span><span class="p">]</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">r</span> <span class="o">*</span> <span class="mf">2.0</span> <span class="o">-</span> <span class="mf">1.0</span>
+
+    <span class="c"># y is sin wave</span>
+    <span class="n">a</span><span class="p">[</span><span class="n">gid</span><span class="p">]</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">clrt</span><span class="o">.</span><span class="n">native_sin</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+
+<span class="c">#===============================================================================</span>
+<span class="c"># Compile to openCL code</span>
+<span class="c">#===============================================================================</span>
+
+<span class="k">print</span> <span class="n">generate_sin</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="n">cl</span><span class="o">.</span><span class="n">global_memory</span><span class="p">(</span><span class="n">cl</span><span class="o">.</span><span class="n">cl_float2</span><span class="p">),</span> <span class="n">source_only</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="cl-object">
+<h2>cl_object<a class="headerlink" href="#cl-object" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><p>This example shows that ctype stucts are supported. You will see that the <cite>Foo.bar</cite> method gets compiled and called within the <cite>objects</cite> kernel:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">clyther</span> <span class="kn">as</span> <span class="nn">cly</span>
+<span class="kn">import</span> <span class="nn">opencl</span> <span class="kn">as</span> <span class="nn">cl</span>
+<span class="kn">from</span> <span class="nn">ctypes</span> <span class="kn">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">clyther.array</span> <span class="kn">import</span> <span class="n">CLArrayContext</span>
+
+<span class="k">class</span> <span class="nc">Foo</span><span class="p">(</span><span class="n">Structure</span><span class="p">):</span>
+    <span class="n">_fields_</span> <span class="o">=</span> <span class="p">[(</span><span class="s">&#39;i&#39;</span><span class="p">,</span> <span class="n">cl</span><span class="o">.</span><span class="n">cl_float</span><span class="p">),</span> <span class="p">(</span><span class="s">&#39;j&#39;</span><span class="p">,</span> <span class="n">cl</span><span class="o">.</span><span class="n">cl_float</span><span class="p">)]</span>
+
+    <span class="k">def</span> <span class="nf">bar</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">i</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">j</span> <span class="o">**</span> <span class="mi">2</span>
+
+<span class="nd">@cly.task</span>
+<span class="k">def</span> <span class="nf">objects</span><span class="p">(</span><span class="n">ret</span><span class="p">,</span> <span class="n">foo</span><span class="p">):</span>
+    <span class="n">ret</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">foo</span><span class="o">.</span><span class="n">bar</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">ca</span> <span class="o">=</span> <span class="n">CLArrayContext</span><span class="p">()</span>
+
+    <span class="n">a</span> <span class="o">=</span> <span class="n">ca</span><span class="o">.</span><span class="n">empty</span><span class="p">([</span><span class="mi">1</span><span class="p">],</span> <span class="n">ctype</span><span class="o">=</span><span class="s">&#39;f&#39;</span><span class="p">)</span>
+
+    <span class="n">foo</span> <span class="o">=</span> <span class="n">Foo</span><span class="p">(</span><span class="mf">10.</span><span class="p">,</span> <span class="mf">2.</span><span class="p">)</span>
+
+    <span class="n">objects</span><span class="p">(</span><span class="n">ca</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">foo</span><span class="p">)</span>
+
+    <span class="k">print</span> <span class="s">&quot;compiled result: &quot;</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="o">.</span><span class="n">value</span>
+    <span class="k">print</span> <span class="s">&quot;python result:   &quot;</span><span class="p">,</span> <span class="n">foo</span><span class="o">.</span><span class="n">bar</span><span class="p">()</span>
+</pre></div>
+</div>
+</div></blockquote>
 <div class="admonition-see-also admonition seealso">
 <p class="first admonition-title">See also</p>
 <ul class="last simple">
@@ -197,6 +280,8 @@
 <li><a class="reference internal" href="#ufuncs">UFuncs</a></li>
 <li><a class="reference internal" href="#kernels">Kernels</a></li>
 <li><a class="reference internal" href="#exec">Exec</a></li>
+<li><a class="reference internal" href="#compile-to-opencl-source">Compile to OpenCL source</a></li>
+<li><a class="reference internal" href="#cl-object">cl_object</a></li>
 </ul>
 </li>
 </ul>
@@ -244,7 +329,7 @@
         <li class="right" >
           <a href="getting_started.html" title="Getting Started"
              >previous</a> |</li>
-        <li><a href="index.html">Clyther v1.0.0 documentation</a> &raquo;</li> 
+        <li><a href="index.html">Clyther v0.2.0-beta documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

@@ -1,0 +1,170 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Roadmap &mdash; Clyther v0.2.0-beta documentation</title>
+    <link rel="stylesheet" href="static/default.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.2.0-beta',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <link rel="shortcut icon" href="static/clyther.ico"/>
+    <link rel="top" title="Clyther v0.2.0-beta documentation" href="index.html" />
+    <link rel="prev" title="Contributing" href="contributing.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="contributing.html" title="Contributing"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Clyther v0.2.0-beta documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="roadmap">
+<h1>Roadmap<a class="headerlink" href="#roadmap" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="release">
+<h2>1.0 Release<a class="headerlink" href="#release" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><ul class="simple">
+<li>Add all of the OpenCL runtime functions to the <a class="reference internal" href="api.html#module-clyther.runtime" title="clyther.runtime"><tt class="xref py py-mod docutils literal"><span class="pre">clyther.runtime</span></tt></a> module.</li>
+<li>Complete the <tt class="xref py py-class docutils literal"><span class="pre">clyther.array.CLArray</span></tt> class.</li>
+<li>Complete Documentation</li>
+<li>90%+ test coverage</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="possible-extensions">
+<h2>Possible Extensions<a class="headerlink" href="#possible-extensions" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="new-context-types">
+<h3>New Context Types<a class="headerlink" href="#new-context-types" title="Permalink to this headline">¶</a></h3>
+<p>I think it would be great to have multiple context types. clyther tasks and kerenels could be compiled to support a specific context.
+Contexts would allow experimentation without changeing the algorithm Ideally the following code would work with any context:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="nd">@binary_ufunc</span>
+<span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+
+<span class="c"># Create a context. this part would change</span>
+<span class="n">ca</span> <span class="o">=</span> <span class="n">cly</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">CLArrayContext</span><span class="p">()</span>
+
+<span class="n">a</span> <span class="o">=</span> <span class="n">ca</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+
+<span class="n">b</span> <span class="o">=</span> <span class="n">add</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+<span class="k">print</span> <span class="n">add</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Some contexts that may be useful include:</p>
+<dl class="docutils">
+<dt>NumpyContext:</dt>
+<dd>This would be the default context. All tasks would be compiled into C functions. Kernels would not be supported.</dd>
+<dt>OpenMPContext:</dt>
+<dd>There is an excellent opportunity to use OpenMP. I have found that it is hard to create fast vectorized operations in OpenCL
+(e.g. <cite>y[:,10] = a + b + c[:1]</cite>) perhaps we could compile to C and parallelize loops using OpenMP.</dd>
+<dt>RemoteContext:</dt>
+<dd>Connect to one or many remote machines to run the algorithm. (possibly using pycloud)</dd>
+<dt>CLEmulation context:</dt>
+<dd>Run all the tasks and kernels in Python for easy debugging.</dd>
+<dt>Cython context:</dt>
+<dd>JIT Compile to Cython</dd>
+</dl>
+</div>
+<div class="section" id="investigate-copperhead">
+<h3>Investigate <a class="reference external" href="http://code.google.com/p/copperhead/">Copperhead</a><a class="headerlink" href="#investigate-copperhead" title="Permalink to this headline">¶</a></h3>
+<p>It would be great to start talking with the copperhead team.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Roadmap</a><ul>
+<li><a class="reference internal" href="#release">1.0 Release</a></li>
+<li><a class="reference internal" href="#possible-extensions">Possible Extensions</a><ul>
+<li><a class="reference internal" href="#new-context-types">New Context Types</a></li>
+<li><a class="reference internal" href="#investigate-copperhead">Investigate Copperhead</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="contributing.html"
+                        title="previous chapter">Contributing</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/roadmap.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="contributing.html" title="Contributing"
+             >previous</a> |</li>
+        <li><a href="index.html">Clyther v0.2.0-beta documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Sean Ross-Ross.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>
