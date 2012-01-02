@@ -9,9 +9,14 @@ from setuptools import setup, find_packages
 import numpy
 include_dirs = numpy.get_include()
 
+try:
+    long_description=open('README').read()
+except IOError as err:
+    long_description=str(err)
+
 setup(
     name='Clyther',
-    version='0.2.1-beta',
+    version='0.2.3-beta',
     author='Enthought, Inc.',
     author_email='srossross@enthought.com',
     url='http://srossross.github.com/Clyther/',
@@ -31,7 +36,7 @@ setup(
         Topic :: Software Development :: Libraries
         """.splitlines() if len(c.strip()) > 0],
     description='OpenCL Python integration',
-    long_description=open('README.rst').read(),
+    long_description=long_description,
     license='BSD',
     packages=find_packages(),
     platforms=["Windows", "Linux", "Mac OS-X", "Unix", "Solaris"],
