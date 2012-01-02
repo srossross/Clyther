@@ -37,6 +37,6 @@ setup(
     packages=find_packages(),
     platforms=["Windows", "Linux", "Mac OS-X", "Unix", "Solaris"],
     
-    install_requires=['meta', 'oclpb']
+    install_requires=['meta', 'opencl-for-python']
 )
 
