@@ -10,7 +10,7 @@ import numpy
 include_dirs = numpy.get_include()
 
 try:
-    long_description=open('README').read()
+    long_description=open('README.rst').read()
 except IOError as err:
     long_description=str(err)
 

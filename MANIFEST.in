@@ -1,4 +1,4 @@
-include license.rst
+include license.rst README.rst
 recursive-include doc *
 recursive-include demos *.py
 recursive-include examples *.py
