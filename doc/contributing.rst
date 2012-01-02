@@ -1,6 +1,9 @@
+.. _contribute:
+
 ==============
 Contributing
 ==============
+
 
 What can you do to help?
 
@@ -68,7 +71,7 @@ Transformation Pipeline
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 CLyther transforms a Python ast into an OpecnCL ast and then compiles it using `OpenCL for Python <https://github.com/srossross/oclpb>`_.
-The ast transformation pipline can be found at :module:`clyther.pipeline`.  
+The ast transformation pipline can be found at :mod:`clyther.pipeline`.  
 
 
 CLyther.array

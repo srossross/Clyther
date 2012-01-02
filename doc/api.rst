@@ -7,6 +7,8 @@ API
    :undoc-members:
     
    .. autoclass:: kernel
+       :members:
+       :undoc-members:
       
    .. autofunction:: global_work_size
    
@@ -15,6 +17,8 @@ API
    .. autofunction:: cache
    
    .. autoclass:: task
+       :members:
+       :undoc-members:
         
 .. automodule:: clyther.runtime
    :members:

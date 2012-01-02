@@ -9,6 +9,7 @@
 .settings
 build
 _build
+.DS_Store
 
 copencl.c
 kernel.c

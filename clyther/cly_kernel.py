@@ -32,13 +32,18 @@ def is_const(obj):
         return False
     
 def developer(func):
+    '''
+    Kernel decorator to enable developer tracebacks.
+    '''
     func._development_mode = True
     func._no_cache = True
 
     return func
 
 def create_key(kwarg_types):
-    
+    '''
+    create a hashable key from argument type dict.
+    '''
     arlist = []
     for key, value in sorted(kwarg_types.viewitems(), key=lambda item:item[0]):
         CData = _ctypes._SimpleCData.mro()[1]
@@ -78,9 +83,15 @@ class kernel(object):
     
 
     def clear_cache(self):
+        '''
+        Clear the binary cache in memory.
+        '''
         self._cache.clear()
         
     def run_kernel(self, cl_kernel, queue, kernel_args, kwargs):
+        '''
+        Run a kernel this method is subclassable for the task class.
+        '''
         event = cl_kernel(queue, global_work_size=kwargs.get('global_work_size'),
                                  global_work_offset=kwargs.get('global_work_offset'),
                                  local_work_size=kwargs.get('local_work_size'),
@@ -90,6 +101,9 @@ class kernel(object):
     
     
     def _unpack(self, argnames, arglist, kwarg_types):
+        '''
+        Unpack memobject structure into two arguments. 
+        '''
         kernel_args = {}
         for name, arg  in zip(argnames, arglist):
             
@@ -104,7 +118,13 @@ class kernel(object):
         return kernel_args
 
     def __call__(self, queue_or_context, *args, **kwargs):
+        '''
+        Call this kernel as a function.
         
+        :param queue_or_context: a queue or context. if this is a context a queue is created and finish is called before return.
+        
+        :return: an OpenCL event.
+        '''
         if isinstance(queue_or_context, cl.Context):
             queue = cl.Queue(queue_or_context)
         else:
@@ -138,6 +158,15 @@ class kernel(object):
         return event
     
     def compile(self, ctx, source_only=False, cly_meta=None, **kwargs):
+        '''
+        Compile a kernel or lookup in cache.
+        
+        :param ctx: openCL context
+        :param cly_meta: meta-information for inspecting the cache. (does nothing)
+        :param kwargs: All other keyword arguments are used for type information.
+        
+        :return: An OpenCL kernel 
+        '''
         cache = self._cache.setdefault(ctx, {})
         
         cache_key = tuple(sorted(kwargs.viewitems(), key=lambda item:item[0]))
@@ -150,6 +179,19 @@ class kernel(object):
         return cache[cache_key] 
     
     def source(self, ctx, *args, **kwargs):
+        '''
+        Get the source that would be compiled for specific argument types.
+        
+        .. note:: 
+            
+            This is meant to have a similar signature to the function call.
+            i.e::
+                 
+                 print func.source(queue.context, arg1, arg2) 
+                 func(queue, arg1, arg2)
+            
+        
+        '''
         
         argnames = self.func.func_code.co_varnames[:self.func.func_code.co_argcount]
         defaults = self.func.func_defaults
@@ -163,12 +205,17 @@ class kernel(object):
     
     @property
     def db_filename(self):
+        '''
+        get the filename that the binaries can be cached to
+        '''
         from os.path import splitext
         base = splitext(self.func.func_code.co_filename)[0]
         return base + '.h5.cly'
      
     def compile_or_cly(self, ctx, source_only=False, cly_meta=None, **kwargs):
-        
+        '''
+        internal
+        '''
         cache_key = create_key(kwargs) 
         # file://ff.h5.cly:/function_name/<hash of code obj>/<hash of arguments>/<device binary>
         
@@ -232,7 +279,9 @@ class kernel(object):
         return cl_kernel
     
     def translate(self, ctx, **kwargs):
-        
+        '''
+        Translate this func into a tuple of (args, defaults, kernel_name, source)  
+        '''
         try:
             args, defaults, source, kernel_name = create_kernel_source(self.func, kwargs)
         except cast.CError as error:
@@ -248,7 +297,9 @@ class kernel(object):
         
     
     def _compile(self, ctx, args, defaults, kernel_name, source):
-        
+        '''
+        Compile a kernel without cache lookup. 
+        '''
         tmpfile = mktemp('.cl', 'clyther_')
         program = cl.Program(ctx, ('#line 1 "%s"\n' % (tmpfile)) + source)
         
@@ -283,11 +334,16 @@ class task(kernel):
             ...
     '''
 
-    def emulate(self, *args, **kwargs):
+    def emulate(self, ctx, *args, **kwargs):
+        '''
+        Run this function in emulation mode.
+        '''
         return self.func(*args, **kwargs)
     
     def run_kernel(self, cl_kernel, queue, kernel_args, kwargs):
-        
+        '''
+        Run the kernel as a single thread task.
+        '''
         #have to keep args around OpenCL refrence count is not incremented until enqueue_task is called
         args = cl_kernel.set_args(**kernel_args)
         event = queue.enqueue_task(cl_kernel)

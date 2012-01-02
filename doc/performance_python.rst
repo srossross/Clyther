@@ -178,7 +178,7 @@ Performance Results
 --------------------
 
 
-.. figure:: graph.png
+.. figure:: _static/graph.png
    :scale: 40 %
    :align: center
    :figclass: align-center
