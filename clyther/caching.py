@@ -38,6 +38,9 @@ class KernelCache(object):
         raise NotImplementedError("This is an abstract class")
 
 class NoFileCache(KernelCache):
+    '''
+    This is the default. It never caches a kernel's binary to disk. 
+    '''
     
     def __contains__(self, item):
         #ctx, func, cache_key = item
@@ -53,6 +56,10 @@ class NoFileCache(KernelCache):
     
 
 class HDFCache(NoFileCache):
+    '''
+    Cache a clyher.kernel to disk. 
+    '''
+    
     def __init__(self, kernel):
         # file://ff.h5.cly:/function_name/<hash of code obj>/<hash of arguments>/<device binary>
         try:
