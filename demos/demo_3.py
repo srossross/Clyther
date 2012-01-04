@@ -38,7 +38,6 @@ def generate_sin(a):
 queue = cl.Queue(ctx)
 
 a = cl.empty(ctx, [200], cl.cl_float2)
-
 event = generate_sin(queue, a)
 
 event.wait()
