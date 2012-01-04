@@ -10,6 +10,8 @@
 build
 _build
 .DS_Store
+dist
+perfpy_clyther.tgz
 
 copencl.c
 kernel.c

@@ -10,13 +10,19 @@ import numpy
 include_dirs = numpy.get_include()
 
 try:
-    long_description=open('README').read()
+    long_description=open('README.rst').read()
 except IOError as err:
     long_description=str(err)
 
+try:
+    version_str = open('version.txt').read()
+except IOError as err:
+    version_str = '???'
+
+
 setup(
     name='Clyther',
-    version='0.2.3-beta',
+    version=version_str,
     author='Enthought, Inc.',
     author_email='srossross@enthought.com',
     url='http://srossross.github.com/Clyther/',

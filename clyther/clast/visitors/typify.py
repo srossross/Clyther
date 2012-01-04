@@ -232,7 +232,7 @@ class Typify(Visitor):
         return cast.ckeyword(node.arg, value, value.ctype)
     
     def visitNum(self, node):
-        type_map = {int:ctypes.c_long, float:ctypes.c_double}
+        type_map = {int:ctypes.c_int, float:ctypes.c_double}
         num_type = type(node.n)
 #        ctype = rttt.const_type(type_map[num_type])
         return cast.CNum(node.n, type_map[num_type], **n(node))
