@@ -3,17 +3,20 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
+
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Performance Python &mdash; Clyther v0.2.0-beta documentation</title>
+    <title>Performance Python &mdash; Clyther 0.3-beta documentation</title>
+    
     <link rel="stylesheet" href="static/default.css" type="text/css" />
     <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '0.2.0-beta',
+        VERSION:     '0.3-beta',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -23,7 +26,7 @@
     <script type="text/javascript" src="static/underscore.js"></script>
     <script type="text/javascript" src="static/doctools.js"></script>
     <link rel="shortcut icon" href="static/clyther.ico"/>
-    <link rel="top" title="Clyther v0.2.0-beta documentation" href="index.html" />
+    <link rel="top" title="Clyther 0.3-beta documentation" href="index.html" />
     <link rel="next" title="CLyther for NumPy Users" href="for_numpy_users.html" />
     <link rel="prev" title="Examples" href="examples.html" /> 
   </head>
@@ -43,7 +46,7 @@
         <li class="right" >
           <a href="examples.html" title="Examples"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">Clyther v0.2.0-beta documentation</a> &raquo;</li> 
+        <li><a href="index.html">Clyther 0.3-beta documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -207,7 +210,7 @@ this function must be called twice:</p>
 <div class="section" id="performance-results">
 <h2>Performance Results<a class="headerlink" href="#performance-results" title="Permalink to this headline">¶</a></h2>
 <div class="align-center figure align-center">
-<a class="reference internal image-reference" href="images/graph1.png"><img alt="Performance results" src="images/graph1.png" style="width: 808.0px; height: 485.6px;" /></a>
+<a class="reference internal image-reference" href="images/graph.png"><img alt="Performance results" src="images/graph.png" style="width: 808.0px; height: 485.6px;" /></a>
 <p class="caption">Here are the performance results.</p>
 <div class="legend">
 <table border="1" class="docutils">
@@ -216,36 +219,36 @@ this function must be called twice:</p>
 <col width="39%" />
 </colgroup>
 <thead valign="bottom">
-<tr><th class="head">method</th>
+<tr class="row-odd"><th class="head">method</th>
 <th class="head">time</th>
 </tr>
 </thead>
 <tbody valign="top">
-<tr><td>clyther-checker-gpu</td>
+<tr class="row-even"><td>clyther-checker-gpu</td>
 <td>1.03</td>
 </tr>
-<tr><td>opencl-gpu</td>
+<tr class="row-odd"><td>opencl-gpu</td>
 <td>1.10</td>
 </tr>
-<tr><td>clyther-checker-cpu</td>
+<tr class="row-even"><td>clyther-checker-cpu</td>
 <td>7.36</td>
 </tr>
-<tr><td>opencl-cpu</td>
+<tr class="row-odd"><td>opencl-cpu</td>
 <td>7.76</td>
 </tr>
-<tr><td>clyther-task</td>
+<tr class="row-even"><td>clyther-task</td>
 <td>10.49</td>
 </tr>
-<tr><td>pyrex</td>
+<tr class="row-odd"><td>pyrex</td>
 <td>9.42</td>
 </tr>
-<tr><td>weave-fast-inline</td>
+<tr class="row-even"><td>weave-fast-inline</td>
 <td>9.46</td>
 </tr>
-<tr><td>weave-blitz</td>
+<tr class="row-odd"><td>weave-blitz</td>
 <td>13.22</td>
 </tr>
-<tr><td>numpy</td>
+<tr class="row-even"><td>numpy</td>
 <td>21.90</td>
 </tr>
 </tbody>
@@ -292,7 +295,7 @@ this function must be called twice:</p>
 <div id="searchbox" style="display: none">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" size="18" />
+      <input type="text" name="q" />
       <input type="submit" value="Go" />
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
@@ -321,12 +324,12 @@ this function must be called twice:</p>
         <li class="right" >
           <a href="examples.html" title="Examples"
              >previous</a> |</li>
-        <li><a href="index.html">Clyther v0.2.0-beta documentation</a> &raquo;</li> 
+        <li><a href="index.html">Clyther 0.3-beta documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">
         &copy; Copyright 2011, Sean Ross-Ross.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
     </div>
   </body>
 </html>
