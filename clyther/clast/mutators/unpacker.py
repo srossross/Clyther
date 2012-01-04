@@ -8,7 +8,6 @@ from meta.asttools.visitors.print_visitor import print_ast
 
 from opencl import contextual_memory, global_memory, mem_layout
 from clyther.clast import cast
-from clyther.types import ulong4
 import ast
 import ctypes
 from clyther.clast.visitors.typify import derefrence
@@ -103,8 +102,9 @@ class Unpacker(Mutator):
                 node.value.ctype = node.value.ctype.array_info
                 ctx = ast.Load()
                 ctype = ctypes.c_ulong
-                slc = ast.Index(value=cast.CNum(3, ctypes.c_int))
-                return cast.CSubscript(node.value, slc, ctx, ctype)
+#                slc = ast.Index(value=cast.CNum(3, ctypes.c_int))
+#                return cast.CSubscript(node.value, slc, ctx, ctype)
+                return cast.CAttribute(node.value,'s3', ctx, ctype)
 
             if node.attr == 'offset':
                 array_name = node.value.id
@@ -112,8 +112,9 @@ class Unpacker(Mutator):
                 node.value.ctype = node.value.ctype.array_info
                 ctx = ast.Load()
                 ctype = ctypes.c_ulong
-                slc = ast.Index(value=cast.CNum(7, ctypes.c_int))
-                return cast.CSubscript(node.value, slc, ctx, ctype)
+#                slc = ast.Index(value=cast.CNum(7, ctypes.c_int))
+                return cast.CAttribute(node.value,'s7', ctx, ctype)
+#                return cast.CSubscript(node.value, slc, ctx, ctype)
             
             elif node.attr == 'strides':
                 array_name = node.value.id

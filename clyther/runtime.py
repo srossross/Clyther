@@ -30,6 +30,9 @@ barrier = RuntimeFunction('barrier', None, cl_mem_fence_flags)
 
 native_sin = RuntimeFunction('native_sin', cl.cl_float, cl.cl_float)
 
+#===============================================================================
+# Math builtin functions
+#===============================================================================
 
 import math
 
@@ -37,8 +40,3 @@ sin = RuntimeFunction('sin', lambda argtype: argtype, gentype(cl.cl_float), buil
 cos = RuntimeFunction('cos', lambda argtype: argtype, gentype(cl.cl_float), builtin=math.cos)
 
 
-#===============================================================================
-# Math builtin functions
-#===============================================================================
-
-#builtin_map[math.sin] = sin 
