@@ -8,13 +8,11 @@ from clyther.clast import cast
 from clyther.pipeline import create_kernel_source
 from clyther.queue_record import EventRecord
 from clyther.rttt import typeof
-from inspect import isfunction, isclass
+from inspect import isfunction
 from tempfile import mktemp
-import _ctypes
 import ast
-import h5py
 import opencl as cl
-import pickle
+from clyther.caching import NoFileCache
 
 class ClytherKernel(object):
     pass
@@ -40,24 +38,6 @@ def developer(func):
 
     return func
 
-def create_key(kwarg_types):
-    '''
-    create a hashable key from argument type dict.
-    '''
-    arlist = []
-    for key, value in sorted(kwarg_types.viewitems(), key=lambda item:item[0]):
-        CData = _ctypes._SimpleCData.mro()[1]
-        if isfunction(value):
-            value = (value.func_name, hash(value.func_code.co_code))
-        elif isclass(value) and issubclass(value, CData):
-            value = hash(pickle.dumps(value))
-        else:
-            value = hash(value)
-            
-        arlist.append((key, value))
-    
-    return hash(tuple(arlist))
-
 class kernel(object):
     '''
     Create an OpenCL kernel from a Python function.
@@ -79,6 +59,7 @@ class kernel(object):
         
         self._development_mode = False
         self._no_cache = False
+        self._file_cacher = NoFileCache()
         self._use_cache_file = False
     
 
@@ -171,6 +152,7 @@ class kernel(object):
         
         cache_key = tuple(sorted(kwargs.viewitems(), key=lambda item:item[0]))
         
+        #Check for in memory cache
         if cache_key not in cache or self._no_cache:
             cl_kernel = self.compile_or_cly(ctx, source_only=source_only, cly_meta=cly_meta, **kwargs)
             
@@ -189,7 +171,6 @@ class kernel(object):
                  
                  print func.source(queue.context, arg1, arg2) 
                  func(queue, arg1, arg2)
-            
         
         '''
         
@@ -216,56 +197,19 @@ class kernel(object):
         '''
         internal
         '''
-        cache_key = create_key(kwargs) 
-        # file://ff.h5.cly:/function_name/<hash of code obj>/<hash of arguments>/<device binary>
-        
-        if self._use_cache_file:
-            hf = h5py.File(self.db_filename)
-            kgroup = hf.require_group(self.func.func_name)
-            cgroup = kgroup.require_group(hex(hash(self.func.func_code)))
-            tgroup = cgroup.require_group(hex(hash(cache_key)))
-            
-            have_compiled_version = all([device.name in tgroup.keys() for device in ctx.devices])
+        cache_key = self._file_cacher.generate_key(kwargs)
+
+        if (ctx, self.func, cache_key) in self._file_cacher:
+            program, kernel_name, args, defaults = self._file_cacher.get(ctx, self.func, cache_key)
         else:
-            have_compiled_version = False
-        
-        if not have_compiled_version:
             args, defaults, kernel_name, source = self.translate(ctx, **kwargs)
-            
-            if self._use_cache_file:
-                tgroup.attrs['args'] = pickle.dumps(args)
-                tgroup.attrs['defaults'] = pickle.dumps(defaults)
-                tgroup.attrs['kernel_name'] = kernel_name
-                tgroup.attrs['meta'] = str(cly_meta)
-                cgroup.attrs['source'] = source
-            
-            if source_only:
-                return source
             
             program = self._compile(ctx, args, defaults, kernel_name, source)
             
-            if self._use_cache_file:
-                for device, binary in program.binaries.items():
-                    if device.name not in tgroup.keys():
-                        tgroup.create_dataset(device.name, data=binary)
-            
-                    
-        else:
-            #args, defaults, program, kernel_name, source = self._compile(ctx, source_only=source_only, **kwargs)
-            source = cgroup.attrs['source']
-            args = pickle.loads(tgroup.attrs['args'])
-            defaults = pickle.loads(tgroup.attrs['defaults'])
-            kernel_name = tgroup.attrs['kernel_name']
-            
-            if source_only:
-                return source
+            self._file_cacher.set(ctx, self.func, cache_key,
+                                  args, defaults, kernel_name, cly_meta, source,
+                                  program.binaries)
 
-            binaries = {}
-            for device in ctx.devices:
-                binaries[device] = tgroup[device.name].value
-                
-            program = cl.Program(ctx, binaries=binaries)
-            program.build()
             
         cl_kernel = program.kernel(kernel_name)
         
@@ -391,13 +335,22 @@ def global_work_offset(arg):
         return func
     return decorator
 
-def cache(test):
+def cache(chache_obj):
     '''
-    Toggle caching binaries to file. (default is off)
+    Set the caching type for a kernel binaries to file. (default is :class:`clyther.caching.NoFileCache`)
+    Use cache as a decorator::
+        
+        @cache(HDFCache)
+        @cly.kernel
+        def foo(...):
+            ...
     
-    :param test: boolean value
+    
+    :param chache_obj: Cache object 
+    
+    
     '''
     def decorator(func):
-        func._use_cache_file = test
+        func._file_cacher = chache_obj
         return func
     return decorator
