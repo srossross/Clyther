@@ -48,7 +48,7 @@ copyright = u'2011, Sean Ross-Ross'
 # built documents.
 #
 try:
-    version_str = open('version.txt').read()
+    version_str = open('../version.txt').read()
 except IOError as err:
     version_str = '???'
 
