@@ -4,6 +4,9 @@ import pickle
 import opencl as cl
 
 class KernelCache(object):
+    '''
+    Basic Cache object.
+    '''
     def generate_key(self, kwarg_types):
         '''
         create a hashable key from argument type dict.
@@ -21,6 +24,18 @@ class KernelCache(object):
             arlist.append((key, value))
         
         return hash(tuple(arlist))
+
+    def __contains__(self, item):
+        #ctx, func, cache_key = item
+        raise NotImplementedError("This is an abstract class")
+    
+    def get(self, ctx, func, cache_key):
+        raise NotImplementedError("This is an abstract class")
+    
+    def set(self, ctx, func, cache_key,
+                  args, defaults, kernel_name, cly_meta, source,
+                  binaries):
+        raise NotImplementedError("This is an abstract class")
 
 class NoFileCache(KernelCache):
     
