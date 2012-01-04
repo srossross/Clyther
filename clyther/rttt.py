@@ -164,7 +164,7 @@ def greatest_common_type(*args):
     else:
         return reduce(_greatest_common_type, args)
   
-vector_len = re.compile('^\((\d)\)([f|i|d|l|L])$')
+vector_len = re.compile('^\((\d)\)([f|i|I|d|l|L])$')
 
 def is_vetor_type(ctype):
     return vector_len.match(type_format(ctype)) is not None
