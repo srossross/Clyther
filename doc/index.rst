@@ -11,7 +11,7 @@ Welcome to Clyther's documentation!
    :align: center
 
 
-.. include:: ../README
+.. include:: ../README.rst
 
 Contents:
 ++++++++++++++++
