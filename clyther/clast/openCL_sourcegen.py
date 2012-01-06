@@ -241,6 +241,7 @@ class GenOpenCLExpr(Visitor):
     visitGtE = simple_string('>=')
     visitLtE = simple_string('<=')
     visitEq = simple_string('==')
+    visitNotEq = simple_string('!=')
     
     
     def visitCAssignExpr(self, node):
