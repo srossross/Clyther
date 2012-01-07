@@ -9,28 +9,14 @@ from contextlib import contextmanager
 import numpy as np
 import opencl as cl
 
-#import math
-#class float2(c_float * 2):
-#    
-#    @cl_property
-#    def length(self):
-#        return (self[0]**2.0 + self[1]**2.0) ** .5
-#    
-#    @length.cl
-#    def length(self):
-#        return clrt.length(self)
     
 class CLArray(cl.DeviceMemoryView):
     
     def __new__(cls, *args):
         return cl.DeviceMemoryView.__new__(cls, *args)
 
-#    def __del__(self, *args):
-#        print "del CLArray"
-    
-         
-    def __init__(self, context):
-        pass
+#    def __init__(self, context):
+#        pass
     
     def __array_init__(self, context, queue):
         self.acontext = context
@@ -39,6 +25,15 @@ class CLArray(cl.DeviceMemoryView):
             queue = context.queue
         
         self.queue = queue
+        
+    def __repr__(self):
+        with self.map() as view:
+            array_str = str(view)
+            return  '%s(%s, ctype=%s, devices=%r)' % (type(self).__name__, array_str, self.ctype, self.context.devices)
+
+    def __str__(self):
+        with self.map() as view:
+            return  str(view)
         
     def __add__(self, other):
         view = self.acontext.add(self, other)
@@ -83,9 +78,11 @@ class CLArray(cl.DeviceMemoryView):
         return view
     
     @contextmanager
-    def map(self):
-        with cl.DeviceMemoryView.map(self, self.queue) as view:
-            yield np.asarray(view)
+    def map(self, queue=None):
+        if queue is None:
+            queue = self.queue
+        with cl.DeviceMemoryView.map(self, queue) as memview:
+            yield  np.asarray(memview)
     
     def copy(self):
         view = cl.DeviceMemoryView.copy(self, self.queue)
