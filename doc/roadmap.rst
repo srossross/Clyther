@@ -31,7 +31,8 @@ Todo
     * 90%+ test coverage
     * Improve U-Func performance
     * Array slice operations
-    * Add `axis=` option to :func:`clyther.array.reduce` function.
+    * Add `axis=` option to :func:`clyther.array.reduce` function
+    * Pure python emulation context
     * Support builtins:
         * all
         * any
