@@ -1,0 +1,539 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>clyther.rttt &mdash; Clyther development documentation</title>
+    
+    <link rel="stylesheet" href="../../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     'development',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../static/clyther.ico"/>
+    <link rel="top" title="Clyther development documentation" href="../../index.html" />
+    <link rel="up" title="clyther" href="../clyther.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">Clyther development documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../clyther.html" accesskey="U">clyther</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for clyther.rttt</h1><div class="highlight"><pre>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">clyther.rttt</span>
+<span class="sd">--------------------</span>
+
+<span class="sd">Run Time Type Tree (rttt)</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">clast</span> <span class="kn">import</span> <span class="n">cast</span>
+<span class="kn">from</span> <span class="nn">clyther.pybuiltins</span> <span class="kn">import</span> <span class="n">builtin_map</span>
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">isroutine</span><span class="p">,</span> <span class="n">isclass</span><span class="p">,</span> <span class="n">isfunction</span>
+<span class="kn">from</span> <span class="nn">meta.asttools.visitors</span> <span class="kn">import</span> <span class="n">visit_children</span><span class="p">,</span> <span class="n">Mutator</span>
+<span class="kn">from</span> <span class="nn">meta.asttools.visitors.print_visitor</span> <span class="kn">import</span> <span class="n">print_ast</span>
+<span class="kn">from</span> <span class="nn">opencl</span> <span class="kn">import</span> <span class="n">contextual_memory</span>
+<span class="kn">from</span> <span class="nn">opencl.type_formats</span> <span class="kn">import</span> <span class="n">type_format</span><span class="p">,</span> <span class="n">cdefn</span>
+<span class="kn">import</span> <span class="nn">_ctypes</span>
+<span class="kn">import</span> <span class="nn">abc</span>
+<span class="kn">import</span> <span class="nn">ast</span>
+<span class="kn">import</span> <span class="nn">ctypes</span>
+<span class="kn">import</span> <span class="nn">opencl</span> <span class="kn">as</span> <span class="nn">cl</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="k">class</span> <span class="nc">cltype</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
+    <span class="k">pass</span>
+
+<span class="n">cltype</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">contextual_memory</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">cList</span><span class="p">(</span><span class="n">cltype</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctype</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">iter_type</span> <span class="o">=</span> <span class="n">ctype</span>
+        
+
+<div class="viewcode-block" id="RuntimeConstant"><a class="viewcode-back" href="../../api.html#clyther.rttt.RuntimeConstant">[docs]</a><span class="k">class</span> <span class="nc">RuntimeConstant</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    define a constant value that is defined in the OpenCL runtime.</span>
+<span class="sd">    </span>
+<span class="sd">    :param name: the name of the constant in OpenCL.</span>
+<span class="sd">    :param rtt: the ctype of the constant.</span>
+<span class="sd">    </span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">rtt</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rtt</span> <span class="o">=</span> <span class="n">rtt</span>
+    
+    <span class="k">def</span> <span class="nf">ctype_string</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+    </div>
+<span class="k">class</span> <span class="nc">RuntimeType</span><span class="p">(</span><span class="n">cltype</span><span class="p">):</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+    
+            
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">RuntimeConstant</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        
+    <span class="k">def</span> <span class="nf">ctype_string</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+    
+<div class="viewcode-block" id="gentype"><a class="viewcode-back" href="../../api.html#clyther.rttt.gentype">[docs]</a><span class="k">class</span> <span class="nc">gentype</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    a generic numeric type in OpenCL</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">types</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">types</span> <span class="o">=</span> <span class="n">types</span>
+        </div>
+<div class="viewcode-block" id="ugentype"><a class="viewcode-back" href="../../api.html#clyther.rttt.ugentype">[docs]</a><span class="k">class</span> <span class="nc">ugentype</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    an unsigned generic numeric type in OpenCL</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">types</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">types</span> <span class="o">=</span> <span class="n">types</span>
+        </div>
+<div class="viewcode-block" id="sgentype"><a class="viewcode-back" href="../../api.html#clyther.rttt.sgentype">[docs]</a><span class="k">class</span> <span class="nc">sgentype</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    a signed generic numeric type in OpenCL</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">types</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">types</span> <span class="o">=</span> <span class="n">types</span>
+        </div>
+<div class="viewcode-block" id="RuntimeFunction"><a class="viewcode-back" href="../../api.html#clyther.rttt.RuntimeFunction">[docs]</a><span class="k">class</span> <span class="nc">RuntimeFunction</span><span class="p">(</span><span class="n">cltype</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    A function that is defined in the openCL runtime.</span>
+<span class="sd">    </span>
+<span class="sd">    :param name: the name of the function as per the oencl specification.</span>
+<span class="sd">    :param return_type: Either a ctype or a function that returns a ctype</span>
+<span class="sd">    :param argtypes: Either a ctype or a function that returns a ctype</span>
+<span class="sd">    </span>
+<span class="sd">    Keyword only parameters:</span>
+<span class="sd">        :param doc: Either a ctype or a function that returns a ctype</span>
+<span class="sd">        :param builtin: a python builtin function that is equivalent to this function</span>
+<span class="sd">        :param emulate: A function that emulates the behavior of this function in python. </span>
+<span class="sd">            This argument is not required if `builtin` is given. </span>
+<span class="sd">    </span>
+<span class="sd">    If `return_type` is a function it must have the same signature as the runtime function.</span>
+<span class="sd">     </span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">return_type</span><span class="p">,</span> <span class="o">*</span><span class="n">argtypes</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_return_type</span> <span class="o">=</span> <span class="n">return_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="n">argtypes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;doc&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">builtin</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;builtin&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">emulate</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;emulate&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">builtin</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">builtin_map</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">builtin</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+        
+    <span class="k">def</span> <span class="nf">return_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">argtypes</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">isfunction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_return_type</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_return_type</span><span class="p">(</span><span class="o">*</span><span class="n">argtypes</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">argtypes</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">argtypes</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;openCL builtin function </span><span class="si">%r</span><span class="s"> expected </span><span class="si">%i</span><span class="s"> argument(s) (got </span><span class="si">%i</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">argtypes</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">argtypes</span><span class="p">)))</span>
+            
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_return_type</span>
+            
+    <span class="k">def</span> <span class="nf">ctype_string</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">None</span>
+    
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">builtin</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">builtin</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">emulate</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">builtin</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span> 
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;python can not emulate this function yet.&quot;</span><span class="p">)</span>
+         
+</div>
+<span class="n">int_ctypes</span> <span class="o">=</span> <span class="p">{</span><span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int32</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int8</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int16</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int64</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span> <span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_longlong</span><span class="p">,</span>
+              <span class="n">ctypes</span><span class="o">.</span><span class="n">c_size_t</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ssize_t</span><span class="p">,</span>
+              <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ubyte</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint16</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint64</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ulong</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ushort</span><span class="p">,</span>
+              <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint8</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ulonglong</span><span class="p">,</span>
+              <span class="nb">int</span><span class="p">}</span>
+
+<span class="n">unsigned_ctypes</span> <span class="o">=</span> <span class="p">{</span><span class="n">ctypes</span><span class="o">.</span><span class="n">c_ubyte</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint16</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint64</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ulong</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ushort</span><span class="p">,</span>
+                   <span class="n">ctypes</span><span class="o">.</span><span class="n">c_size_t</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ssize_t</span><span class="p">,</span>
+                   <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint8</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ulonglong</span><span class="p">}</span>
+
+<span class="n">float_types</span> <span class="o">=</span> <span class="p">{</span><span class="n">ctypes</span><span class="o">.</span><span class="n">c_float</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_double</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_longdouble</span><span class="p">,</span> <span class="nb">float</span><span class="p">}</span>
+
+<span class="n">type_groups</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;unsigned&#39;</span><span class="p">:</span> <span class="n">unsigned_ctypes</span><span class="p">,</span> <span class="s">&#39;int&#39;</span><span class="p">:</span><span class="n">int_ctypes</span><span class="p">,</span> <span class="s">&#39;float&#39;</span><span class="p">:</span><span class="n">float_types</span><span class="p">}</span>
+<span class="n">type_group_weight</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;unsigned&#39;</span><span class="p">,</span> <span class="s">&#39;int&#39;</span><span class="p">,</span> <span class="s">&#39;float&#39;</span><span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">groupof</span><span class="p">(</span><span class="n">ctype</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">gname</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">type_groups</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">ctype</span> <span class="ow">in</span> <span class="n">group</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">gname</span>
+        
+    <span class="k">return</span> <span class="bp">None</span>
+
+<span class="k">def</span> <span class="nf">same_group</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">groupof</span><span class="p">(</span><span class="n">left</span><span class="p">)</span> <span class="o">==</span> <span class="n">groupof</span><span class="p">(</span><span class="n">right</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">greatest_common_type</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">_greatest_common_type</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+  
+<span class="n">vector_len</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#39;^\((\d)\)([f|i|I|d|l|L])$&#39;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">is_vetor_type</span><span class="p">(</span><span class="n">ctype</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">vector_len</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">type_format</span><span class="p">(</span><span class="n">ctype</span><span class="p">))</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+
+<span class="k">def</span> <span class="nf">derefrence</span><span class="p">(</span><span class="n">ctype</span><span class="p">):</span>
+    
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ctype</span><span class="p">,</span> <span class="n">cltype</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ctype</span><span class="o">.</span><span class="n">derefrence</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">is_vetor_type</span><span class="p">(</span><span class="n">ctype</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ctype</span><span class="o">.</span><span class="n">_type_</span>
+    <span class="k">elif</span> <span class="n">isclass</span><span class="p">(</span><span class="n">ctype</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">ctype</span><span class="p">,</span> <span class="n">_ctypes</span><span class="o">.</span><span class="n">_Pointer</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ctype</span><span class="o">.</span><span class="n">_type_</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="nb">slice</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">typeof</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">cl</span><span class="o">.</span><span class="n">MemoryObject</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">cl</span><span class="o">.</span><span class="n">global_memory</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">ctype</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">shape</span><span class="o">=</span><span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">ctx</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">cl</span><span class="o">.</span><span class="n">local_memory</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">obj</span>
+    <span class="k">elif</span> <span class="n">isfunction</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">obj</span>
+    
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_float</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">Structure</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">cl</span><span class="o">.</span><span class="n">constant_memory</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(),</span> <span class="n">context</span><span class="o">=</span><span class="n">ctx</span><span class="p">)</span>
+<span class="c">#        raise NotImplementedError(&quot;ctypes.Structure as parameter&quot;)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">view</span> <span class="o">=</span> <span class="n">memoryview</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">cl</span><span class="o">.</span><span class="n">global_memory</span><span class="p">(</span><span class="n">view</span><span class="o">.</span><span class="n">format</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">view</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">shape</span><span class="o">=</span><span class="n">view</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">ctx</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+            <span class="k">pass</span>
+        
+        <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_greatest_common_type</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">isclass</span><span class="p">(</span><span class="n">left</span><span class="p">):</span>
+        <span class="n">left</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">left</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">isclass</span><span class="p">(</span><span class="n">right</span><span class="p">):</span>
+        <span class="n">right</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">right</span><span class="p">)</span>
+        
+    <span class="k">if</span> <span class="n">left</span> <span class="o">==</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="n">left</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int32</span>
+    <span class="k">elif</span> <span class="n">left</span> <span class="o">==</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">left</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_float</span>
+    <span class="k">if</span> <span class="n">right</span> <span class="o">==</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="n">right</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int32</span>
+    <span class="k">elif</span> <span class="n">right</span> <span class="o">==</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">right</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_float</span>
+    
+    <span class="k">if</span> <span class="n">left</span> <span class="o">==</span> <span class="n">right</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">left</span>
+    
+    <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">_ctypes</span><span class="o">.</span><span class="n">Array</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">right</span><span class="p">,</span> <span class="n">_ctypes</span><span class="o">.</span><span class="n">Array</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">left</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;type conversion for vector logic is not implemented yet&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">right</span><span class="p">,</span> <span class="n">_ctypes</span><span class="o">.</span><span class="n">Array</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">_ctypes</span><span class="o">.</span><span class="n">Array</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">right</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;type conversion for vector logic is not implemented yet&quot;</span><span class="p">)</span>
+        
+    
+    <span class="k">elif</span> <span class="n">same_group</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">ctype</span><span class="p">:</span><span class="n">ctypes</span><span class="o">.</span><span class="n">sizeof</span><span class="p">(</span><span class="n">ctype</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">ctypes</span><span class="o">.</span><span class="n">sizeof</span><span class="p">(</span><span class="n">left</span><span class="p">),</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">sizeof</span><span class="p">(</span><span class="n">right</span><span class="p">))</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">groupof</span><span class="p">(</span><span class="n">left</span><span class="p">),</span> <span class="n">groupof</span><span class="p">(</span><span class="n">right</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">group</span><span class="p">:</span><span class="n">type_group_weight</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">group</span><span class="p">))</span>
+        
+        <span class="n">test</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">ctype</span><span class="p">:</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">ctype</span><span class="p">,</span> <span class="n">_ctypes</span><span class="o">.</span><span class="n">_SimpleCData</span><span class="p">)</span> <span class="ow">and</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">sizeof</span><span class="p">(</span><span class="n">ctype</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">size</span> 
+        <span class="n">ctype</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">ctype</span> <span class="k">for</span> <span class="n">ctype</span> <span class="ow">in</span> <span class="n">type_groups</span><span class="p">[</span><span class="n">group</span><span class="p">]</span> <span class="k">if</span> <span class="n">test</span><span class="p">(</span><span class="n">ctype</span><span class="p">)],</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">ctype</span><span class="p">:</span><span class="n">ctypes</span><span class="o">.</span><span class="n">sizeof</span><span class="p">(</span><span class="n">ctype</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">ctype</span>
+
+
+<span class="k">class</span> <span class="nc">rtt</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">()&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+
+<span class="k">class</span> <span class="nc">const_type</span><span class="p">(</span><span class="n">rtt</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctype</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ctype</span> <span class="o">=</span> <span class="n">ctype</span>
+    
+    <span class="k">def</span> <span class="nf">resolve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">locls</span><span class="p">,</span> <span class="n">globls</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ctype</span>
+
+<span class="k">class</span> <span class="nc">type_tree</span><span class="p">(</span><span class="n">rtt</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctype_list</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ctype_list</span> <span class="o">=</span> <span class="n">ctype_list</span>
+
+<span class="k">class</span> <span class="nc">parameter_type</span><span class="p">(</span><span class="n">rtt</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_id</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">param_id</span> <span class="o">=</span> <span class="n">param_id</span>
+        
+<span class="k">class</span> <span class="nc">return_type</span><span class="p">(</span><span class="n">rtt</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+<span class="k">class</span> <span class="nc">local_type</span><span class="p">(</span><span class="n">rtt</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_id</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">param_id</span> <span class="o">=</span> <span class="n">param_id</span>
+    
+    <span class="k">def</span> <span class="nf">resolve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">locls</span><span class="p">,</span> <span class="n">globls</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">eval</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">param_id</span><span class="p">,</span> <span class="n">locls</span><span class="p">,</span> <span class="n">globls</span><span class="p">)</span>
+
+
+<span class="kn">from</span> <span class="nn">opencl</span> <span class="kn">import</span> <span class="n">cl_types</span>
+<span class="n">type_map</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_char</span> <span class="p">:</span> <span class="s">&#39;char&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_char16</span> <span class="p">:</span> <span class="s">&#39;char16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_char2</span> <span class="p">:</span> <span class="s">&#39;char2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_char4</span> <span class="p">:</span> <span class="s">&#39;char4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_char8</span> <span class="p">:</span> <span class="s">&#39;char8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_double</span> <span class="p">:</span> <span class="s">&#39;double&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_double16</span> <span class="p">:</span> <span class="s">&#39;double16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_double2</span> <span class="p">:</span> <span class="s">&#39;double2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_double4</span> <span class="p">:</span> <span class="s">&#39;double4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_double8</span> <span class="p">:</span> <span class="s">&#39;double8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_float</span> <span class="p">:</span> <span class="s">&#39;float&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_float16</span> <span class="p">:</span> <span class="s">&#39;float16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_float2</span> <span class="p">:</span> <span class="s">&#39;float2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_float4</span> <span class="p">:</span> <span class="s">&#39;float4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_float8</span> <span class="p">:</span> <span class="s">&#39;float8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_half</span> <span class="p">:</span> <span class="s">&#39;half&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_int</span> <span class="p">:</span> <span class="s">&#39;int&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_int16</span> <span class="p">:</span> <span class="s">&#39;int16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_int2</span> <span class="p">:</span> <span class="s">&#39;int2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_int4</span> <span class="p">:</span> <span class="s">&#39;int4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_int8</span> <span class="p">:</span> <span class="s">&#39;int8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_long</span> <span class="p">:</span> <span class="s">&#39;long&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_long16</span> <span class="p">:</span> <span class="s">&#39;long16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_long2</span> <span class="p">:</span> <span class="s">&#39;long2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_long4</span> <span class="p">:</span> <span class="s">&#39;long4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_long8</span> <span class="p">:</span> <span class="s">&#39;long8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_short</span> <span class="p">:</span> <span class="s">&#39;short&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_short16</span> <span class="p">:</span> <span class="s">&#39;short16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_short2</span> <span class="p">:</span> <span class="s">&#39;short2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_short4</span> <span class="p">:</span> <span class="s">&#39;short4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_short8</span> <span class="p">:</span> <span class="s">&#39;short8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uchar</span> <span class="p">:</span> <span class="s">&#39;uchar&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uchar16</span> <span class="p">:</span> <span class="s">&#39;uchar16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uchar2</span> <span class="p">:</span> <span class="s">&#39;uchar2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uchar4</span> <span class="p">:</span> <span class="s">&#39;uchar4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uchar8</span> <span class="p">:</span> <span class="s">&#39;uchar8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uint</span> <span class="p">:</span> <span class="s">&#39;uint&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uint16</span> <span class="p">:</span> <span class="s">&#39;uint16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uint2</span> <span class="p">:</span> <span class="s">&#39;uint2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uint4</span> <span class="p">:</span> <span class="s">&#39;uint4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uint8</span> <span class="p">:</span> <span class="s">&#39;uint8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ulong</span> <span class="p">:</span> <span class="s">&#39;ulong&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ulong16</span> <span class="p">:</span> <span class="s">&#39;ulong16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ulong2</span> <span class="p">:</span> <span class="s">&#39;ulong2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ulong4</span> <span class="p">:</span> <span class="s">&#39;ulong4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ulong8</span> <span class="p">:</span> <span class="s">&#39;ulong8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ushort</span> <span class="p">:</span> <span class="s">&#39;ushort&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ushort16</span> <span class="p">:</span> <span class="s">&#39;ushort16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ushort2</span> <span class="p">:</span> <span class="s">&#39;ushort2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ushort4</span> <span class="p">:</span> <span class="s">&#39;ushort4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ushort8</span> <span class="p">:</span> <span class="s">&#39;ushort8&#39;</span><span class="p">,</span>
+
+    <span class="p">}</span>
+
+
+
+
+<span class="k">def</span> <span class="nf">str_type</span><span class="p">(</span><span class="n">ctype</span><span class="p">,</span> <span class="n">defined_types</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">ctype</span> <span class="ow">in</span> <span class="n">defined_types</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">defined_types</span><span class="p">[</span><span class="n">ctype</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">ctype</span> <span class="ow">in</span> <span class="n">type_map</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">type_map</span><span class="p">[</span><span class="n">ctype</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">isroutine</span><span class="p">(</span><span class="n">ctype</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">None</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ctype</span><span class="p">,</span> <span class="n">cl</span><span class="o">.</span><span class="n">contextual_memory</span><span class="p">):</span>
+        <span class="n">base_str</span> <span class="o">=</span> <span class="n">str_type</span><span class="p">(</span><span class="n">ctype</span><span class="o">.</span><span class="n">ctype</span><span class="p">,</span> <span class="n">defined_types</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s">*&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">ctype</span><span class="o">.</span><span class="n">qualifier</span><span class="p">,</span> <span class="n">base_str</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ctype</span><span class="p">,</span> <span class="n">cltype</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ctype</span><span class="o">.</span><span class="n">ctype_string</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ctype</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ctype</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">format</span> <span class="o">=</span> <span class="n">type_format</span><span class="p">(</span><span class="n">ctype</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">cdefn</span><span class="p">(</span><span class="n">format</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TypeReplacer"><a class="viewcode-back" href="../../api.html#clyther.rttt.TypeReplacer">[docs]</a><span class="k">class</span> <span class="nc">TypeReplacer</span><span class="p">(</span><span class="n">Mutator</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Replace ctype with opencl type string. </span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">defined_types</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">defined_types</span> <span class="o">=</span> <span class="n">defined_types</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">new_types</span> <span class="o">=</span> <span class="p">{}</span>
+        
+    <span class="k">def</span> <span class="nf">visitCVarDec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">ctype</span><span class="p">,</span> <span class="n">cast</span><span class="o">.</span><span class="n">CTypeName</span><span class="p">):</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">ctype</span> <span class="o">=</span> <span class="n">cast</span><span class="o">.</span><span class="n">CTypeName</span><span class="p">(</span><span class="n">str_type</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">ctype</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">defined_types</span><span class="p">))</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">visitDefault</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+        
+    <span class="k">def</span> <span class="nf">visitCFunctionForwardDec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">return_type</span><span class="p">,</span> <span class="n">cast</span><span class="o">.</span><span class="n">CTypeName</span><span class="p">):</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">return_type</span> <span class="o">=</span> <span class="n">cast</span><span class="o">.</span><span class="n">CTypeName</span><span class="p">(</span><span class="n">str_type</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">return_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">defined_types</span><span class="p">))</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">visitDefault</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+            
+    <span class="k">def</span> <span class="nf">visitCFunctionDef</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">return_type</span><span class="p">,</span> <span class="n">cast</span><span class="o">.</span><span class="n">CTypeName</span><span class="p">):</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">return_type</span> <span class="o">=</span> <span class="n">cast</span><span class="o">.</span><span class="n">CTypeName</span><span class="p">(</span><span class="n">str_type</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">return_type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">defined_types</span><span class="p">))</span>
+            
+        <span class="bp">self</span><span class="o">.</span><span class="n">visitDefault</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+        
+    <span class="k">def</span> <span class="nf">mutateDefault</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">ast</span><span class="o">.</span><span class="n">expr</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">ctype</span><span class="p">,</span> <span class="n">RuntimeConstant</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">cast</span><span class="o">.</span><span class="n">CName</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">ctype</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">ast</span><span class="o">.</span><span class="n">Load</span><span class="p">(),</span> <span class="n">node</span><span class="o">.</span><span class="n">ctype</span><span class="o">.</span><span class="n">rtt</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Mutator</span><span class="o">.</span><span class="n">mutateDefault</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">)</span>
+                
+    <span class="k">def</span> <span class="nf">visitDefault</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">ast</span><span class="o">.</span><span class="n">expr</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">ctype</span><span class="p">,</span> <span class="n">cast</span><span class="o">.</span><span class="n">CTypeName</span><span class="p">):</span>
+                
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">type_repr</span> <span class="o">=</span> <span class="n">str_type</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">ctype</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">defined_types</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">ctype</span><span class="p">,</span> <span class="n">cl</span><span class="o">.</span><span class="n">contextual_memory</span><span class="p">):</span>
+                        <span class="n">ctype</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">ctype</span><span class="o">.</span><span class="n">ctype</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">ctype</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">ctype</span>
+                        
+                    <span class="n">base_name</span> <span class="o">=</span> <span class="s">&#39;cly_</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">ctype</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span> 
+                    <span class="n">type_repr</span> <span class="o">=</span> <span class="n">base_name</span>
+                    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="k">while</span> <span class="n">type_repr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">defined_types</span><span class="o">.</span><span class="n">viewvalues</span><span class="p">():</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="n">type_repr</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">_</span><span class="si">%03i</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">base_name</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+                        
+                    <span class="bp">self</span><span class="o">.</span><span class="n">defined_types</span><span class="p">[</span><span class="n">ctype</span><span class="p">]</span> <span class="o">=</span> <span class="n">type_repr</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">new_types</span><span class="p">[</span><span class="n">type_repr</span><span class="p">]</span> <span class="o">=</span> <span class="n">ctype</span>
+                    
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">ctype</span><span class="p">,</span> <span class="n">cl</span><span class="o">.</span><span class="n">contextual_memory</span><span class="p">):</span>
+                        <span class="n">type_repr</span> <span class="o">=</span> <span class="n">str_type</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">ctype</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">defined_types</span><span class="p">)</span>
+                    
+                <span class="n">node</span><span class="o">.</span><span class="n">ctype</span> <span class="o">=</span> <span class="n">cast</span><span class="o">.</span><span class="n">CTypeName</span><span class="p">(</span><span class="n">type_repr</span><span class="p">)</span>
+                
+        <span class="n">visit_children</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">)</span>
+        
+        </div>
+<span class="k">def</span> <span class="nf">create_cstruct</span><span class="p">(</span><span class="n">struct_id</span><span class="p">,</span> <span class="n">ctype</span><span class="p">,</span> <span class="n">defined_types</span><span class="p">):</span>
+    <span class="n">decs</span> <span class="o">=</span> <span class="p">[]</span>
+    
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">ctype</span><span class="o">.</span><span class="n">_fields_</span><span class="p">:</span>
+        <span class="n">typename</span> <span class="o">=</span> <span class="n">cast</span><span class="o">.</span><span class="n">CTypeName</span><span class="p">(</span><span class="n">str_type</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">defined_types</span><span class="p">))</span>
+        <span class="n">decs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cast</span><span class="o">.</span><span class="n">CVarDec</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">typename</span><span class="p">))</span>
+    
+    <span class="k">return</span> <span class="n">cast</span><span class="o">.</span><span class="n">CStruct</span><span class="p">(</span><span class="n">struct_id</span><span class="p">,</span> <span class="n">decs</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">replace_types</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+    <span class="n">defined_types</span> <span class="o">=</span> <span class="p">{</span><span class="bp">None</span><span class="p">:</span><span class="s">&#39;void&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">:</span><span class="s">&#39;char*&#39;</span><span class="p">}</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">ast</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">statement</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">body</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">statement</span><span class="p">,</span> <span class="n">cast</span><span class="o">.</span><span class="n">CStruct</span><span class="p">):</span>
+                <span class="n">defined_types</span><span class="p">[</span><span class="n">statement</span><span class="o">.</span><span class="n">ctype</span><span class="p">]</span> <span class="o">=</span> <span class="n">statement</span><span class="o">.</span><span class="n">id</span>
+    
+    <span class="n">type_replacer</span> <span class="o">=</span> <span class="n">TypeReplacer</span><span class="p">(</span><span class="n">defined_types</span><span class="p">)</span>
+    
+    <span class="n">type_replacer</span><span class="o">.</span><span class="n">mutate</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+    <span class="n">type_replacer</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+    
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">ctype</span> <span class="ow">in</span> <span class="n">type_replacer</span><span class="o">.</span><span class="n">new_types</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">c_struct</span> <span class="o">=</span> <span class="n">create_cstruct</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">ctype</span><span class="p">,</span> <span class="n">type_replacer</span><span class="o">.</span><span class="n">defined_types</span><span class="p">)</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">c_struct</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">Clyther development documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../clyther.html" >clyther</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Sean Ross-Ross.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,243 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Welcome to Clyther’s documentation! &mdash; Clyther development documentation</title>
+    
+    <link rel="stylesheet" href="static/default.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     'development',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <link rel="shortcut icon" href="static/clyther.ico"/>
+    <link rel="top" title="Clyther development documentation" href="#" />
+    <link rel="next" title="Getting Started" href="getting_started.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="getting_started.html" title="Getting Started"
+             accesskey="N">next</a> |</li>
+        <li><a href="#">Clyther development documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="welcome-to-clyther-s-documentation">
+<h1>Welcome to Clyther&#8217;s documentation!<a class="headerlink" href="#welcome-to-clyther-s-documentation" title="Permalink to this headline">¶</a></h1>
+<a class="reference internal image-reference" href="images/logo.png"><img alt="images/logo.png" class="align-center" src="images/logo.png" style="width: 254.8px; height: 246.4px;" /></a>
+</div>
+<div class="section" id="id1">
+<h1>Welcome to Clyther&#8217;s documentation!<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
+<p>CLyther is a Python tool similar to Cython and PyPy. CLyther is a just-in-time specialization engine for OpenCL.
+The main entry points for CLyther are its <a class="reference internal" href="api.html#clyther.task" title="clyther.task"><tt class="xref py py-class docutils literal"><span class="pre">clyther.task</span></tt></a> and <a class="reference internal" href="api.html#clyther.kernel" title="clyther.kernel"><tt class="xref py py-class docutils literal"><span class="pre">clyther.kernel</span></tt></a> decorators.
+Once a function is decorated with one of these the function will be compiled to OpenCL when called.</p>
+<p>CLyther is a Python language extension that makes writing OpenCL code as easy as Python itself.
+CLyther currently only supports a subset of the Python language definition but adds many new features to OpenCL.</p>
+<p>CLyther exposes both the OpenCL C library as well as the OpenCL language to python.</p>
+<dl class="docutils">
+<dt>Objectives:</dt>
+<dd><ul class="first last simple">
+<li>Make it easy for developers to take advantage of OpenCL</li>
+<li>Take advantage existing Python numerical algorithms</li>
+<li>Accelerate my code!</li>
+</ul>
+</dd>
+<dt>Philosophy:</dt>
+<dd><ul class="first last simple">
+<li>Enable users to have 100% control via Python. Access one to one mapping from Python to OpenCL.</li>
+<li>Endorse native Python abstractions for convenience. e.g. Slice an array, pass a function as an argument.</li>
+</ul>
+</dd>
+</dl>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p>This is a brand new version of CLyther. I have not released this yet.</p>
+<ul class="last simple">
+<li>If you do decide to use it then please think about <a class="reference internal" href="contributing.html#contribute"><em>Contributing</em></a>.</li>
+<li>The best place to add your input to the <a class="reference external" href="https://github.com/srossross/Clyther/issues/">Issue Tracker</a>.</li>
+</ul>
+</div>
+<div class="section" id="links">
+<h2>Links:<a class="headerlink" href="#links" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://srossross.github.com/Clyther/">Homepage</a></li>
+<li><a class="reference external" href="https://github.com/srossross/Clyther/issues/">Issue Tracker</a></li>
+<li><a class="reference external" href="http://srossross.github.com/Clyther/develop/">Development documentation</a></li>
+<li><a class="reference external" href="http://pypi.python.org/pypi/Clyther/">PyPi</a></li>
+<li><a class="reference external" href="https://github.com/srossross/Clyther/">Github</a></li>
+<li><a class="reference external" href="http://www.khronos.org/registry/cl/specs/opencl-1.1.pdf">OpenCL 1.1 spec</a></li>
+</ul>
+<div class="admonition-see-also admonition seealso">
+<p class="first admonition-title">See also</p>
+<ul class="last simple">
+<li><a class="reference external" href="http://srossross.github.com/oclpb">OpenCL for Python</a>: Python bindings for OpenCL.</li>
+<li><a class="reference external" href="http://srossross.github.com/meta">Meta</a>: Metaprogramming utilities for Python.</li>
+</ul>
+</div>
+</div>
+<div class="section" id="contents">
+<h2>Contents:<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#easy-install">easy_install</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#download">Download</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#build">Build</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#test">Test</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#arrays">Arrays</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#ufuncs">UFuncs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#kernels">Kernels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#exec">Exec</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#compile-to-opencl-source">Compile to OpenCL source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#cl-object">cl_object</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="performance_python.html">Performance Python</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="performance_python.html#a-beginners-guide-to-using-python-for-performance-computing">A beginners guide to using Python for performance computing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance_python.html#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance_python.html#problem-description">Problem description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance_python.html#task-parallel-solution">Task Parallel Solution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance_python.html#data-parallel-solution">Data Parallel Solution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance_python.html#performance-results">Performance Results</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="for_numpy_users.html">CLyther for NumPy Users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api.html#clyther">clyther</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#clyther-runtime">clyther.runtime</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#clyther-array">clyther.array</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#id1">clyther.runtime</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#clyther-rttt">clyther.rttt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#clyther-pipeline">clyther.pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#opencl-built-ins">OpenCL built-ins</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#errors">Errors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#transformation-pipeline">Transformation Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#clyther-array">CLyther.array</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contributing.html#documentation">Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="roadmap.html">Roadmap</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="roadmap.html#release">1.0 Release</a></li>
+<li class="toctree-l2"><a class="reference internal" href="roadmap.html#possible-extensions">Possible Extensions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sejits.html">CLyther as a SEJITS Toolkit</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sejits.html#how-does-clyther-fit-in-to-the-sejits-ecosystem">How does CLyther fit in to the SEJITS ecosystem?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sejits.html#conclusion">Conclusion</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><em>Index</em></a></li>
+<li><a class="reference internal" href="py-modindex.html"><em>Module Index</em></a></li>
+<li><a class="reference internal" href="search.html"><em>Search Page</em></a></li>
+</ul>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Welcome to Clyther&#8217;s documentation!</a></li>
+<li><a class="reference internal" href="#id1">Welcome to Clyther&#8217;s documentation!</a><ul>
+<li><a class="reference internal" href="#links">Links:</a></li>
+<li><a class="reference internal" href="#contents">Contents:</a><ul>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+
+  <h4>Next topic</h4>
+  <p class="topless"><a href="getting_started.html"
+                        title="next chapter">Getting Started</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/index.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="getting_started.html" title="Getting Started"
+             >next</a> |</li>
+        <li><a href="#">Clyther development documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Sean Ross-Ross.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

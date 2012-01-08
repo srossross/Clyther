@@ -1,0 +1,120 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>clyther &mdash; Clyther development documentation</title>
+    
+    <link rel="stylesheet" href="../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     'development',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../static/jquery.js"></script>
+    <script type="text/javascript" src="../static/underscore.js"></script>
+    <script type="text/javascript" src="../static/doctools.js"></script>
+    <link rel="shortcut icon" href="../static/clyther.ico"/>
+    <link rel="top" title="Clyther development documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Clyther development documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for clyther</h1><div class="highlight"><pre>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">clyther</span>
+<span class="sd">---------------------------</span>
+
+
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
+
+<span class="kn">from</span> <span class="nn">cly_kernel</span> <span class="kn">import</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">global_work_size</span><span class="p">,</span> <span class="n">local_work_size</span><span class="p">,</span> <span class="n">developer</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">cache</span>
+
+<span class="kn">from</span> <span class="nn">clyther.queue_record</span> <span class="kn">import</span> <span class="n">QueueRecord</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<div class="viewcode-block" id="test"><a class="viewcode-back" href="../api.html#clyther.test">[docs]</a><span class="k">def</span> <span class="nf">test</span><span class="p">(</span><span class="n">stream</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span> <span class="n">descriptions</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">failfast</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="nb">buffer</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Load and run the clyther test suite.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="kn">import</span> <span class="nn">unittest</span> <span class="kn">as</span> <span class="nn">_unit</span>
+    <span class="kn">import</span> <span class="nn">os</span> <span class="kn">as</span> <span class="nn">_os</span>
+    <span class="n">star_dir</span> <span class="o">=</span> <span class="n">_os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">)</span>
+    <span class="n">test_suite</span> <span class="o">=</span> <span class="n">_unit</span><span class="o">.</span><span class="n">defaultTestLoader</span><span class="o">.</span><span class="n">discover</span><span class="p">(</span><span class="n">star_dir</span><span class="p">)</span>
+    <span class="n">runner</span> <span class="o">=</span> <span class="n">_unit</span><span class="o">.</span><span class="n">TextTestRunner</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">descriptions</span><span class="p">,</span> <span class="n">verbosity</span><span class="p">,</span> <span class="n">failfast</span><span class="p">,</span> <span class="nb">buffer</span><span class="p">)</span>
+    <span class="n">runner</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">test_suite</span><span class="p">)</span>
+    </div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Clyther development documentation</a> &raquo;</li>
+          <li><a href="index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Sean Ross-Ross.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

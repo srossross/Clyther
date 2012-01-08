@@ -1,0 +1,137 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>clyther.array &mdash; Clyther development documentation</title>
+    
+    <link rel="stylesheet" href="../../static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     'development',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../static/clyther.ico"/>
+    <link rel="top" title="Clyther development documentation" href="../../index.html" />
+    <link rel="up" title="clyther" href="../clyther.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">Clyther development documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../clyther.html" accesskey="U">clyther</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for clyther.array</h1><div class="highlight"><pre>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">clyther.array</span>
+<span class="sd">---------------</span>
+
+<span class="sd">The clyther.array module is designed to replicatie the functionality of numpy </span>
+<span class="sd">for OpenCL memory objects.</span>
+
+<span class="sd">the main entry point into this module is the :class:`CLArrayContext` class.</span>
+
+<span class="sd">The end goal is to seamlessly be able to switch between OpenCL and numpy.</span>
+
+<span class="sd">Where you would write::</span>
+
+<span class="sd">    import numpy as np</span>
+<span class="sd">    </span>
+<span class="sd">    a = np.arange(0, 10.)</span>
+<span class="sd">    </span>
+<span class="sd">To specify a GPU array you would write::</span>
+
+<span class="sd">    import opencl as cl</span>
+<span class="sd">    from clyther.array import CLArrayContext</span>
+<span class="sd">    </span>
+<span class="sd">    ca = CLArrayContext(device_type=cl.Device.GPU)</span>
+<span class="sd">    </span>
+<span class="sd">    a = ca.arange(0, 10.)</span>
+<span class="sd">    </span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="kn">from</span> <span class="nn">blitz</span> <span class="kn">import</span> <span class="n">blitz</span>
+<span class="kn">from</span> <span class="nn">ufuncs</span> <span class="kn">import</span> <span class="n">add</span><span class="p">,</span> <span class="n">multiply</span><span class="p">,</span> <span class="n">sin</span>
+<span class="kn">from</span> <span class="nn">ufunc_framework</span> <span class="kn">import</span> <span class="n">binary_ufunc</span>
+
+<span class="kn">from</span> <span class="nn">functions</span> <span class="kn">import</span> <span class="n">arange</span><span class="p">,</span> <span class="n">empty</span><span class="p">,</span> <span class="n">empty_like</span><span class="p">,</span> <span class="n">setslice</span>
+
+    
+<span class="kn">from</span> <span class="nn">clarray</span> <span class="kn">import</span> <span class="n">CLArray</span>
+
+<span class="kn">from</span> <span class="nn">clyther.array.reduce_array</span> <span class="kn">import</span> <span class="nb">reduce</span>
+
+<span class="kn">from</span> <span class="nn">clyther.array.array_context</span> <span class="kn">import</span> <span class="n">CLArrayContext</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">Clyther development documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../clyther.html" >clyther</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Sean Ross-Ross.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>
