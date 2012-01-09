@@ -68,6 +68,39 @@
 </dl>
 <div class="section" id="how-does-clyther-fit-in-to-the-sejits-ecosystem">
 <h2>How does CLyther fit in to the SEJITS ecosystem?<a class="headerlink" href="#how-does-clyther-fit-in-to-the-sejits-ecosystem" title="Permalink to this headline">¶</a></h2>
+<p>In this document I will break the a SEJITS project into three conceptual layers:</p>
+<ol class="arabic">
+<li><dl class="first docutils">
+<dt>Front end:</dt>
+<dd><ul class="first last simple">
+<li>This is the side an end user will see.</li>
+<li>Ideally the user would require little to no knowledge outside of his or her comfort zone.
+In this example I am targeting NumPy Users.</li>
+<li>Hopefully we can take advantage of as much existing code as possible.</li>
+<li>The front end is the reason for SEJITS existence. We have to keep the Productivity Level Language (PLL) <em>Productive</em></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>High level translation:</dt>
+<dd><ul class="first last simple">
+<li>This layer defines complex translations from High level Python constructs to Mid-level constructs.</li>
+<li>This may layer will be the game changer. Little to no existing code will be written for this.
+Currently, writing these abstractions (map, reduce, list comprehensions) are far too slow, so no high performance code uses them.</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Specialization Layer:</dt>
+<dd><ul class="first last simple">
+<li>This layer targets domain experts in the specialization target language. This is the backbone of a SEJITS toolkit.</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ol>
 <div class="section" id="front-end">
 <h3>Front End:<a class="headerlink" href="#front-end" title="Permalink to this headline">¶</a></h3>
 <p>CLyther allows the user to define a context to drive the <em>selection</em> mechanizm of the SEJITS.</p>
@@ -110,8 +143,39 @@ NumPy name-space but creates a memory buffer directly on the GPU:</p>
 <p>This is particularly exciting because <a class="reference external" href="http://docs.scipy.org/doc/numpy/reference/ufuncs.html">NumPy UFuncs</a> are a low hanging fruit.
 We may be able to get an order of magnitude numpy performance while maintaining %100 percent backwards compatibility if we can specialize UFuncs at runtime.</p>
 </div>
-<div class="section" id="back-end">
-<h3>Back End:<a class="headerlink" href="#back-end" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="high-level-translation">
+<h3>High Level translation:<a class="headerlink" href="#high-level-translation" title="Permalink to this headline">¶</a></h3>
+<p>In copperhead:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">copperhead</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="nd">@cu</span>
+<span class="k">def</span> <span class="nf">double_array</span><span class="p">(</span><span class="n">array</span><span class="p">):</span>
+  <span class="k">return</span> <span class="p">[</span><span class="n">a</span> <span class="o">*</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">array</span><span class="p">]</span>
+
+<span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">places</span><span class="o">.</span><span class="n">gpu0</span><span class="p">:</span>
+  <span class="n">gpu</span> <span class="o">=</span> <span class="n">axpy</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>CLyther also provides High Level translation for element-wise operations:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#Either</span>
+
+<span class="nd">@ca.unary_ufunc</span>
+<span class="k">def</span> <span class="nf">double_array</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">element</span> <span class="o">*</span> <span class="mi">2</span>
+
+<span class="n">new_arr</span> <span class="o">=</span> <span class="n">double_array</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+
+<span class="c"># === OR ===</span>
+
+<span class="n">new_arr</span> <span class="o">=</span> <span class="n">ca</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">*</span><span class="mi">2</span><span class="p">,</span> <span class="n">arr</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="specialization-layer">
+<h3>Specialization Layer:<a class="headerlink" href="#specialization-layer" title="Permalink to this headline">¶</a></h3>
 <p>ASP and Copperhead both use string templates to generate jit specializations. CLyther however defines a one to one mapping between Python and
 the target language. (So far only OpenCL is supported). In this way we can define specializations without strings in pure Python.</p>
 <p>From the source code of ASP we see that the ArrayDoubler requires a mako template:</p>
@@ -162,20 +226,6 @@ the target language. (So far only OpenCL is supported). In this way we can defin
         <span class="k">return</span> <span class="nb">map</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">*</span><span class="mi">2</span><span class="p">,</span> <span class="n">arr</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>CLyther also provides generic specializers for single argument element-wise operations:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="c">#Either</span>
-
-<span class="nd">@ca.unary_ufunc</span>
-<span class="k">def</span> <span class="nf">double_array</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">element</span> <span class="o">*</span> <span class="mi">2</span>
-
-<span class="n">new_arr</span> <span class="o">=</span> <span class="n">double_array</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
-
-<span class="c"># === OR ===</span>
-
-<span class="n">new_arr</span> <span class="o">=</span> <span class="n">ca</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">*</span><span class="mi">2</span><span class="p">,</span> <span class="n">arr</span><span class="p">)</span>
-</pre></div>
-</div>
 </div>
 <div class="section" id="translation-directly-from-the-python-byte-code">
 <h3>Translation directly from the Python byte-code<a class="headerlink" href="#translation-directly-from-the-python-byte-code" title="Permalink to this headline">¶</a></h3>
@@ -183,8 +233,8 @@ the target language. (So far only OpenCL is supported). In this way we can defin
 This means that a function can go thought any number of transformations before it is specialized. The most trivial examples being:</p>
 <blockquote>
 <div><ol class="arabic simple">
-<li>Defining a JITable function in the Python interpreter or</li>
-<li>A lambda expression</li>
+<li>Defining a function in the Python interpreter.</li>
+<li>A lambda expression.</li>
 </ol>
 </div></blockquote>
 <p>Example:</p>
@@ -217,7 +267,8 @@ incredible mapping from high level Python abstractions to domain specific code.<
 <li><a class="reference internal" href="#">CLyther as a SEJITS Toolkit</a><ul>
 <li><a class="reference internal" href="#how-does-clyther-fit-in-to-the-sejits-ecosystem">How does CLyther fit in to the SEJITS ecosystem?</a><ul>
 <li><a class="reference internal" href="#front-end">Front End:</a></li>
-<li><a class="reference internal" href="#back-end">Back End:</a></li>
+<li><a class="reference internal" href="#high-level-translation">High Level translation:</a></li>
+<li><a class="reference internal" href="#specialization-layer">Specialization Layer:</a></li>
 <li><a class="reference internal" href="#translation-directly-from-the-python-byte-code">Translation directly from the Python byte-code</a></li>
 </ul>
 </li>
