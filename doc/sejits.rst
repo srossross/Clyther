@@ -12,6 +12,23 @@ SEJITS Python projects:
 How does CLyther fit in to the SEJITS ecosystem?
 -------------------------------------------------
 
+In this document I will break the a SEJITS project into three conceptual layers:
+
+1. Front end: 
+    * This is the side an end user will see. 
+    * Ideally the user would require little to no knowledge outside of his or her comfort zone. 
+      In this example I am targeting NumPy Users.
+    * Hopefully we can take advantage of as much existing code as possible.   
+    * The front end is the reason for SEJITS existence. We have to keep the Productivity Level Language (PLL) *Productive*
+
+2. High level translation:
+    * This layer defines complex translations from High level Python constructs to Mid-level constructs.
+    * Little to no existing code will be written for this.
+      Currently, writing these abstractions (map, reduce, list comprehensions) in Python are far too slow for high performance computing so they are not used.
+
+3. Specialization Layer:
+    * This layer targets domain experts in the specialization target language. This is the backbone of a SEJITS toolkit. 
+
 Front End:
 ^^^^^^^^^^^
 
@@ -46,13 +63,45 @@ NumPy name-space but creates a memory buffer directly on the GPU::
 This is particularly exciting because `NumPy UFuncs <http://docs.scipy.org/doc/numpy/reference/ufuncs.html>`_ are a low hanging fruit. 
 We may be able to get an order of magnitude numpy performance while maintaining %100 percent backwards compatibility if we can specialize UFuncs at runtime.
 
-Back End:
-^^^^^^^^^^^
+High Level translation:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In copperhead::
+
+    from copperhead import *
+    import numpy as np
+    
+    @cu
+    def double_array(array):
+      return [a * 2 for a in array]
+    
+    arr = np.arange(100, dtype=np.float64)
+    
+    with places.gpu0:
+      gpu = axpy(arr)
+
+
+CLyther also provides High Level translation for element-wise operations::
+
+    #Either
+    
+    @ca.unary_ufunc
+    def double_array(element):
+        return element * 2
+    
+    new_arr = double_array(arr)
+    
+    # === OR ===
+    
+    new_arr = ca.map(lambda x: x*2, arr)
+
+Specialization Layer:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ASP and Copperhead both use string templates to generate jit specializations. CLyther however defines a one to one mapping between Python and 
 the target language. (So far only OpenCL is supported). In this way we can define specializations without strings in pure Python.  
 
-From the source code of ASP we see that the ArrayDoubler requires a mako template::
+From the source code of ASP we see that the ArrayDoubler requires a mako template `double_template.mako` which is not shown here::
 
     # really dumb example of using templates w/asp
 
@@ -79,7 +128,6 @@ From the source code of ASP we see that the ArrayDoubler requires a mako templat
 
 CLyther Specialization for OpenCL::
 
-    @add_to_context(CLArrayContext)
     class ArrayDoubler(object):
         
         def __init__(self):
@@ -88,7 +136,7 @@ CLyther Specialization for OpenCL::
         def double_using_template(self, arr):
             
             # Define an OpenCL kernel
-            @cly.kernel
+            @cly.kernel 
             def my_kernel(arr, output):
                 idx = clrt.get_global_id(0)
                 output[idx] = arr[idx]
@@ -102,29 +150,14 @@ CLyther Specialization for OpenCL::
         def double(self, arr):
             return map (lambda x: x*2, arr)
 
-
-CLyther also provides generic specializers for single argument element-wise operations::
-
-    #Either
-    
-    @ca.unary_ufunc
-    def double_array(element):
-        return element * 2
-    
-    new_arr = double_array(arr)
-    
-    # === OR ===
-    
-    new_arr = ca.map(lambda x: x*2, arr)
-    
     
 Translation directly from the Python byte-code
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 CLyther uses the `Meta <http://srossross.github.com/Meta/html/index.html>`_ package to decompile Python byte-code in to a Python AST.
 This means that a function can go thought any number of transformations before it is specialized. The most trivial examples being:
-    1) Defining a JITable function in the Python interpreter or  
-    2) A lambda expression   
+    1) Defining a function in the Python interpreter.  
+    2) A lambda expression.
 
 Example::
     
@@ -143,3 +176,5 @@ In developing CLyther I focused on developing the front and back ends of a SEJIT
 incredible mapping from high level Python abstractions to domain specific code.   
 
 I think that a combination of all of these elements are needed to create a useful product.
+
+Clyther focuses primaraly on the  
