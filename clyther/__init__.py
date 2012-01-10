@@ -22,4 +22,6 @@ def test(stream=sys.stdout, descriptions=True, verbosity=2, failfast=False, buff
     test_suite = _unit.defaultTestLoader.discover(star_dir)
     runner = _unit.TextTestRunner(stream, descriptions, verbosity, failfast, buffer)
     runner.run(test_suite)
-    
+
+from .version import __version__
+ 
