@@ -5,24 +5,24 @@ Created on Sep 24, 2011
 '''
 
 from setuptools import setup, find_packages
-
+from os.path import join
 import numpy
 include_dirs = numpy.get_include()
 
 try:
-    long_description=open('README.rst').read()
+    long_description = open('README.rst').read()
 except IOError as err:
-    long_description=str(err)
+    long_description = str(err)
 
 try:
-    version_str = open('version.txt').read()
+    exec open(join('clyther', 'version.py')).read()
 except IOError as err:
-    version_str = '???'
+    __version__ = '???'
 
 
 setup(
     name='Clyther',
-    version=version_str,
+    version=__version__,
     author='Enthought, Inc.',
     author_email='srossross@enthought.com',
     url='http://srossross.github.com/Clyther/',

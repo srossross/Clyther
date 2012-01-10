@@ -26,6 +26,7 @@ Contents:
    api
    contributing
    roadmap
+   sejits
    license
    
    

@@ -27,6 +27,13 @@ def setUpModule():
 class Test(unittest.TestCase):
 
 
+    def test_arange(self):
+        a = ca.arange(5, ctype='f')
+        npa = np.arange(5, dtype='f')
+        
+        with a.map() as view:
+            self.assertTrue(np.allclose(view, npa))
+        
     def test_add_scalar(self):
         
         a = ca.arange(5, ctype='f')

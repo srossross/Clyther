@@ -8,7 +8,6 @@ import clyther.runtime as clrt
 import opencl as cl
 from ctypes import c_uint
 
-from clyther.array.functions import empty, arange
 from clyther.array.utils import broadcast_shape
 from clyther.array.clarray import CLArray
 
@@ -19,38 +18,22 @@ def reduce_kernel(function, output, array, shared, group_size):
     
     lid = clrt.get_local_id(0)
     gid = clrt.get_group_id(0)
-#    gsize = clrt.get_num_groups(0)
 
-#    gs2 = group_size
-
-#    stride = group_size * gsize
     stride = group_size
-    
-#    print
-#    print 'stride', stride
-#    print
     
     i = c_uint(gid * group_size + lid)
     
     igs = i + group_size
-    
-#    print "initial i", i, igs
     
     tmp = array[i]
     
     if igs < array.size:
         tmp = function(tmp, array[igs])
         
-#    print "shared[lid]", shared[lid]
-    
     i += stride*2
         
-#    print array.size
     while i < array.size:
-#        print "array[i]", i, shared[lid], array[i]
         tmp = function(tmp, array[i])
-#        print "shared[lid]", shared[lid]
-#        print  
         i += stride
         
     shared[lid] = tmp
