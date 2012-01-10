@@ -91,8 +91,9 @@ class CLArray(cl.DeviceMemoryView):
         return array
     
     def item(self):
+        value = cl.DeviceMemoryView.item(self, self.queue)
         self.queue.finish()
-        return cl.DeviceMemoryView.item(self)
+        return value
     
     def __getitem__(self, item):
         view = cl.DeviceMemoryView.__getitem__(self, item)
