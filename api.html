@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>API &mdash; Clyther 0.3-beta documentation</title>
+    <title>API &mdash; Clyther development documentation</title>
     
     <link rel="stylesheet" href="static/default.css" type="text/css" />
     <link rel="stylesheet" href="static/pygments.css" type="text/css" />
@@ -16,7 +16,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '0.3-beta',
+        VERSION:     'development',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -26,9 +26,23 @@
     <script type="text/javascript" src="static/underscore.js"></script>
     <script type="text/javascript" src="static/doctools.js"></script>
     <link rel="shortcut icon" href="static/clyther.ico"/>
-    <link rel="top" title="Clyther 0.3-beta documentation" href="index.html" />
+    <link rel="top" title="Clyther development documentation" href="index.html" />
     <link rel="next" title="Contributing" href="contributing.html" />
-    <link rel="prev" title="CLyther for NumPy Users" href="for_numpy_users.html" /> 
+    <link rel="prev" title="CLyther for NumPy Users" href="for_numpy_users.html" />
+ 
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-28450327-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
   </head>
   <body>
     <div class="related">
@@ -46,7 +60,7 @@
         <li class="right" >
           <a href="for_numpy_users.html" title="CLyther for NumPy Users"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">Clyther 0.3-beta documentation</a> &raquo;</li> 
+        <li><a href="index.html">Clyther development documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -214,6 +228,12 @@ Use cache as a decorator:</p>
 
 </dd></dl>
 
+<dl class="function">
+<dt id="clyther.test">
+<tt class="descclassname">clyther.</tt><tt class="descname">test</tt><big>(</big><em>stream=&lt;open file '&lt;stdout&gt;'</em>, <em>mode 'w' at 0x23f078&gt;</em>, <em>descriptions=True</em>, <em>verbosity=2</em>, <em>failfast=False</em>, <em>buffer=False</em><big>)</big><a class="reference internal" href="modules/clyther.html#test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clyther.test" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load and run the clyther test suite.</p>
+</dd></dl>
+
 </div>
 <span class="target" id="module-clyther.runtime"></span><div class="section" id="clyther-runtime">
 <h2>clyther.runtime<a class="headerlink" href="#clyther-runtime" title="Permalink to this headline">¶</a></h2>
@@ -307,6 +327,17 @@ for OpenCL memory objects.</p>
 <tt class="descname">linspace</tt><big>(</big><em>ctx</em>, <em>start</em>, <em>stop</em>, <em>num=50</em>, <em>ctype='f'</em>, <em>queue=None</em><big>)</big><a class="headerlink" href="#clyther.array.CLArrayContext.linspace" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
+<dl class="method">
+<dt id="clyther.array.CLArrayContext.map">
+<tt class="descname">map</tt><big>(</big><em>context</em>, <em>function</em>, <em>sequence</em><span class="optional">[</span>, <em>sequence</em>, <em>...</em><span class="optional">]</span><big>)</big> &rarr; sequence<a class="headerlink" href="#clyther.array.CLArrayContext.map" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a list of the results of applying the function to the items of
+the argument sequence(s).  If more than one sequence is given, the
+function is called with an argument list consisting of the corresponding
+item of each sequence, substituting None for missing values when not all
+sequences have the same length.  If the function is None, return a list of
+the items of the sequence (or a list of tuples if more than one sequence).</p>
+</dd></dl>
+
 <dl class="classmethod">
 <dt id="clyther.array.CLArrayContext.method">
 <em class="property">classmethod </em><tt class="descname">method</tt><big>(</big><em>name</em><big>)</big><a class="headerlink" href="#clyther.array.CLArrayContext.method" title="Permalink to this definition">¶</a></dt>
@@ -326,6 +357,16 @@ for OpenCL memory objects.</p>
 <dt id="clyther.array.CLArrayContext.queue">
 <tt class="descname">queue</tt><a class="headerlink" href="#clyther.array.CLArrayContext.queue" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
+
+<dl class="method">
+<dt id="clyther.array.CLArrayContext.reduce">
+<tt class="descname">reduce</tt><big>(</big><em>context</em>, <em>function</em>, <em>sequence</em><big>)</big> &rarr; value<a class="headerlink" href="#clyther.array.CLArrayContext.reduce" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply a function of two arguments cumulatively to the items of a sequence,
+so as to reduce the sequence to a single value.
+For example, reduce(lambda x, y: x+y, [1, 2, 3, 4, 5]) calculates
+1+2+3+4+5.</p>
+<p>Since this is a paralell operation the order is undefined.</p>
+</dd></dl>
 
 <dl class="method">
 <dt id="clyther.array.CLArrayContext.setslice">
@@ -612,12 +653,18 @@ This will also define structs in the module if required.</p>
         <li class="right" >
           <a href="for_numpy_users.html" title="CLyther for NumPy Users"
              >previous</a> |</li>
-        <li><a href="index.html">Clyther 0.3-beta documentation</a> &raquo;</li> 
+        <li><a href="index.html">Clyther development documentation</a> &raquo;</li> 
       </ul>
     </div>
+
     <div class="footer">
         &copy; Copyright 2011, Sean Ross-Ross.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
     </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+</div>
+
   </body>
 </html>

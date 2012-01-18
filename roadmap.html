@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Roadmap &mdash; Clyther 0.3-beta documentation</title>
+    <title>Roadmap &mdash; Clyther development documentation</title>
     
     <link rel="stylesheet" href="static/default.css" type="text/css" />
     <link rel="stylesheet" href="static/pygments.css" type="text/css" />
@@ -16,7 +16,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '0.3-beta',
+        VERSION:     'development',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -26,9 +26,23 @@
     <script type="text/javascript" src="static/underscore.js"></script>
     <script type="text/javascript" src="static/doctools.js"></script>
     <link rel="shortcut icon" href="static/clyther.ico"/>
-    <link rel="top" title="Clyther 0.3-beta documentation" href="index.html" />
-    <link rel="next" title="&lt;no title&gt;" href="license.html" />
-    <link rel="prev" title="Contributing" href="contributing.html" /> 
+    <link rel="top" title="Clyther development documentation" href="index.html" />
+    <link rel="next" title="CLyther as a SEJITS Toolkit" href="sejits.html" />
+    <link rel="prev" title="Contributing" href="contributing.html" />
+ 
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-28450327-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
   </head>
   <body>
     <div class="related">
@@ -41,12 +55,12 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="license.html" title="&lt;no title&gt;"
+          <a href="sejits.html" title="CLyther as a SEJITS Toolkit"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="contributing.html" title="Contributing"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">Clyther 0.3-beta documentation</a> &raquo;</li> 
+        <li><a href="index.html">Clyther development documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -59,14 +73,109 @@
 <h1>Roadmap<a class="headerlink" href="#roadmap" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="release">
 <h2>1.0 Release<a class="headerlink" href="#release" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="completed">
+<h3>Completed<a class="headerlink" href="#completed" title="Permalink to this headline">¶</a></h3>
 <blockquote>
 <div><ul class="simple">
-<li>Add all of the OpenCL runtime functions to the <a class="reference internal" href="api.html#module-clyther.runtime" title="clyther.runtime"><tt class="xref py py-mod docutils literal"><span class="pre">clyther.runtime</span></tt></a> module.</li>
-<li>Complete the <tt class="xref py py-class docutils literal"><span class="pre">clyther.array.CLArray</span></tt> class.</li>
-<li>Complete Documentation</li>
-<li>90%+ test coverage</li>
+<li>Reduce kernel</li>
+<li>Element-wise kernel</li>
+<li>U-Funcs</li>
+<li>Array indexing</li>
+<li>CLArray supports 3 dimensions</li>
+<li>For loop with &#8216;range&#8217; as the iterator</li>
+<li>All ctypes as data types including custom Structures</li>
+<li>Passing a Structure as a scalar argument</li>
 </ul>
 </div></blockquote>
+</div>
+<div class="section" id="todo">
+<h3>Todo<a class="headerlink" href="#todo" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><ul>
+<li><p class="first">Add all of the OpenCL runtime functions to the <a class="reference internal" href="api.html#module-clyther.runtime" title="clyther.runtime"><tt class="xref py py-mod docutils literal"><span class="pre">clyther.runtime</span></tt></a> module.</p>
+</li>
+<li><dl class="first docutils">
+<dt>Complete the <tt class="xref py py-class docutils literal"><span class="pre">clyther.array.CLArray</span></tt> class:</dt>
+<dd><ul class="first last simple">
+<li>All element wise and reduction operations</li>
+<li>transpose</li>
+<li>clip</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p class="first">Complete Documentation</p>
+</li>
+<li><p class="first">90%+ test coverage</p>
+</li>
+<li><p class="first">Improve U-Func performance</p>
+</li>
+<li><p class="first">Array slice operations</p>
+</li>
+<li><p class="first">Add <cite>axis=</cite> option to <tt class="xref py py-func docutils literal"><span class="pre">clyther.array.reduce()</span></tt> function</p>
+</li>
+<li><p class="first">Pure python emulation context</p>
+</li>
+<li><dl class="first docutils">
+<dt>Support builtins:</dt>
+<dd><ul class="first last simple">
+<li>all</li>
+<li>any</li>
+<li>min</li>
+<li>max</li>
+<li>round</li>
+<li>zip</li>
+<li>type</li>
+<li>isinstance</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p class="first">Support generator expressions on the host side:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">b</span> <span class="o">=</span> <span class="n">ca</span><span class="o">.</span><span class="n">gen</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">a</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><dl class="first docutils">
+<dt>Double precision support</dt>
+<dd><p class="first last">i.e if double is used enable the <cite>cl_khr_fp64</cite> extension</p>
+</dd>
+</dl>
+</li>
+<li><p class="first">Allow returning an array from a function</p>
+</li>
+<li><p class="first">For loops looping over an array</p>
+</li>
+<li><p class="first">Support generator expressions on the device side:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">gen</span><span class="p">(</span><span class="n">num</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">i</span><span class="o">**</span><span class="mi">2</span>
+
+<span class="nd">@cly.kernel</span>
+<span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+
+    <span class="k">for</span> <span class="n">exp</span> <span class="ow">in</span> <span class="n">gen</span><span class="p">(</span><span class="mi">5</span><span class="p">):</span>
+         <span class="o">...</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Support for builtins like <cite>len</cite> and operator overloading.</p>
+</li>
+<li><dl class="first docutils">
+<dt>add the following algorithms:</dt>
+<dd><ul class="first last simple">
+<li>Sort</li>
+<li>search</li>
+<li>prefix-sum</li>
+<li>fft</li>
+<li>blas routines</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+</div>
 </div>
 <div class="section" id="possible-extensions">
 <h2>Possible Extensions<a class="headerlink" href="#possible-extensions" title="Permalink to this headline">¶</a></h2>
@@ -119,7 +228,11 @@ Contexts would allow experimentation without changeing the algorithm Ideally the
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Roadmap</a><ul>
-<li><a class="reference internal" href="#release">1.0 Release</a></li>
+<li><a class="reference internal" href="#release">1.0 Release</a><ul>
+<li><a class="reference internal" href="#completed">Completed</a></li>
+<li><a class="reference internal" href="#todo">Todo</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#possible-extensions">Possible Extensions</a><ul>
 <li><a class="reference internal" href="#new-context-types">New Context Types</a></li>
 <li><a class="reference internal" href="#investigate-copperhead">Investigate Copperhead</a></li>
@@ -133,8 +246,8 @@ Contexts would allow experimentation without changeing the algorithm Ideally the
   <p class="topless"><a href="contributing.html"
                         title="previous chapter">Contributing</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="license.html"
-                        title="next chapter">&lt;no title&gt;</a></p>
+  <p class="topless"><a href="sejits.html"
+                        title="next chapter">CLyther as a SEJITS Toolkit</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="sources/roadmap.txt"
@@ -167,17 +280,23 @@ Contexts would allow experimentation without changeing the algorithm Ideally the
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="license.html" title="&lt;no title&gt;"
+          <a href="sejits.html" title="CLyther as a SEJITS Toolkit"
              >next</a> |</li>
         <li class="right" >
           <a href="contributing.html" title="Contributing"
              >previous</a> |</li>
-        <li><a href="index.html">Clyther 0.3-beta documentation</a> &raquo;</li> 
+        <li><a href="index.html">Clyther development documentation</a> &raquo;</li> 
       </ul>
     </div>
+
     <div class="footer">
         &copy; Copyright 2011, Sean Ross-Ross.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
     </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+</div>
+
   </body>
 </html>

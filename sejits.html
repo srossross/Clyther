@@ -1,0 +1,351 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>CLyther as a SEJITS Toolkit &mdash; Clyther development documentation</title>
+    
+    <link rel="stylesheet" href="static/default.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     'development',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <link rel="shortcut icon" href="static/clyther.ico"/>
+    <link rel="top" title="Clyther development documentation" href="index.html" />
+    <link rel="next" title="License" href="license.html" />
+    <link rel="prev" title="Roadmap" href="roadmap.html" />
+ 
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-28450327-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="license.html" title="License"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="roadmap.html" title="Roadmap"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Clyther development documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="clyther-as-a-sejits-toolkit">
+<h1>CLyther as a SEJITS Toolkit<a class="headerlink" href="#clyther-as-a-sejits-toolkit" title="Permalink to this headline">¶</a></h1>
+<p>The target audience for this page is familiar with either Copperhead or ASP.</p>
+<dl class="docutils">
+<dt>SEJITS Python projects:</dt>
+<dd><ul class="first last simple">
+<li><a class="reference external" href="http://code.google.com/p/copperhead/">Copperhead</a></li>
+<li><a class="reference external" href="https://github.com/shoaibkamil/asp/wiki">ASP</a> A SEJITS Implementation for Python</li>
+</ul>
+</dd>
+</dl>
+<div class="section" id="how-does-clyther-fit-in-to-the-sejits-ecosystem">
+<h2>How does CLyther fit in to the SEJITS ecosystem?<a class="headerlink" href="#how-does-clyther-fit-in-to-the-sejits-ecosystem" title="Permalink to this headline">¶</a></h2>
+<p>In this document I will break the a SEJITS project into three conceptual layers:</p>
+<ol class="arabic">
+<li><dl class="first docutils">
+<dt>Front end:</dt>
+<dd><ul class="first last simple">
+<li>This is the side an end user will see.</li>
+<li>Ideally the user would require little to no knowledge outside of his or her comfort zone.
+In this example I am targeting NumPy Users.</li>
+<li>Hopefully we can take advantage of as much existing code as possible.</li>
+<li>The front end is the reason for SEJITS existence. We have to keep the Productivity Level Language (PLL) <em>Productive</em></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>High level translation:</dt>
+<dd><ul class="first last simple">
+<li>This layer defines complex translations from High level Python constructs to Mid-level constructs.</li>
+<li>Little to no existing code will be written for this.
+Currently, writing these abstractions (map, reduce, list comprehensions) in Python are far too slow for high performance computing so they are not used.</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Specialization Layer:</dt>
+<dd><ul class="first last simple">
+<li>This layer targets domain experts in the specialization target language. This is the backbone of a SEJITS toolkit.</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ol>
+<div class="section" id="front-end">
+<h3>Front End:<a class="headerlink" href="#front-end" title="Permalink to this headline">¶</a></h3>
+<p>CLyther allows the user to define a context to drive the <em>selection</em> mechanizm of the SEJITS.</p>
+<p>This has the following advantages:</p>
+<blockquote>
+<div><ul>
+<li><p class="first">This answers the question <em>How does the SEJITS select the specialization algorithm?</em></p>
+</li>
+<li><dl class="first docutils">
+<dt>The data may now be created in the current context.</dt>
+<dd><ul class="first last simple">
+<li>This allows for efficient allocation</li>
+<li>No or optimized memory transfers when calling a specialized function.</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p class="first">The current SEJITS implementation work only on functional programming examples.
+This solution allows equivalent or <em>mock</em> objects to be created in place of Python objects.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is true for Copperhead. Please correct me if this is not true for ASP.</p>
+</div>
+</li>
+</ul>
+</div></blockquote>
+<p>This example relies heavily on NumPy. The <a class="reference internal" href="api.html#clyther.array.CLArrayContext" title="clyther.array.CLArrayContext"><tt class="xref py py-class docutils literal"><span class="pre">clyther.array.CLArrayContext</span></tt></a> mimics the
+NumPy name-space but creates a memory buffer directly on the GPU:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">clyther.array</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="n">ca</span> <span class="o">=</span> <span class="n">CLArrayContext</span><span class="p">(</span><span class="n">device_type</span><span class="o">=</span><span class="s">&#39;gpu&#39;</span><span class="p">)</span>
+
+<span class="n">a</span> <span class="o">=</span> <span class="n">ca</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">1e5</span><span class="p">)</span>
+
+<span class="n">a</span> <span class="o">+=</span> <span class="mi">1</span>
+
+<span class="n">jitable_function</span><span class="p">(</span><span class="n">ca</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This is particularly exciting because <a class="reference external" href="http://docs.scipy.org/doc/numpy/reference/ufuncs.html">NumPy UFuncs</a> are a low hanging fruit.
+We may be able to get an order of magnitude numpy performance while maintaining %100 percent backwards compatibility if we can specialize UFuncs at runtime.</p>
+</div>
+<div class="section" id="high-level-translation">
+<h3>High Level translation:<a class="headerlink" href="#high-level-translation" title="Permalink to this headline">¶</a></h3>
+<p>In copperhead:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">copperhead</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="nd">@cu</span>
+<span class="k">def</span> <span class="nf">double_array</span><span class="p">(</span><span class="n">array</span><span class="p">):</span>
+  <span class="k">return</span> <span class="p">[</span><span class="n">a</span> <span class="o">*</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">array</span><span class="p">]</span>
+
+<span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">places</span><span class="o">.</span><span class="n">gpu0</span><span class="p">:</span>
+  <span class="n">gpu</span> <span class="o">=</span> <span class="n">axpy</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>CLyther also provides High Level translation for element-wise operations:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#Either</span>
+
+<span class="nd">@ca.unary_ufunc</span>
+<span class="k">def</span> <span class="nf">double_array</span><span class="p">(</span><span class="n">element</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">element</span> <span class="o">*</span> <span class="mi">2</span>
+
+<span class="n">new_arr</span> <span class="o">=</span> <span class="n">double_array</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+
+<span class="c"># === OR ===</span>
+
+<span class="n">new_arr</span> <span class="o">=</span> <span class="n">ca</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">*</span><span class="mi">2</span><span class="p">,</span> <span class="n">arr</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="specialization-layer">
+<h3>Specialization Layer:<a class="headerlink" href="#specialization-layer" title="Permalink to this headline">¶</a></h3>
+<p>ASP and Copperhead both use string templates to generate jit specializations. CLyther however defines a one to one mapping between Python and
+the target language. (So far only OpenCL is supported). In this way we can define specializations without strings in pure Python.</p>
+<p>From the source code of ASP we see that the ArrayDoubler requires a mako template <cite>double_template.mako</cite> which is not shown here:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c"># really dumb example of using templates w/asp</span>
+
+<span class="k">class</span> <span class="nc">ArrayDoubler</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pure_python</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">double_using_template</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">asp.codegen.templating.template</span> <span class="kn">as</span> <span class="nn">template</span>
+        <span class="n">mytemplate</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">Template</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="s">&quot;templates/double_template.mako&quot;</span><span class="p">,</span> <span class="n">disable_unicode</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">rendered</span> <span class="o">=</span> <span class="n">mytemplate</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">num_items</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">arr</span><span class="p">))</span>
+
+        <span class="kn">import</span> <span class="nn">asp.jit.asp_module</span> <span class="kn">as</span> <span class="nn">asp_module</span>
+        <span class="n">mod</span> <span class="o">=</span> <span class="n">asp_module</span><span class="o">.</span><span class="n">ASPModule</span><span class="p">()</span>
+        <span class="c"># remember, must specify function name when using a string</span>
+        <span class="n">mod</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s">&quot;double_in_c&quot;</span><span class="p">,</span> <span class="n">rendered</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mod</span><span class="o">.</span><span class="n">double_in_c</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">double</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">map</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">*</span><span class="mi">2</span><span class="p">,</span> <span class="n">arr</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>CLyther Specialization for OpenCL:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">ArrayDoubler</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pure_python</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">double_using_template</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr</span><span class="p">):</span>
+
+        <span class="c"># Define an OpenCL kernel</span>
+        <span class="nd">@cly.kernel</span>
+        <span class="k">def</span> <span class="nf">my_kernel</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">clrt</span><span class="o">.</span><span class="n">get_global_id</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">output</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">arr</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="n">ca</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+
+        <span class="n">my_kernel</span><span class="p">(</span><span class="n">ca</span><span class="p">,</span> <span class="n">arr</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">output</span>
+
+    <span class="k">def</span> <span class="nf">double</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">map</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">*</span><span class="mi">2</span><span class="p">,</span> <span class="n">arr</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="translation-directly-from-the-python-byte-code">
+<h3>Translation directly from the Python byte-code<a class="headerlink" href="#translation-directly-from-the-python-byte-code" title="Permalink to this headline">¶</a></h3>
+<p>CLyther uses the <a class="reference external" href="http://srossross.github.com/Meta/html/index.html">Meta</a> package to decompile Python byte-code in to a Python AST.
+This means that a function can go thought any number of transformations before it is specialized. The most trivial examples being:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li>Defining a function in the Python interpreter.</li>
+<li>A lambda expression.</li>
+</ol>
+</div></blockquote>
+<p>Example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">half_source</span> <span class="o">=</span> <span class="s">&#39;def foo(a, b):&#39;</span>
+<span class="n">second_half</span> <span class="o">=</span> <span class="s">&#39;    return a+b&#39;</span>
+
+<span class="k">exec</span> <span class="n">half_source</span> <span class="o">+</span> <span class="n">second_half</span>
+
+<span class="n">foo</span> <span class="o">=</span> <span class="n">ca</span><span class="o">.</span><span class="n">binary_ufunc</span><span class="p">(</span><span class="n">foo</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline">¶</a></h2>
+<p>In developing CLyther I focused on developing the front and back ends of a SEJITS toolkit. ASP and Copperhead in particular have created an
+incredible mapping from high level Python abstractions to domain specific code.</p>
+<p>I think that a combination of all of these elements are needed to create a useful product.</p>
+<p>Clyther focuses primaraly on the</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">CLyther as a SEJITS Toolkit</a><ul>
+<li><a class="reference internal" href="#how-does-clyther-fit-in-to-the-sejits-ecosystem">How does CLyther fit in to the SEJITS ecosystem?</a><ul>
+<li><a class="reference internal" href="#front-end">Front End:</a></li>
+<li><a class="reference internal" href="#high-level-translation">High Level translation:</a></li>
+<li><a class="reference internal" href="#specialization-layer">Specialization Layer:</a></li>
+<li><a class="reference internal" href="#translation-directly-from-the-python-byte-code">Translation directly from the Python byte-code</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#conclusion">Conclusion</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="roadmap.html"
+                        title="previous chapter">Roadmap</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="license.html"
+                        title="next chapter">License</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/sejits.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="license.html" title="License"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="roadmap.html" title="Roadmap"
+             >previous</a> |</li>
+        <li><a href="index.html">Clyther development documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Sean Ross-Ross.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+</div>
+
+  </body>
+</html>

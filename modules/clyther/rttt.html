@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>clyther.rttt &mdash; Clyther 0.3-beta documentation</title>
+    <title>clyther.rttt &mdash; Clyther development documentation</title>
     
     <link rel="stylesheet" href="../../static/default.css" type="text/css" />
     <link rel="stylesheet" href="../../static/pygments.css" type="text/css" />
@@ -16,7 +16,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
-        VERSION:     '0.3-beta',
+        VERSION:     'development',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -26,8 +26,22 @@
     <script type="text/javascript" src="../../static/underscore.js"></script>
     <script type="text/javascript" src="../../static/doctools.js"></script>
     <link rel="shortcut icon" href="../../static/clyther.ico"/>
-    <link rel="top" title="Clyther 0.3-beta documentation" href="../../index.html" />
-    <link rel="up" title="clyther" href="../clyther.html" /> 
+    <link rel="top" title="Clyther development documentation" href="../../index.html" />
+    <link rel="up" title="clyther" href="../clyther.html" />
+ 
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-28450327-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
   </head>
   <body>
     <div class="related">
@@ -39,7 +53,7 @@
         <li class="right" >
           <a href="../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../index.html">Clyther 0.3-beta documentation</a> &raquo;</li>
+        <li><a href="../../index.html">Clyther development documentation</a> &raquo;</li>
           <li><a href="../index.html" >Module code</a> &raquo;</li>
           <li><a href="../clyther.html" accesskey="U">clyther</a> &raquo;</li> 
       </ul>
@@ -217,7 +231,7 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">_greatest_common_type</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
   
-<span class="n">vector_len</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#39;^\((\d)\)([f|i|d|l|L])$&#39;</span><span class="p">)</span>
+<span class="n">vector_len</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#39;^\((\d)\)([f|i|I|d|l|L])$&#39;</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">is_vetor_type</span><span class="p">(</span><span class="n">ctype</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">vector_len</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">type_format</span><span class="p">(</span><span class="n">ctype</span><span class="p">))</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
@@ -330,20 +344,62 @@
         <span class="k">return</span> <span class="nb">eval</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">param_id</span><span class="p">,</span> <span class="n">locls</span><span class="p">,</span> <span class="n">globls</span><span class="p">)</span>
 
 
-<span class="n">type_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">ctypes</span><span class="o">.</span><span class="n">c_float</span><span class="p">:</span><span class="s">&#39;float&#39;</span><span class="p">,</span>
-            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_double</span><span class="p">:</span><span class="s">&#39;double&#39;</span><span class="p">,</span>
-            <span class="nb">float</span><span class="p">:</span><span class="s">&#39;double&#39;</span><span class="p">,</span>
-            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_longdouble</span><span class="p">:</span><span class="s">&#39;long double&#39;</span><span class="p">,</span>
-            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_short</span><span class="p">:</span><span class="s">&#39;short&#39;</span><span class="p">,</span>
-            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ushort</span><span class="p">:</span><span class="s">&#39;unsigned short&#39;</span><span class="p">,</span>
-            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">:</span><span class="s">&#39;int&#39;</span><span class="p">,</span>
-            <span class="nb">int</span><span class="p">:</span><span class="s">&#39;long&#39;</span><span class="p">,</span>
-            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ulong</span><span class="p">:</span><span class="s">&#39;unsigned int&#39;</span><span class="p">,</span>
-            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_byte</span><span class="p">:</span><span class="s">&#39;char&#39;</span><span class="p">,</span>
-            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_longlong</span><span class="p">:</span><span class="s">&#39;long long&#39;</span><span class="p">,</span>
-            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ulonglong</span><span class="p">:</span><span class="s">&#39;unsigned long long&#39;</span><span class="p">,</span>
-            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_ubyte</span><span class="p">:</span><span class="s">&#39;unsigned char&#39;</span><span class="p">,</span>
-            <span class="p">}</span>
+<span class="kn">from</span> <span class="nn">opencl</span> <span class="kn">import</span> <span class="n">cl_types</span>
+<span class="n">type_map</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_char</span> <span class="p">:</span> <span class="s">&#39;char&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_char16</span> <span class="p">:</span> <span class="s">&#39;char16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_char2</span> <span class="p">:</span> <span class="s">&#39;char2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_char4</span> <span class="p">:</span> <span class="s">&#39;char4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_char8</span> <span class="p">:</span> <span class="s">&#39;char8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_double</span> <span class="p">:</span> <span class="s">&#39;double&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_double16</span> <span class="p">:</span> <span class="s">&#39;double16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_double2</span> <span class="p">:</span> <span class="s">&#39;double2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_double4</span> <span class="p">:</span> <span class="s">&#39;double4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_double8</span> <span class="p">:</span> <span class="s">&#39;double8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_float</span> <span class="p">:</span> <span class="s">&#39;float&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_float16</span> <span class="p">:</span> <span class="s">&#39;float16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_float2</span> <span class="p">:</span> <span class="s">&#39;float2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_float4</span> <span class="p">:</span> <span class="s">&#39;float4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_float8</span> <span class="p">:</span> <span class="s">&#39;float8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_half</span> <span class="p">:</span> <span class="s">&#39;half&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_int</span> <span class="p">:</span> <span class="s">&#39;int&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_int16</span> <span class="p">:</span> <span class="s">&#39;int16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_int2</span> <span class="p">:</span> <span class="s">&#39;int2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_int4</span> <span class="p">:</span> <span class="s">&#39;int4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_int8</span> <span class="p">:</span> <span class="s">&#39;int8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_long</span> <span class="p">:</span> <span class="s">&#39;long&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_long16</span> <span class="p">:</span> <span class="s">&#39;long16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_long2</span> <span class="p">:</span> <span class="s">&#39;long2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_long4</span> <span class="p">:</span> <span class="s">&#39;long4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_long8</span> <span class="p">:</span> <span class="s">&#39;long8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_short</span> <span class="p">:</span> <span class="s">&#39;short&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_short16</span> <span class="p">:</span> <span class="s">&#39;short16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_short2</span> <span class="p">:</span> <span class="s">&#39;short2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_short4</span> <span class="p">:</span> <span class="s">&#39;short4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_short8</span> <span class="p">:</span> <span class="s">&#39;short8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uchar</span> <span class="p">:</span> <span class="s">&#39;uchar&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uchar16</span> <span class="p">:</span> <span class="s">&#39;uchar16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uchar2</span> <span class="p">:</span> <span class="s">&#39;uchar2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uchar4</span> <span class="p">:</span> <span class="s">&#39;uchar4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uchar8</span> <span class="p">:</span> <span class="s">&#39;uchar8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uint</span> <span class="p">:</span> <span class="s">&#39;uint&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uint16</span> <span class="p">:</span> <span class="s">&#39;uint16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uint2</span> <span class="p">:</span> <span class="s">&#39;uint2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uint4</span> <span class="p">:</span> <span class="s">&#39;uint4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_uint8</span> <span class="p">:</span> <span class="s">&#39;uint8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ulong</span> <span class="p">:</span> <span class="s">&#39;ulong&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ulong16</span> <span class="p">:</span> <span class="s">&#39;ulong16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ulong2</span> <span class="p">:</span> <span class="s">&#39;ulong2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ulong4</span> <span class="p">:</span> <span class="s">&#39;ulong4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ulong8</span> <span class="p">:</span> <span class="s">&#39;ulong8&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ushort</span> <span class="p">:</span> <span class="s">&#39;ushort&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ushort16</span> <span class="p">:</span> <span class="s">&#39;ushort16&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ushort2</span> <span class="p">:</span> <span class="s">&#39;ushort2&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ushort4</span> <span class="p">:</span> <span class="s">&#39;ushort4&#39;</span><span class="p">,</span>
+    <span class="n">cl_types</span><span class="o">.</span><span class="n">cl_ushort8</span> <span class="p">:</span> <span class="s">&#39;ushort8&#39;</span><span class="p">,</span>
+
+    <span class="p">}</span>
+
 
 
 
@@ -484,14 +540,20 @@
         <li class="right" >
           <a href="../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../index.html">Clyther 0.3-beta documentation</a> &raquo;</li>
+        <li><a href="../../index.html">Clyther development documentation</a> &raquo;</li>
           <li><a href="../index.html" >Module code</a> &raquo;</li>
           <li><a href="../clyther.html" >clyther</a> &raquo;</li> 
       </ul>
     </div>
+
     <div class="footer">
         &copy; Copyright 2011, Sean Ross-Ross.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
     </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+</div>
+
   </body>
 </html>
